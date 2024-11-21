@@ -38,10 +38,10 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(starlight starlight.c bluetooth.c bluetooth_stdio.c)
+add_executable(starlight starlight.c bluetooth.c bluetooth_stdio.c Led.c ws2812.c)
 
 # Get all C and C++ files, when the glob value changes, cmake will run again and update the files
-#file(GLOB_RECURSE app_src CONFIGURE_DEPENDS "${SOURCE_FOLDER}/*.c" "${SOURCE_FOLDER}/*.cpp" )
+# file(GLOB_RECURSE app_src CONFIGURE_DEPENDS "${SOURCE_FOLDER}/*.c" "${SOURCE_FOLDER}/*.cpp" )
 
 
 #include_directories($ENV{PICO_SDK_PATH})
@@ -49,7 +49,7 @@ pico_set_program_name(starlight "starlight")
 pico_set_program_version(starlight "0.1")
 
 # Generate PIO header
-pico_generate_pio_header(starlight ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
+pico_generate_pio_header(starlight ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(starlight 1)

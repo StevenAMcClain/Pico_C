@@ -1,39 +1,42 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "pico/stdlib.h"
 #include "pico/util/queue.h"
 #include "hardware/sync.h"
 
-#include "hardware/dma.h"
+//#include "hardware/dma.h"
 #include "hardware/pio.h"
 #include "hardware/timer.h"
 
 #include "pico/cyw43_arch.h"
 #include <pico/multicore.h>
 
+#include "Led.h"
+#define NUM_PIXELS 19
 
 
 // Data will be copied from src to dst
-const char src[] = "Hello, world! (from DMA)";
-char dst[count_of(src)];
+// const char src[] = "Hello, world! (from DMA)";
+// char dst[count_of(src)];
 
-#include "blink.pio.h"
+//#include "blink.pio.h"
 
-void blink_pin_forever(PIO pio, uint sm, uint offset, uint pin, uint freq) {
-    blink_program_init(pio, sm, offset, pin);
-    pio_sm_set_enabled(pio, sm, true);
+// void blink_pin_forever(PIO pio, uint sm, uint offset, uint pin, uint freq) {
+//     blink_program_init(pio, sm, offset, pin);
+//     pio_sm_set_enabled(pio, sm, true);
 
-    printf("Blinking pin %d at %d Hz\n", pin, freq);
+//     printf("Blinking pin %d at %d Hz\n", pin, freq);
 
-    // PIO counter program takes 3 more cycles in total than we pass as
-    // input (wait for n + 1; mov; jmp)
-    pio->txf[sm] = (125000000 / (2 * freq)) - 3;
-}
+//     // PIO counter program takes 3 more cycles in total than we pass as
+//     // input (wait for n + 1; mov; jmp)
+//     pio->txf[sm] = (125000000 / (2 * freq)) - 3;
+// }
 
-int64_t alarm_callback(alarm_id_t id, void *user_data) {
-    // Put your timeout handler code in here
-    return 0;
-}
+// int64_t alarm_callback(alarm_id_t id, void *user_data) {
+//     // Put your timeout handler code in here
+//     return 0;
+// }
 
 
 #define QUEUE_SIZE 100
@@ -80,45 +83,39 @@ int main()
         return -1;
     }
     
-    multicore_lockout_victim_init();
-
     stdio_init_all();
 
     printf("\r\n\nStartlight %s %s %s: startup.\n", 
                 __VERSION__ , __TIME__, __DATE__);
 
+    multicore_lockout_victim_init();
     multicore_launch_core1(bluetooth_server);
- ///   bluetooth_server();
 
-    // // Get a free channel, panic() if there are none
-    // int chan = dma_claim_unused_channel(true);
-    
-    // // 8 bit transfers. Both read and write address increment after each
-    // // transfer (each pointing to a location in src or dst respectively).
-    // // No DREQ is selected, so the DMA transfers as fast as it can.
-    
-    // dma_channel_config c = dma_channel_get_default_config(chan);
-    // channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
-    // channel_config_set_read_increment(&c, true);
-    // channel_config_set_write_increment(&c, true);
-    
-    // dma_channel_configure(
-    //     chan,          // Channel to be configured
-    //     &c,            // The configuration we just created
-    //     dst,           // The initial write address
-    //     src,           // The initial read address
-    //     count_of(src), // Number of transfers; in this case each is 1 byte.
-    //     true           // Start immediately.
-    // );
-    
-    // // We could choose to go and do something else whilst the DMA is doing its
-    // // thing. In this case the processor has nothing else to do, so we just
-    // // wait for the DMA to finish.
-    // dma_channel_wait_for_finish_blocking(chan);
-    
-    // // The DMA has now copied our text from the transmit buffer (src) to the
-    // // receive buffer (dst), so we can print it out from there.
-    // puts(dst);
+    LED_Init(NUM_PIXELS);
+    size_t led_idx = 0;  //rand() % Num_LEDS;
+    while (1)
+    {
+        LED_VAL r = 0, g = 0, b = 0;
+
+        switch (rand() % 3)
+        {
+            case 0: r = 0xff; break;
+            case 1: g = 0xff; break;
+            case 2: b = 0xff; break;
+        }
+        LED_Set(led_idx, r, g, b);
+//        LED_Send(LED_Data);
+        LED_Update();
+//        sleep_ms(FLASH_TIME); 
+
+        LED_Set(led_idx, 0, 0, 0);
+//        LED_Send(LED_Data);
+        LED_Update();
+//        sleep_ms(SLEEP_TIME); 
+        if (++led_idx == Num_LEDS) led_idx = 0;
+    }
+
+
 
     // // PIO Blinking example
     // PIO pio = pio0;
