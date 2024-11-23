@@ -36,36 +36,36 @@
  * contact@bluekitchen-gmbh.com
  */
 
-#include <pico/stdlib.h>
-#include "pico/util/queue.h"
+#include "Common.h"
 
 #include <inttypes.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
- 
-#include "btstack.h"
+
+#include <pico/stdlib.h>
+#include <pico/multicore.h>
+#include <pico/util/queue.h>
+#include <pico/cyw43_arch.h>
+
+#include <btstack.h>
+
+#include "bluetooth_stdio.h"
+
+#define BLUETOOTH_PORTNAME "Starlight"
 
 #define RFCOMM_SERVER_CHANNEL 1
 #define HEARTBEAT_PERIOD_MS 1000
 
-static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size);
+PRIVATE void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size);
 
-static uint16_t rfcomm_channel_id;
-static uint8_t  spp_service_buffer[150];
-static btstack_packet_callback_registration_t hci_event_callback_registration;
+PRIVATE uint16_t rfcomm_channel_id;
+PRIVATE uint8_t  spp_service_buffer[150];
+PRIVATE btstack_packet_callback_registration_t hci_event_callback_registration;
 
+PRIVATE volatile char* lineBuffer = 0;
 
-#define BLUETOOTH_PORTNAME "Starlight"
-
-static char* lineBuffer = 0;
-
-void BlueTooth_Send_String(char* str)
-{
-    lineBuffer = str;
-    rfcomm_request_can_send_now_event(rfcomm_channel_id);
-}
+PRIVATE queue_t BlueTooth_Receive_Queue;
 
 
 /* @section SPP Service Setup 
@@ -83,7 +83,7 @@ void BlueTooth_Send_String(char* str)
  */
 
 /* LISTING_START(SPPSetup): SPP service setup */ 
-static void spp_service_setup(void){
+PRIVATE void spp_service_setup(void){
 
     // register for HCI events
     hci_event_callback_registration.callback = &packet_handler;
@@ -92,8 +92,7 @@ static void spp_service_setup(void){
     l2cap_init();
 
 #ifdef ENABLE_BLE
-    // Initialize LE Security Manager. Needed for cross-transport key derivation
-    sm_init();
+    sm_init();    // Initialize LE Security Manager. Needed for cross-transport key derivation
 #endif
 
     rfcomm_init();
@@ -104,7 +103,7 @@ static void spp_service_setup(void){
     memset(spp_service_buffer, 0, sizeof(spp_service_buffer));
     spp_create_sdp_record(spp_service_buffer, 0x10001, RFCOMM_SERVER_CHANNEL, BLUETOOTH_PORTNAME);
     sdp_register_service(spp_service_buffer);
-    printf("SDP service record size: %u\n", de_get_len(spp_service_buffer));
+   // printf("SDP service record size: %u\n", de_get_len(spp_service_buffer));
 }
 /* LISTING_END */
 
@@ -146,11 +145,10 @@ static void spp_service_setup(void){
  * on the rfcomm_cid that is include
  */ 
 
-static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size)
+PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size)
 {
     UNUSED(channel);
 
-/* LISTING_PAUSE */ 
     bd_addr_t event_addr;
     uint8_t   rfcomm_channel_nr;
     uint16_t  mtu;
@@ -166,7 +164,6 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
 
             switch (pet) 
             {
-/* LISTING_RESUME */ 
                 case HCI_EVENT_PIN_CODE_REQUEST:
                     // inform about pin code request
                     printf("Pin code request - using '0000'\n");
@@ -206,12 +203,10 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
                     // printf("RFCOMM can send now\n");
                     if (lineBuffer)
                     {
-                        rfcomm_send(rfcomm_channel_id, (uint8_t*) lineBuffer, (uint16_t) strlen(lineBuffer));  
+                        rfcomm_send(rfcomm_channel_id, (uint8_t*)lineBuffer, (uint16_t)strlen((const char*)lineBuffer));  
                         lineBuffer = 0;
                     }
                     break;
-
-/* LISTING_PAUSE */                 
                 case RFCOMM_EVENT_CHANNEL_CLOSED:
                     printf("RFCOMM channel closed\n");
                     rfcomm_channel_id = 0;
@@ -224,38 +219,87 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
         }
         case RFCOMM_DATA_PACKET:
         {
-            extern queue_t BlueTooth_Receive;
-
             // printf("RFCOMM_DATA_PACKET\n");
 
             for (i = 0; i < size; i++)
             {
-                queue_add_blocking(&BlueTooth_Receive, &packet[i]);
+                queue_add_blocking(&BlueTooth_Receive_Queue, &packet[i]);
             }
             break;
         }
         default:
+            printf("Unknown packet type 0x%X\n", packet_type);
             break;
     }
-/* LISTING_RESUME */ 
 }
-/* LISTING_END */
 
-//int btstack_main(int argc, const char * argv[]);
-int btstack_main(int argc, const char * argv[]){
-    (void)argc;
-    (void)argv;
- 
-//    one_shot_timer_setup();
+
+PRIVATE void btstack_main()
+{
     spp_service_setup();
 
     gap_discoverable_control(1);
     gap_ssp_set_io_capability(SSP_IO_CAPABILITY_DISPLAY_YES_NO);
     gap_set_local_name("StarLight 00:00:00:00:00:00");
 
-    // turn on!
-    hci_power_control(HCI_POWER_ON);
-    
-    return 0;
+    hci_power_control(HCI_POWER_ON);    // turn on!
 }
-/* EXAMPLE_END */
+
+
+PRIVATE int bluetooth_main() 
+{
+    // Initialise the Wi-Fi chip
+    if (cyw43_arch_init()) { printf("Bluetooth init failed\n"); return -1; }
+    
+    btstack_main();    // run the app
+    btstack_run_loop_execute();
+}
+
+PUBLIC void BlueTooth_Send_String(char* str)
+{
+    lineBuffer = str;
+    rfcomm_request_can_send_now_event(rfcomm_channel_id);
+}
+
+// ----------------------------------------------------------------------------------------
+
+PRIVATE void BlueTooth_Server(void)   // This is the main for the second core.
+{
+    queue_init(&BlueTooth_Receive_Queue, sizeof(uint8_t), QUEUE_SIZE);
+    bluetooth_main();
+}
+
+PUBLIC void Start_BlueTooth_Server(void)
+{
+    multicore_lockout_victim_init();
+    multicore_launch_core1(BlueTooth_Server);
+}
+
+
+
+PUBLIC char BlueTooth_GetChar()
+{
+    char val;
+    queue_remove_blocking(&BlueTooth_Receive_Queue, &val);
+    return val;
+}
+
+
+PUBLIC bool BlueTooth_Check_Receive(void)
+{
+    int val;
+    return queue_try_peek(&BlueTooth_Receive_Queue, &val);
+}
+
+
+#include <stdarg.h>
+PUBLIC void BlueTooth_Printf(const char *fmt, ...) 
+{ // Needs to be fixed.  Change to use a static buffer and then BlueTooth_Send_String
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);    //vsnprintf BlueTooth_Send_String
+    va_end(args);
+}
+
+
+// EndFile: bluetooth_stdio.c

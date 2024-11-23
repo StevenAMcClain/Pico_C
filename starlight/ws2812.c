@@ -13,7 +13,6 @@
 
 #include "pico/stdlib.h"
 
-//#include "hardware/clocks.h"
 #include "hardware/dma.h"
 #include "pico/sem.h"
 #include "hardware/pio.h"

@@ -15,9 +15,6 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-message("****************")
-message($USERHOME)
-message("****************")
 set(sdkVersion 2.0.0)
 set(toolchainVersion 13_2_Rel1)
 set(picotoolVersion 2.0.0)
@@ -38,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(starlight starlight.c bluetooth.c bluetooth_stdio.c Led.c ws2812.c)
+add_executable(starlight starlight.c bluetooth_stdio.c Led.c ws2812.c blob.c matcher.c morph.c parser.c queue.c obled.c)
 
 # Get all C and C++ files, when the glob value changes, cmake will run again and update the files
 # file(GLOB_RECURSE app_src CONFIGURE_DEPENDS "${SOURCE_FOLDER}/*.c" "${SOURCE_FOLDER}/*.cpp" )

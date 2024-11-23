@@ -28,7 +28,7 @@ typedef union
 extern size_t Num_LEDS;     // Number of leds used.
 extern LED LED_Data[];      // Current values for LEDs.
 
-extern double LED_Brightness;       // Brighness level (0-1.0)
+extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
 
 
 // Prepare LEDS for use.
@@ -41,9 +41,9 @@ extern size_t LED_Set_Num_Leds(size_t /*num_leds*/);
 
 // Sets a specific LED to a certain color, led_idx starts at 0
 //
-extern void LED_Set(size_t /*led_idx*/, LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
+extern void LED_Set_RGB(size_t /*led_idx*/, LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
 
-//extern void LED_Set_LED(uint32_t /*led*/, uint8_t* /*buffp*/);
+extern void LED_Set_LED(size_t /*led_idx*/, LED* /*buffp*/);
 
 // Sets all the LEDs to a certain color
 //

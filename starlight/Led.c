@@ -18,7 +18,7 @@
 
 PUBLIC size_t Num_LEDS = MAX_NUM_LEDS;
 
-PUBLIC double LED_Brightness = 1.0;
+PUBLIC FLOAT LED_Brightness = 1.0;
  
 /* Number of individual LEDs */
 PUBLIC LED LED_Data[MAX_NUM_LEDS];
@@ -29,7 +29,7 @@ PRIVATE LED scaled_led_data[MAX_NUM_LEDS];
 
 // Sets a specific LED to a certain color.   LEDs start at 0
 //
-PUBLIC void LED_Set(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
+PUBLIC void LED_Set_RGB(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
 {
 	if (led_idx < Num_LEDS)
 	{
@@ -70,9 +70,9 @@ PUBLIC void LED_All(LED_VAL r, LED_VAL g, LED_VAL b)
 }
 
 
-PRIVATE LED_VAL saturated_multiply(LED_VAL val, double mult)
+PRIVATE LED_VAL saturated_multiply(LED_VAL val, FLOAT mult)
 {
-	uint32_t big_val = (uint32_t)((double)val * mult);
+	uint32_t big_val = (uint32_t)((FLOAT)val * mult);
 
 	return (big_val <= MAX_LED_VAL) ? val : MAX_LED_VAL;
 }
