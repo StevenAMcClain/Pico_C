@@ -45,15 +45,23 @@ extern void LED_Set_RGB(size_t /*led_idx*/, LED_VAL /*r*/, LED_VAL /*g*/, LED_VA
 
 extern void LED_Set_LED(size_t /*led_idx*/, LED* /*buffp*/);
 
+// Sets all the LEDs to the same color.
+//
+extern void LED_All_LED(LED led);
+
 // Sets all the LEDs to a certain color
 //
-extern void LED_All(LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
+extern void LED_All_RGB(LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
 
 // Immediatly set all leds to black (off).
 //
 extern void LEDS_All_Black(void);
 
-// Send scaled LED_Data to led gtrinh.
+// Send scaled LED_Data to led string.
+//
+extern void LED_Do_Update(void);
+
+// Set do_update flag.
 //
 extern void LED_Update(void);
 

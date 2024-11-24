@@ -292,13 +292,17 @@ PUBLIC bool BlueTooth_Check_Receive(void)
 }
 
 
+#define MAX_BT_PRINTF_BUFF 100
+
 #include <stdarg.h>
 PUBLIC void BlueTooth_Printf(const char *fmt, ...) 
 { // Needs to be fixed.  Change to use a static buffer and then BlueTooth_Send_String
+    uint8_t buff[MAX_BT_PRINTF_BUFF] = {0};
     va_list args;
     va_start(args, fmt);
-    vprintf(fmt, args);    //vsnprintf BlueTooth_Send_String
+    vsnprintf(buff, sizeof(buff), fmt, args);    //vsnprintf BlueTooth_Send_String
     va_end(args);
+    BlueTooth_Send_String(buff);
 }
 
 

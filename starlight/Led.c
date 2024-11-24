@@ -24,7 +24,7 @@ PUBLIC FLOAT LED_Brightness = 1.0;
 PUBLIC LED LED_Data[MAX_NUM_LEDS];
 PRIVATE LED scaled_led_data[MAX_NUM_LEDS];
 
-// PRIVATE volatile bool do_update_leds = false;
+PRIVATE volatile bool do_update_leds = false;
 
 
 // Sets a specific LED to a certain color.   LEDs start at 0
@@ -51,30 +51,37 @@ PUBLIC void LED_Set_LED(size_t led_idx, LED* source_ledp)
 }
 
 
-// Sets all the LEDs to a certain color.
+// Sets all the LEDs to the same color.
 //
-PUBLIC void LED_All(LED_VAL r, LED_VAL g, LED_VAL b)
+PUBLIC void LED_All_LED(LED led)
 {
-	LED val;
-	val.led.red   = r;
-	val.led.green = g;
-	val.led.blue  = b;
-	
 	LED* ledp = LED_Data;
 	size_t count = Num_LEDS;
 
-	while (--count)
+	while (count--)
 	{
-		(ledp++)->val = val.val;
+		(ledp++)->val = led.val;
 	}
 }
 
 
-PRIVATE LED_VAL saturated_multiply(LED_VAL val, FLOAT mult)
+// Sets all the LEDs to a certain color.
+//
+PUBLIC void LED_All_RGB(LED_VAL r, LED_VAL g, LED_VAL b)
 {
-	uint32_t big_val = (uint32_t)((FLOAT)val * mult);
+	LED led;
+	led.led.red   = r;
+	led.led.green = g;
+	led.led.blue  = b;
 
-	return (big_val <= MAX_LED_VAL) ? val : MAX_LED_VAL;
+	LED_All_LED(led);
+}
+
+
+PRIVATE LED_VAL apply_brightness(LED_VAL val)
+{
+	uint32_t big_val = (uint32_t)(((FLOAT)val) * LED_Brightness);
+	return (big_val <= MAX_LED_VAL) ? big_val : MAX_LED_VAL;
 }
 
 
@@ -86,9 +93,9 @@ PRIVATE void scale_led_data()
 
 	while (bcount--)
 	{
-		sptr->led.red   = saturated_multiply(bptr->led.red,   LED_Brightness);
-		sptr->led.green = saturated_multiply(bptr->led.green, LED_Brightness);
-		sptr->led.blue  = saturated_multiply(bptr->led.blue,  LED_Brightness);
+		sptr->led.red   = apply_brightness(bptr->led.red);
+		sptr->led.green = apply_brightness(bptr->led.green);
+		sptr->led.blue  = apply_brightness(bptr->led.blue);
 		sptr++, bptr++;
 	}
 }
@@ -96,18 +103,28 @@ PRIVATE void scale_led_data()
 
 // Sends the data to the LEDs.
 //
-PUBLIC void LED_Update(void)
+PUBLIC void LED_Do_Update(void)
 {
-	scale_led_data();
-	sw2812_Send((uint32_t*)scaled_led_data);
+	if (do_update_leds)
+	{
+		scale_led_data();
+		sw2812_Send((uint32_t*)scaled_led_data);
+		do_update_leds = false;
+	}
 }
 
+// Sends the data to the LEDs.
+//
+PUBLIC void LED_Update(void)
+{
+	do_update_leds = true;
+}
 
 // Immediatly set all leds to black (off).
 //
 PUBLIC void LEDS_All_Black()
 {
-	LED_All(0, 0, 0);
+	LED_All_RGB(0, 0, 0);
 	LED_Update();
 }
 

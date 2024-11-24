@@ -1,5 +1,5 @@
 // File: Parser.h
 
-extern void Parser(void);
+extern void Start_Parser(void);
 
 // Endfile: Parser.h

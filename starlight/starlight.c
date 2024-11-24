@@ -11,24 +11,21 @@
 #include "Led.h"
 #include "Parser.h"
 
-#define NUM_PIXELS 19
+
+#define NUM_PIXELS 19       // This is the (initial) actual number LEDs on the string.
 
 
 void main(void)
 {
-    stdio_init_all();
+    stdio_init_all();               // Prepare stdio for use.
 
     printf("\r\n\nStartlight %s %s %s: startup.\n", __VERSION__ , __TIME__, __DATE__);
 
-    Start_BlueTooth_Server();
-
-    pico_led_init();
-
-    LED_Init(NUM_PIXELS);
-
-    Blob_Init();
-
-    Parser();
+    Start_BlueTooth_Server();       // Start BlueTooth server on second core.
+    pico_led_init();                // Prepare pico led for use.
+    LED_Init(NUM_PIXELS);           // Prepare LED string driver fro use.
+    Blob_Init();                    // Get Blob engine ready.
+    Start_Parser();                 // Start parsing BlueTooth characters.
 }
 
 // EndFile: StarLight.c

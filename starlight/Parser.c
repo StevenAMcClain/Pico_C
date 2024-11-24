@@ -40,15 +40,6 @@ PRIVATE int parser_getchar(void)
 }
 
 
-// PRIVATE void scan_for_sync(void* x);
-
-PRIVATE void start_sync()
-{  // ------------------------ FIX.....  Need sync_state....
-    Matchers_Reset();
-   // stdio_set_chars_available_callback(scan_for_sync, 0);
-}
-
-
 PRIVATE bool read_bytes(int n, uint8_t* buff)
 {
     while (n--)
@@ -108,8 +99,6 @@ PRIVATE void read_scene(void)
             reading = false; 
         }
     }
-
-    start_sync(); 
 }
 
 #define BLOB_PRE_HEADER_SIZE 12         // Number of bytes to read before reading header.
@@ -152,7 +141,6 @@ PRIVATE void read_blob(void)
                 // printf(" size %d\n", blob_size);
 
                 uint8_t* base = malloc(blob_size);
-                // uint8_t* real_base = base;
 
                 if (base)
                 {
@@ -175,22 +163,24 @@ PRIVATE void read_blob(void)
                                 // printf("read_blob: base %X %X\n", real_base, base);
                                 printf("\n* * * * * * BLOB LOADED * * * * * *\n");
                                 Blob_Load(base);
+                                BlueTooth_Printf("BLOB loaded.\n");
                             }
+                            else { BlueTooth_Printf("!!! Bad checksum: expected %X, got %X\n", blob_check, check); }
                         }
                     }
                 }
             }
-            else { printf("Wrong number of LEDS: expected %d, got %d\n", Num_LEDS, *(ptr-1)); }
+            else { BlueTooth_Printf("!!! Wrong number of LEDS: expected %d, got %d\n", Num_LEDS, *(ptr-1)); }
         }
-        else { printf("Bad blob version: expected %X, got %X\n", Version(), *(ptr-1)); }
+        else { BlueTooth_Printf("!!! Bad blob version: expected %X, got %X\n", Version(), *(ptr-1)); }
     }
-    start_sync();        // Restart comm character callback hook.
+    BlueTooth_Printf("!!! BLOB load load fail.\n\n");
 }
 
 
 PRIVATE void read_num(int mode)
 {
-    int trigger_num = 0;
+    int val = 0;
 
     bool reading = true;
 
@@ -204,43 +194,43 @@ PRIVATE void read_num(int mode)
 
             if (isdigit(ch))
             {
-                trigger_num *= 10;
-                trigger_num += ch - '0';
+                val *= 10;
+                val += ch - '0';
             }
             else if (ch == ' ')
             {
                 if (mode == READ_INTR)
                 {
-                    printf("DO INTER %d\n", trigger_num);         // SAME as trig (for now).
+                    printf("DO INTER %d\n", val);         // SAME as trig (for now).
 //                    Blob_Queue_Next(trigger_num);
                 }
                 else if (mode == READ_QUEUE)
                 {
-                    printf("DO NEXT %d\n", trigger_num);         // SAME as trig (for now).
-                    Blob_Queue_Next(trigger_num);
+                    printf("DO NEXT %d\n", val);         // SAME as trig (for now).
+                    Blob_Queue_Next(val);
                 }
                 else if (mode == READ_TRIG)
                 {
-                    printf("DO TRIGGER %d\n", trigger_num);
-                    Blob_Trigger(trigger_num);
+                    printf("DO TRIGGER %d\n", val);
+                    Blob_Trigger(val);
                 }
                 else if (mode == READ_CONFIG)
                 {
-                    printf("DO READ CONFIG %d\n", trigger_num);
+                    printf("DO READ CONFIG %d\n", val);
 
-                    if (trigger_num > 0 && trigger_num < MAX_NUM_LEDS)
+                    if (val > 0 && val < MAX_NUM_LEDS)
                     {
-                        Num_LEDS = trigger_num;
+                        Num_LEDS = val;
                         // Blob must match Num_LEDS.
                     }
                 }
                 else if (mode == READ_BRIGHTNESS)
                 {
-                    printf("DO READ BRIGHTNESS %d\n", trigger_num);
+                    printf("BRIG %d\n", val);
 
-                    if (trigger_num > 0 && trigger_num <= MAX_BRIGHTNESS_NUM)
+                    if (val >= 0 && val <= MAX_BRIGHTNESS_NUM)
                     {
-                        LED_Brightness = trigger_num / (double)MAX_BRIGHTNESS_NUM;
+                        LED_Brightness = val / (double)MAX_BRIGHTNESS_NUM;
                         LED_Update();
                     }
                 }
@@ -250,12 +240,10 @@ PRIVATE void read_num(int mode)
         }
         else 
         {
-            printf("read_trigger: TIMEOUT\n"); 
+            printf("read_num: TIMEOUT\n"); 
             reading = false;
         }
     }
-
-    start_sync(); 
 }
 
 
@@ -278,7 +266,7 @@ PRIVATE void scan_for_sync()
                     printf("BLAC\n");
                     Blob_Stop();
                     LEDS_All_Black();
-                    Matchers_Reset();
+                    BlueTooth_Printf("BLAC\n");
                     break;
                 }
                 case MATCH_BLOB:            // BLOB: Load a new binary object containing program.
@@ -287,7 +275,20 @@ PRIVATE void scan_for_sync()
                     read_blob();
                     break;
                 }
-                case MATCH_CONFIG:
+                case MATCH_TRIGGER:
+                {
+                    printf("TRIG\n");
+                    read_num(READ_TRIG);
+                    BlueTooth_Printf("TRIG\n");
+                    break; 
+                }
+                case MATCH_BRIGHTNESS:
+                {
+//                    printf("BRIG\n");
+                    read_num(READ_BRIGHTNESS);
+                    break;
+                }
+                case MATCH_CONFIG:          // Define the number of LEDs in system.
                 {
                     printf("CONF\n");
                     read_num(READ_CONFIG);
@@ -305,26 +306,15 @@ PRIVATE void scan_for_sync()
                     read_scene();
                     break; 
                 }
-                case MATCH_TRIGGER:
-                {
-                    printf("TRIG\n");
-                    read_num(READ_TRIG);
-                    break; 
-                }
-                case MATCH_BRIGHTNESS:
-                {
-                    printf("BRIG\n");
-                    read_num(READ_BRIGHTNESS);
-                    break;
-                }
             }
+            Matchers_Reset();
         }
     }
 //    else { printf("scan_for_sync: TIMEOUT\n"); }
 }
 
 
-PUBLIC void Parser()
+PUBLIC void Start_Parser()
 {
     Matchers_Init();
 

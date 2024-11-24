@@ -21,6 +21,8 @@ PUBLIC const int Tick_Speed =
 1000;
 #endif
 
+PRIVATE LED LED_Morph_Data[MAX_NUM_LEDS];
+
 #define PROG_QUEUE_SIZE 10   // Maximum number of pending programs.
 
 // #define RUNNING_QUEUE_SIZE 10   // Maximum number of pending programs.
@@ -127,10 +129,10 @@ PRIVATE void Push_Context(void)
 
 	Queue_Add(q, (uint32_t)Blob_State.Xiti_Times);		// Store for transition step time counts.
 	// XITI* Xiti;										// Transition currently playing.
-	Queue_Add(q,           Blob_State.Scene_ID);					// Used for scene state.
+	Queue_Add(q,           Blob_State.Scene_ID);		// Used for scene state.
 	Queue_Add(q, (uint32_t)Blob_State.repeat_start);	// First command in program sequence.
-	Queue_Add(q,           Blob_State.repeat);					// Number of times left to repeat.
-	Queue_Add(q,           Blob_State.wait_counter);				// Ticks left to wait until next step.
+	Queue_Add(q,           Blob_State.repeat);			// Number of times left to repeat.
+	Queue_Add(q,           Blob_State.wait_counter);	// Ticks left to wait until next step.
 	Queue_Add(q, (uint32_t)Blob_State.prog);
 	Queue_Add(q,           Blob_State.State);
 
@@ -154,7 +156,7 @@ PRIVATE void Pop_Context(void)
 }
 
 
-PUBLIC bool Process_Command()
+PRIVATE bool Process_Command(void)
 {
 	bool done = false;
 	bool result = true;
@@ -233,14 +235,14 @@ PUBLIC bool Process_Command()
 					break;
 				}
 				case COMMAND_MORPH:    // morph current scene into new scene (n) over (t) seconds.
-				case COMMAND_TRIGGER:  // bind a trigger to a routine.
+//				case COMMAND_TRIGGER:  // bind a trigger to a routine.
 					cmdp++;
 				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
 				case COMMAND_ROTATE:   // rotate led value. (end wraps).
 
-				case COMMAND_QUEUE:    // add routine to queue.
+				case COMMAND_QUEUE:     // add routine to queue.
 				case COMMAND_INTERRUPT: // interrupt current routine.
-				case COMMAND_LEDS:     // set number of leds.
+				case COMMAND_LEDS:      // set number of leds.
 					cmdp++;
 				{
 					printf("Command(%d) '%s' is not implemented yet.\n", cmd, Command_Name(cmd));
@@ -260,6 +262,7 @@ PUBLIC bool Process_Command()
 
 	return result;
 }
+
 
 ///--- Scene ---
 
@@ -374,6 +377,8 @@ PUBLIC bool Blob_Tick(struct repeating_timer* ptr)
 {
 	static int Tick_Count = 0;
 
+	LED_Do_Update();
+
 //	ObLED_On();
 
 	D(if (Blob_State.State)  { printf("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Blob_State.State); })
@@ -466,6 +471,7 @@ PRIVATE PROG_ID Get_Trigger_Prog(TRIG_ID id)
 		{
 			if (id == *trigp++)		// ID Match?
 				return *trigp;		// Return Program ID.
+			++trigp;                // Skip Program ID
 		}
 	}
 	return 0;
