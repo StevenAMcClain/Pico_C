@@ -164,6 +164,7 @@ PRIVATE void read_blob(void)
                                 printf("\n* * * * * * BLOB LOADED * * * * * *\n");
                                 Blob_Load(base);
                                 BlueTooth_Printf("BLOB loaded.\n");
+                                return;
                             }
                             else { BlueTooth_Printf("!!! Bad checksum: expected %X, got %X\n", blob_check, check); }
                         }

@@ -156,6 +156,96 @@ PRIVATE void Pop_Context(void)
 }
 
 
+PUBLIC void Command_Shift_LEDS(int count, bool do_shift)
+{
+#define NEXT_P(startp, p) ((++(p) >= ((startp) + Num_LEDS)) ? ((p)=(startp)) : (p))
+	if (count && (abs(count) < Num_LEDS))
+	{
+		LED* srcp_start = LED_Data;
+		LED* dstp_start = ALT_LED_Data();
+
+		LED* dstp = dstp_start;
+
+		if (count > 0)
+		{
+			if (do_shift)
+			{
+				LED* srcp = srcp_start;
+
+				int i = Num_LEDS;
+
+				int c = count;
+				while (c--)
+				{
+					dstp->val = 0;
+					NEXT_P(dstp_start, dstp);
+					--i;
+				}
+
+				while (i--)
+				{
+					dstp->val = srcp->val;
+					NEXT_P(srcp_start, srcp);
+					NEXT_P(dstp_start, dstp);
+				}
+			}
+			else
+			{
+				LED* srcp = srcp_start + Num_LEDS - count;
+
+				int i = Num_LEDS;
+
+//				int c = count;
+				while (i--)
+				{
+					dstp->val = srcp->val;
+					NEXT_P(srcp_start, srcp);
+					NEXT_P(dstp_start, dstp);
+				}
+			}
+		}
+		else
+		{
+			count = -count;
+
+			if (do_shift)
+			{
+				LED* srcp = srcp_start + count;
+				LED* end_srcp = srcp_start + Num_LEDS - count;
+
+				while (srcp < end_srcp)
+				{
+					dstp->val = srcp->val;
+					++srcp; ++dstp;
+				}
+
+				while (dstp < (dstp_start + Num_LEDS))
+				{
+					dstp->val = 0;
+					++dstp;
+				}
+			}
+			else
+			{
+				LED* srcp = srcp_start + count;
+				LED* end_srcp = srcp_start + Num_LEDS - count;
+
+				int i = Num_LEDS;
+
+				while (i--)
+				{
+					dstp->val = srcp->val;
+					++dstp;
+					NEXT_P(srcp_start, srcp);
+				}
+			}
+		}
+
+		Switch_ALT_LED_Data();  // Flip to alternate.
+	}
+}
+
+
 PRIVATE bool Process_Command(void)
 {
 	bool done = false;
@@ -234,11 +324,21 @@ PRIVATE bool Process_Command(void)
 					cmdp = Blob_State.repeat_start = Blob_State.prog = Prog_Ptr(cmd_idx);;
 					break;
 				}
+				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
+				{
+					int32_t shift = (int32_t)*cmdp++;			// Number of places to shift.
+					Command_Shift_LEDS(shift, true);
+					break;
+				}
+				case COMMAND_ROTATE:   // rotate led value. (end wraps).
+				{
+					int32_t shift = (int32_t)*cmdp++;			// Number of places to shift.
+					Command_Shift_LEDS(shift, false);
+					break;
+				}
 				case COMMAND_MORPH:    // morph current scene into new scene (n) over (t) seconds.
 //				case COMMAND_TRIGGER:  // bind a trigger to a routine.
 					cmdp++;
-				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
-				case COMMAND_ROTATE:   // rotate led value. (end wraps).
 
 				case COMMAND_QUEUE:     // add routine to queue.
 				case COMMAND_INTERRUPT: // interrupt current routine.
@@ -371,7 +471,7 @@ PRIVATE void start_program(PROG_ID n)
 }
 
 
-PUBLIC bool Blob_Tick(struct repeating_timer* ptr)
+PRIVATE bool Blob_Tick(struct repeating_timer* ptr)
 //
 // Tick for player state machine.    Called Tick_Speed times per second. 
 {

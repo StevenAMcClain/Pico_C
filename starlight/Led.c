@@ -7,29 +7,40 @@
 #include "led.h"
 #include "ws2812.h"
 
-//#define LED_Send(x) sw2812_Send((uint32_t*)(x))
 
-// extern uint32_t disable_and_save_interrupts();			/* Used for interrupt disabling */
-// extern void enable_and_restore_interrupts(uint32_t);	/* Used for interrupt enabling */
-// extern void send_bit();
-
-// #define LED_PIN 14    // The GPIO pin for the LED data.
-// #define LED_PIN_MASK (1UL << LED_PIN)
+PRIVATE volatile bool do_update_leds = false;  
 
 PUBLIC size_t Num_LEDS = MAX_NUM_LEDS;
 
 PUBLIC FLOAT LED_Brightness = 1.0;
  
 /* Number of individual LEDs */
-PUBLIC LED LED_Data[MAX_NUM_LEDS];
-PRIVATE LED scaled_led_data[MAX_NUM_LEDS];
+PRIVATE LED LED_Data_One[MAX_NUM_LEDS];
+PRIVATE LED LED_Data_Two[MAX_NUM_LEDS];
 
-PRIVATE volatile bool do_update_leds = false;
+PUBLIC LED* LED_Data = LED_Data_One;
+
+PRIVATE LED scaled_led_data[MAX_NUM_LEDS];    // This is the buffer that is actually sent to LEDS.
 
 
-// Sets a specific LED to a certain color.   LEDs start at 0
+PUBLIC LED* ALT_LED_Data(void)
 //
+//  Returns an alternate LED_Buffer.
+{
+	return LED_Data == LED_Data_One ? LED_Data_Two : LED_Data_One;
+}
+
+PUBLIC void Switch_ALT_LED_Data(void)
+//
+//  Sets alternate buffer to current.
+{
+	LED_Data = ALT_LED_Data();
+	LED_Update();
+}
+
 PUBLIC void LED_Set_RGB(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
+//
+// Sets a specific LED to a certain color.   LEDs start at 0
 {
 	if (led_idx < Num_LEDS)
 	{

@@ -37,6 +37,7 @@
  */
 
 #include "Common.h"
+#include "bluetooth_stdio.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -50,7 +51,8 @@
 
 #include <btstack.h>
 
-#include "bluetooth_stdio.h"
+#include "obled.h"
+
 
 #define BLUETOOTH_PORTNAME "Starlight"
 
@@ -180,6 +182,14 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                 case HCI_EVENT_SIMPLE_PAIRING_COMPLETE:
                 {
                     printf("PAIRING_COMPLETE\n");
+ObLED_On();
+sleep_ms(100);
+ObLED_Off();
+sleep_ms(300);
+ObLED_On();
+sleep_ms(100);
+ObLED_Off();
+
                     break;
                 }
                 case RFCOMM_EVENT_INCOMING_CONNECTION:
@@ -197,6 +207,7 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                         rfcomm_channel_id = rfcomm_event_channel_opened_get_rfcomm_cid(packet);
                         mtu = rfcomm_event_channel_opened_get_max_frame_size(packet);
                         printf("RFCOMM channel open succeeded. New RFCOMM Channel ID %u, max frame size %u\n", rfcomm_channel_id, mtu);
+ObLED_On();
                     }
                     break;
                 case RFCOMM_EVENT_CAN_SEND_NOW:
@@ -210,6 +221,7 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                 case RFCOMM_EVENT_CHANNEL_CLOSED:
                     printf("RFCOMM channel closed\n");
                     rfcomm_channel_id = 0;
+ObLED_Off();
                     break;
                 
                 default:
@@ -220,11 +232,13 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
         case RFCOMM_DATA_PACKET:
         {
             // printf("RFCOMM_DATA_PACKET\n");
+ObLED_Off();
 
             for (i = 0; i < size; i++)
             {
                 queue_add_blocking(&BlueTooth_Receive_Queue, &packet[i]);
             }
+ObLED_On();
             break;
         }
         default:
@@ -233,27 +247,6 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
     }
 }
 
-
-PRIVATE void btstack_main()
-{
-    spp_service_setup();
-
-    gap_discoverable_control(1);
-    gap_ssp_set_io_capability(SSP_IO_CAPABILITY_DISPLAY_YES_NO);
-    gap_set_local_name("StarLight 00:00:00:00:00:00");
-
-    hci_power_control(HCI_POWER_ON);    // turn on!
-}
-
-
-PRIVATE int bluetooth_main() 
-{
-    // Initialise the Wi-Fi chip
-    if (cyw43_arch_init()) { printf("Bluetooth init failed\n"); return -1; }
-    
-    btstack_main();    // run the app
-    btstack_run_loop_execute();
-}
 
 PUBLIC void BlueTooth_Send_String(char* str)
 {
@@ -266,7 +259,19 @@ PUBLIC void BlueTooth_Send_String(char* str)
 PRIVATE void BlueTooth_Server(void)   // This is the main for the second core.
 {
     queue_init(&BlueTooth_Receive_Queue, sizeof(uint8_t), QUEUE_SIZE);
-    bluetooth_main();
+
+    // Initialise the Wi-Fi chip
+    if (cyw43_arch_init()) { printf("Bluetooth init failed\n"); return; }
+    
+    spp_service_setup();
+
+    gap_discoverable_control(1);
+    gap_ssp_set_io_capability(SSP_IO_CAPABILITY_DISPLAY_YES_NO);
+    gap_set_local_name("StarLight 00:00:00:00:00:00");
+
+    hci_power_control(HCI_POWER_ON);    // turn on!
+
+    btstack_run_loop_execute();
 }
 
 PUBLIC void Start_BlueTooth_Server(void)

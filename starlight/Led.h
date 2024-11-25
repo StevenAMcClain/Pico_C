@@ -26,10 +26,17 @@ typedef union
 #define MAX_LED_DATA_SIZE (MAX_NUM_LEDS * LED_SIZE)
 
 extern size_t Num_LEDS;     // Number of leds used.
-extern LED LED_Data[];      // Current values for LEDs.
+extern LED* LED_Data;       // Current values for LEDs.
 
 extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
 
+// Returns an alternate LED_Buffer.
+//
+extern LED* ALT_LED_Data(void);    
+
+// Sets alternate buffer to current.
+//
+extern void Switch_ALT_LED_Data(void);
 
 // Prepare LEDS for use.
 //

@@ -23,7 +23,7 @@ void main(void)
 
     Start_BlueTooth_Server();       // Start BlueTooth server on second core.
     pico_led_init();                // Prepare pico led for use.
-    LED_Init(NUM_PIXELS);           // Prepare LED string driver fro use.
+    LED_Init(NUM_PIXELS);           // Prepare LED string driver for use.
     Blob_Init();                    // Get Blob engine ready.
     Start_Parser();                 // Start parsing BlueTooth characters.
 }
