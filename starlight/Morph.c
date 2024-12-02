@@ -8,10 +8,10 @@
 // #include <time.h>
 
 #include "Blob.h"
-// #include "DeQue.h"
 #include "Led.h"
 
 #include "Morph.h"
+
 
 typedef struct Morph_Step
 {
@@ -20,7 +20,6 @@ typedef struct Morph_Step
 	int step;		// Size of each step.
 
 } MORPH_STEP;
-
 
 typedef struct Morph
 {
@@ -96,7 +95,7 @@ PRIVATE void calc_morph_step(MORPH* morph, MORPH_STEP* step)
 }
 
 
-PUBLIC void morph_start(FLOAT trans_time, uint8_t* to_scene)
+PUBLIC void morph_start(FLOAT trans_time, LED* to_scene)
 {
 	// MORPH_STEP* step = morph_step_data;
 	// uint8_t* from_scene = LED_Data;

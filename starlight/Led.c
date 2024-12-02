@@ -38,6 +38,50 @@ PUBLIC void Switch_ALT_LED_Data(void)
 	LED_Update();
 }
 
+
+PRIVATE LED_VAL apply_brightness(LED_VAL val)
+{
+	uint32_t big_val = (uint32_t)(((FLOAT)val) * LED_Brightness);
+	return (big_val <= MAX_LED_VAL) ? big_val : MAX_LED_VAL;
+}
+
+
+PRIVATE void scale_led_data()
+{
+	LED* bptr = LED_Data;
+	LED* sptr = scaled_led_data;
+	size_t bcount = Num_LEDS;
+
+	while (bcount--)
+	{
+		sptr->led.red   = apply_brightness(bptr->led.red);
+		sptr->led.green = apply_brightness(bptr->led.green);
+		sptr->led.blue  = apply_brightness(bptr->led.blue);
+		sptr++, bptr++;
+	}
+}
+
+
+// Sends the data to the LEDs.
+//
+PUBLIC void LED_Do_Update(void)
+{
+	if (do_update_leds)
+	{
+		scale_led_data();
+		WS2812_Send(0, (uint32_t*)scaled_led_data);
+		do_update_leds = false;
+	}
+}
+
+// Sends the data to the LEDs.
+//
+PUBLIC void LED_Update(void)
+{
+	do_update_leds = true;
+}
+
+
 PUBLIC void LED_Set_RGB(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
 //
 // Sets a specific LED to a certain color.   LEDs start at 0
@@ -89,48 +133,6 @@ PUBLIC void LED_All_RGB(LED_VAL r, LED_VAL g, LED_VAL b)
 }
 
 
-PRIVATE LED_VAL apply_brightness(LED_VAL val)
-{
-	uint32_t big_val = (uint32_t)(((FLOAT)val) * LED_Brightness);
-	return (big_val <= MAX_LED_VAL) ? big_val : MAX_LED_VAL;
-}
-
-
-PRIVATE void scale_led_data()
-{
-	LED* bptr = LED_Data;
-	LED* sptr = scaled_led_data;
-	size_t bcount = Num_LEDS;
-
-	while (bcount--)
-	{
-		sptr->led.red   = apply_brightness(bptr->led.red);
-		sptr->led.green = apply_brightness(bptr->led.green);
-		sptr->led.blue  = apply_brightness(bptr->led.blue);
-		sptr++, bptr++;
-	}
-}
-
-
-// Sends the data to the LEDs.
-//
-PUBLIC void LED_Do_Update(void)
-{
-	if (do_update_leds)
-	{
-		scale_led_data();
-		sw2812_Send((uint32_t*)scaled_led_data);
-		do_update_leds = false;
-	}
-}
-
-// Sends the data to the LEDs.
-//
-PUBLIC void LED_Update(void)
-{
-	do_update_leds = true;
-}
-
 // Immediatly set all leds to black (off).
 //
 PUBLIC void LEDS_All_Black()
@@ -146,7 +148,7 @@ PUBLIC void LED_Init(size_t num_leds)
 {
 	Num_LEDS = num_leds;
 
-	sw2812_Init(num_leds);
+	WS2812_Init();
 
 	sleep_ms(10);	// Wait a bit to ensure clock is running and force LEDs to reset
 

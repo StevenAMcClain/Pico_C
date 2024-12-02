@@ -4,7 +4,7 @@ typedef enum match_code
 {
     MATCH_NONE,    // Must be first.
 
-    MATCH_CONFIG,       // Set configuration (num_leds)
+    MATCH_PHYS,       // Set configuration (num_leds)
     MATCH_SCENE,        // Set leds to scene.
     MATCH_BLACK,        // All leds black (stop running blob and clears queue)
     MATCH_BLOB,         // Loads a new blob.

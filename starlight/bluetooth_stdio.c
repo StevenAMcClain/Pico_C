@@ -69,6 +69,7 @@ PRIVATE volatile char* lineBuffer = 0;
 
 PRIVATE queue_t BlueTooth_Receive_Queue;
 
+PRIVATE bool is_connected = false;
 
 /* @section SPP Service Setup 
  *s
@@ -183,11 +184,11 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                 {
                     printf("PAIRING_COMPLETE\n");
 ObLED_On();
-sleep_ms(100);
+sleep_ms(500);
 ObLED_Off();
-sleep_ms(300);
+sleep_ms(500);
 ObLED_On();
-sleep_ms(100);
+sleep_ms(500);
 ObLED_Off();
 
                     break;
@@ -207,7 +208,9 @@ ObLED_Off();
                         rfcomm_channel_id = rfcomm_event_channel_opened_get_rfcomm_cid(packet);
                         mtu = rfcomm_event_channel_opened_get_max_frame_size(packet);
                         printf("RFCOMM channel open succeeded. New RFCOMM Channel ID %u, max frame size %u\n", rfcomm_channel_id, mtu);
+is_connected = true;
 ObLED_On();
+
                     }
                     break;
                 case RFCOMM_EVENT_CAN_SEND_NOW:
@@ -221,6 +224,7 @@ ObLED_On();
                 case RFCOMM_EVENT_CHANNEL_CLOSED:
                     printf("RFCOMM channel closed\n");
                     rfcomm_channel_id = 0;
+is_connected = false;
 ObLED_Off();
                     break;
                 
@@ -281,7 +285,6 @@ PUBLIC void Start_BlueTooth_Server(void)
 }
 
 
-
 PUBLIC char BlueTooth_GetChar()
 {
     char val;
@@ -292,16 +295,20 @@ PUBLIC char BlueTooth_GetChar()
 
 PUBLIC bool BlueTooth_Check_Receive(void)
 {
-    int val;
-    return queue_try_peek(&BlueTooth_Receive_Queue, &val);
+    if (is_connected)
+    {
+        int val;
+        return queue_try_peek(&BlueTooth_Receive_Queue, &val);
+    }
+    return false;
 }
 
 
-#define MAX_BT_PRINTF_BUFF 100
+#define MAX_BT_PRINTF_BUFF 200
 
 #include <stdarg.h>
 PUBLIC void BlueTooth_Printf(const char *fmt, ...) 
-{ // Needs to be fixed.  Change to use a static buffer and then BlueTooth_Send_String
+{
     uint8_t buff[MAX_BT_PRINTF_BUFF] = {0};
     va_list args;
     va_start(args, fmt);
