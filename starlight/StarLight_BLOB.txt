@@ -1,0 +1,131 @@
+
+Protocol for StarLight system.
+
+//-----------------------------------------
+BLAC:                              // Immediate all black scene.
+                                   // Stops running program and clears queue.
+
+//-----------------------------------------
+BLOB:  	// Program blob.
+
+		blob_vers:  uint32_t			// Version number '1.0a'.
+		blob_size:  uint32_t			// size of whole blob in bytes.
+		trig_start: uint32_t			// Trigger array starts here (relative to start).
+		trig_size:  uint32_t			// Number of triggers defined.
+		larr_index: uint32_t			// Logical led array index starts here (relative to start).
+		larr_count: uint32_t			// Number of logical led arrays defined.
+		larr_array: uint32_t			// 
+		larr_size:  uint32_t			// 
+		prog_start: uint32_t			// Program array starts here (relative to start).
+		prog_size:  uint32_t			// Size of program array.
+		scen_index: uint32_t			// Scene index starts here (relative to start).
+		scen_count: uint32_t            // Number of scenes defined.
+		scen_array: uint32_t            // Scene array starts here (relative to start).
+		scen_size:  uint32_t			// Size of scene array.
+
+		trig:	[  // Maps program start points to triggers.
+				   trig_idx:   uint32_t // Trigger number.
+				   prog_start: uint32_t // Program start point.
+				] * num_triggers
+
+		larr_index:	[  // Defines virtual led arrays that map onto physical led strings.
+				   larr_start: uint32_t   // Star of each logical array (larr).
+		        ] * larr_count
+
+		larr_array: [ 
+					led_count  uint32_t		// Number of leds in logical array.
+					[....   PA1, PA2, PB3..99]
+		        ] * larr_count
+
+		prog:	[
+		          command: uint32_t     // Program commands.
+		        ] * size
+
+		scen_index: [
+		          scene_start: uint32_t  // Start point for scene in scen_array.
+		        ] * scen_count
+
+		scen_array:	[
+		   		  [ 
+				    flags: uint8_t      // Flags and/or multiplier
+				                        // 0xFF - End
+				                        // 0xFE - All
+				                        // 0xFD - Last
+				                        // 0xFC - Skip
+				                        // 0-FB - Repeat
+ 		   		    green: uint8_t		// Level for green
+				    red:   uint8_t		// Level for red
+				    blue:  uint8_t		// Level for blue
+				  ] * <=num LEDS
+				  end_flags             // scen separator (simple end, all, or last.)
+				] * scen_count
+
+
+//-----------------------------------------
+TRIG:  decimal number ( < 4200000000)    // Immediatly trigger a program from the BLOB.
+       followed by a space.
+
+//-----------------------------------------
+SCEN:	// Instant scene set.
+
+		scen:	[ green: uint8_t  	// Level for green
+				  red:   uint8_t	// Level for red
+				  blue:  uint8_t	// Level for blue
+				] * num LEDS
+
+//-----------------------------------------
+NEXT:  decimal number ( < 4200000000)    // Trigger a program from the BLOB (after current one finishes).
+       followed by a space.
+
+//-----------------------------------------
+// Define the number of LEDs on a physical string.
+//
+PHYS:  {phynum} {numleds}
+		phynum = string phy number decimal number (1 -> 8)
+		numleds = number of leds on this string {decimal number ( < 600)}   
+
+
+- Program(0) is automatically started when blob is loaded.
+
+
+
+Commands:
+	YIEL					# Wait until next tick.
+	INTR (cp)				# Interrupt current command and continue after.
+	QUEU (cp)				# Add a command to execute after current command.
+	CALL (cp)				# Call a command
+	JUMP (cp)				# Jump to a command
+    REPE (in) (cp)          # Call command a number of times.
+    WAIT (time)				# Wait for a number of seconds.
+
+    LARR (lar)              # Set current led array.
+    SCEN[larr] (sp)			# Set a scene
+    MORP[larr] (time) (sp)	# Morph current scene into new scene.
+    SHIF[larr] (+/-in)		# Shift led pattern forward or backaward.  (black shifts in).
+    ROTA[larr] (+/-in)		# Rotate led pattern forward or backward.  (ends wrap around).
+
+    TRIG (in) (cp)			# Bind a trigger to command
+    PHYS (parr) (in)		# Set the number of LEDs wired up to a physical string.
+    END 					# End of commmand script.
+
+
+cp = command pointer.  An index from the start of the command block.
+sp = scene pointer.    An index from the start
+arr = array specifier.   The name of a logical or physical led array.
+       (P1 -> P8, L1 -> Ln)
+parr = physical array specifier.   The name of a physical led array.
+       (P1 -> P8)
+
+
+in = integer from 0->xxxx
++/-in = integer from (-xxxx) -> xxxx
+
+time = floating point in seconds.  (converts to int number of milliseconds)
+
+xxx:
+	scen 1
+	wait 10
+	scen 2
+	wait 10
+	jump xxx
+
