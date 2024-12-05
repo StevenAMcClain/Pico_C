@@ -8,9 +8,10 @@
 // #include <string.h>
 // //#include <time.h>
 
+#include "blob.h"
 // #include "obled.h"
 // #include "Queue.h"
-#include "Led.h"
+#include "led.h"
 // #include "Morph.h"
 
 
@@ -33,7 +34,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 
 	uint32_t i = 0;
 
-	while (i < Num_LEDS)
+	while (i < Num_LEDS())
 	{
 		uint8_t buff[4];
 		D(printf(": i = %d, ", i);)
@@ -55,7 +56,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 		else if (flags == FLAGS_END_LAST)
 		{
 			D(printf("End Last");)
-			while (i < Num_LEDS)
+			while (i < Num_LEDS())
 			{
 				LED_Set_RGB(i, buff[1], buff[2], buff[3]);
 				++i;
@@ -81,7 +82,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 			D(printf("\n");)
 		}
 	}
-	LED_Update();
+	LED_Update(0);
 }
 
 
@@ -89,7 +90,7 @@ PUBLIC void Set_Scene(SCENE_ID id)
 //
 // Render scene given scene id.
 {
-//	if (id && id <= Blob.Num_Scenes)
+	if (id && id <= Blob.Num_Scenes)
 	{
 		uint32_t start_idx = Blob.Scene_Index[--id];
 
@@ -97,7 +98,7 @@ PUBLIC void Set_Scene(SCENE_ID id)
 
 		Render_Scene(Blob.Scene_Array + start_idx);
 	}
-//	else { D(printf("Set scene: bad id = %d\n", id);) }
+	else { D(printf("Set scene: bad id = %d\n", id);) }
 }
 
 

@@ -6,21 +6,26 @@ BLAC:                              // Immediate all black scene.
                                    // Stops running program and clears queue.
 
 //-----------------------------------------
-BLOB:  	// Program blob.
+BLOB:  	// Load program blob.
+  - Program(0) is automatically started when blob is loaded.
 
 		blob_vers:  uint32_t			// Version number '1.0a'.
 		blob_size:  uint32_t			// size of whole blob in bytes.
+
 		trig_start: uint32_t			// Trigger array starts here (relative to start).
 		trig_size:  uint32_t			// Number of triggers defined.
+
 		larr_index: uint32_t			// Logical led array index starts here (relative to start).
 		larr_count: uint32_t			// Number of logical led arrays defined.
 		larr_array: uint32_t			// 
 		larr_size:  uint32_t			// 
+
 		prog_start: uint32_t			// Program array starts here (relative to start).
 		prog_size:  uint32_t			// Size of program array.
+
 		scen_index: uint32_t			// Scene index starts here (relative to start).
-		scen_count: uint32_t            // Number of scenes defined.
-		scen_array: uint32_t            // Scene array starts here (relative to start).
+		scen_count: uint32_t               // Number of scenes defined.
+		scen_array: uint32_t               // Scene array starts here (relative to start).
 		scen_size:  uint32_t			// Size of scene array.
 
 		trig:	[  // Maps program start points to triggers.
@@ -65,17 +70,32 @@ BLOB:  	// Program blob.
 TRIG:  decimal number ( < 4200000000)    // Immediatly trigger a program from the BLOB.
        followed by a space.
 
+INTR: (cp)			# Interrupt current command and continue after.
+QUEU: (cp)			# Add a command to execute after current command.
+
 //-----------------------------------------
+SHOW:	(sp)    // Instant scene set using scene from loaded blob.
+
 SCEN:	// Instant scene set.
 
-		scen:	[ green: uint8_t  	// Level for green
-				  red:   uint8_t	// Level for red
-				  blue:  uint8_t	// Level for blue
-				] * num LEDS
+		size:    uint32_t       // Number of bytes for scene
+		scen:	  [ 
+			    flags: uint8_t      // Flags and/or multiplier
+			                        // 0xFF - End
+			                        // 0xFE - All
+			                        // 0xFD - Last
+			                        // 0xFC - Skip
+			                        // 0-FB - Repeat
+ 		   	    green: uint8_t		// Level for green
+			    red:   uint8_t		// Level for red
+			    blue:  uint8_t		// Level for blue
+			  ] * <=num LEDS
+			  end_flags             // scen separator (simple end, all, or last.)
 
 //-----------------------------------------
 NEXT:  decimal number ( < 4200000000)    // Trigger a program from the BLOB (after current one finishes).
        followed by a space.
+
 
 //-----------------------------------------
 // Define the number of LEDs on a physical string.
@@ -84,29 +104,30 @@ PHYS:  {phynum} {numleds}
 		phynum = string phy number decimal number (1 -> 8)
 		numleds = number of leds on this string {decimal number ( < 600)}   
 
+//-----------------------------------------
+// Set the current LED array.
+//
+LARR:   {phynum} or {lognum}
 
-- Program(0) is automatically started when blob is loaded.
 
-
-
+// =========================================================================================================
+//
 Commands:
-	YIEL					# Wait until next tick.
-	INTR (cp)				# Interrupt current command and continue after.
-	QUEU (cp)				# Add a command to execute after current command.
-	CALL (cp)				# Call a command
-	JUMP (cp)				# Jump to a command
-    REPE (in) (cp)          # Call command a number of times.
-    WAIT (time)				# Wait for a number of seconds.
+	YIEL				# Wait until next tick.
+	CALL (cp)			# Call a command
+	JUMP (cp)			# Jump to a command
+	REPE (in) (cp)          	# Call command a number of times.
+	WAIT (time)			# Wait for a number of seconds.
 
-    LARR (lar)              # Set current led array.
-    SCEN[larr] (sp)			# Set a scene
-    MORP[larr] (time) (sp)	# Morph current scene into new scene.
-    SHIF[larr] (+/-in)		# Shift led pattern forward or backaward.  (black shifts in).
-    ROTA[larr] (+/-in)		# Rotate led pattern forward or backward.  (ends wrap around).
+	LARR (lar)              	# Set current led array.
+	SCEN[larr] (sp)		# Set a scene
+	MORP[larr] (time) (sp)	# Morph current scene into new scene.
+	SHIF[larr] (+/-in)		# Shift led pattern forward or backaward.  (black shifts in).
+	ROTA[larr] (+/-in)		# Rotate led pattern forward or backward.  (ends wrap around).
 
-    TRIG (in) (cp)			# Bind a trigger to command
-    PHYS (parr) (in)		# Set the number of LEDs wired up to a physical string.
-    END 					# End of commmand script.
+	TRIG (in) (cp)		# Bind a trigger to command
+	PHYS (parr) (in)		# Set the number of LEDs wired up to a physical string.
+	END 				# End of commmand script.
 
 
 cp = command pointer.  An index from the start of the command block.

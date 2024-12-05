@@ -1,26 +1,25 @@
 // File: Parser.c
 
-#include "Common.h"
+#include "common.h"
+#include "parser.h"
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
  
-#include "Blob.h"
-#include "Led.h"
-#include "Matcher.h"
-
 #include "bluetooth_stdio.h"
 
+#include "blob.h"
+#include "led.h"
+#include "matcher.h"
+#include "scene.h"
 
-#define BLOB_VERSION "0.1a"
 
 #define CHAR_TIMEOUT 50000
 
 #define MAX_BRIGHTNESS_NUM 100
 
-int char_counter = 0;
 
 
 PRIVATE int parser_getchar(void)
@@ -37,7 +36,6 @@ PRIVATE bool read_bytes(int n, uint8_t* buff)
 
         if (ch != PICO_ERROR_TIMEOUT)
         {
-            ++char_counter;
             *buff++ = ch;
         }
         else
@@ -66,8 +64,6 @@ PRIVATE void read_scene(void)
 
         if (ch != PICO_ERROR_TIMEOUT)
         {
-            ++char_counter;
-
             scene_led_val[scene_led_idx++] = ch;
 
             if (scene_led_idx == LED_SIZE)
@@ -75,7 +71,7 @@ PRIVATE void read_scene(void)
                 scene_led_idx = 0;
 // fix /////////////                // LED_Set_LED(scene_led_num, scene_led_val);
 
-                if (++scene_led_num == Num_LEDS)
+//                if (++scene_led_num == Num_LEDS)
                 {
 // fix /////////////                    led_send();
                     reading = false; 
@@ -124,8 +120,9 @@ PRIVATE void read_blob(void)
 
         if (*ptr++ == Version())
         {
-            if (*ptr++ == Num_LEDS)
-            {
+            ptr++;
+            // if (*ptr++ == Num_LEDS)
+            // {
                 blob_size = *ptr++ * sizeof(uint32_t);
                 // printf(" size %d\n", blob_size);
 
@@ -159,8 +156,8 @@ PRIVATE void read_blob(void)
                         }
                     }
                 }
-            }
-            else { BlueTooth_Printf("!!! Wrong number of LEDS: expected %d, got %d\n", Num_LEDS, *(ptr-1)); }
+            // }
+            // else { BlueTooth_Printf("!!! Wrong number of LEDS: expected %d, got %d\n", Num_LEDS, *(ptr-1)); }
         }
         else { BlueTooth_Printf("!!! Bad blob version: expected %X, got %X\n", Version(), *(ptr-1)); }
     }
@@ -180,12 +177,9 @@ PRIVATE int read_num(void)
 
         if (ch != PICO_ERROR_TIMEOUT)
         {
-            ++char_counter;
-
             if (isdigit(ch))
             {
-                val *= 10;
-                val += ch - '0';
+                val = (val * 10) + (ch - '0');
                 continue;
             }
         }
@@ -203,8 +197,6 @@ PRIVATE void scan_for_sync(void)
 
     if (ch != PICO_ERROR_TIMEOUT)
     {
-        ++char_counter;
-
         MATCH_CODE code = Is_Match(ch);
         int arg;
 
@@ -242,26 +234,35 @@ PRIVATE void scan_for_sync(void)
                     if (arg >= 0 && arg <= MAX_BRIGHTNESS_NUM)
                     {
                         LED_Brightness = arg / (double)MAX_BRIGHTNESS_NUM;
-                        LED_Update();
+                        LED_Update(0);
                     }
                     break;
                 }
                 case MATCH_PHYS:          // Define the number of LEDs in system.
                 {
-                    printf("PHYS\n");
-                    int phynum;
-
-                    phynum = read_num();
-
+                    int phynum = read_num();
                     arg = read_num();
 
-                    printf("DO READ PHYS %d, LEDS %d\n", phynum, arg);
+                    D(printf("DO READ PHYS %d, LEDS %d\n", phynum, arg);)
+                    PHY_Set_led_count(phynum, arg);
+                    BlueTooth_Printf("PHYS %d has %d LEDs.\n", phynum, arg);
+                    break;
+                }
+                case MATCH_LARR:          // Set the current led array to use.
+                {
+                    int phynum = read_num();
 
-                    if (arg >= 0 && arg <= MAX_NUM_LEDS)
-                    {
-                        Num_LEDS = arg;    // Blob must match Num_LEDS.
-//                        WS2812_Set_Num_LEDS(phynum, arg);
-                    }
+                    D(printf("DO LARR %d\n", phynum);)
+                    LEDS_Set_Phynum(phynum);
+                    BlueTooth_Printf("LARR %d\n", phynum);
+                    break;
+                }
+                case MATCH_SHOW:
+                {
+                    arg = read_num();
+                    D(printf("DO SHOW SCENE %d\n", arg);)
+					Set_Scene(arg);
+                    LEDS_Do_Update();
                     break;
                 }
                 case MATCH_QUEUE:

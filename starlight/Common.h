@@ -6,6 +6,7 @@
 #define PRIVATE static
 #define PUBLIC
 
+#define NIL ((void*)0)
 #define FLOAT double
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*x))

@@ -19,7 +19,8 @@ typedef struct Matcher
 PRIVATE struct Matcher Matches[MATCH_LAST] = 
 {
     {"PHYS", 0, MATCH_PHYS}, 
-    {"PHYS", 0, MATCH_PHYS}, 
+    {"LARR", 0, MATCH_LARR}, 
+    {"SHOW", 0, MATCH_SHOW}, 
     {"SCEN", 0, MATCH_SCENE}, 
     {"BLAC", 0, MATCH_BLACK}, 
     {"BLOB", 0, MATCH_BLOB}, 
@@ -41,17 +42,6 @@ PUBLIC void Matchers_Reset()
 
 PUBLIC void Matchers_Init()
 {
-    // struct Matcher* mp = Matches;
-
-    // mp->match_str = "PHYS";     mp++->match_code = MATCH_PHYS;
-    // mp->match_str = "SCEN";     mp++->match_code = MATCH_SCENE;
-    // mp->match_str = "BLAC";     mp++->match_code = MATCH_BLACK;
-    // mp->match_str = "BLOB";     mp++->match_code = MATCH_BLOB;
-    // mp->match_str = "TRIG";     mp++->match_code = MATCH_TRIGGER;
-    // mp->match_str = "QUEU";     mp++->match_code = MATCH_QUEUE;
-    // mp->match_str = "BRIG";     mp++->match_code = MATCH_BRIGHTNESS;
-    // mp->match_str = "INTR";     mp++->match_code = MATCH_INTERRUPT;
-
     Matchers_Reset();
 }
 

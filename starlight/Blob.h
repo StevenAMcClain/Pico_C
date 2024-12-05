@@ -1,5 +1,7 @@
 // File: Blob.h
 
+#define BLOB_VERSION "0.1a"
+
 typedef uint32_t TRIG_ID;
 typedef int32_t PROG_ID;
 typedef uint32_t SCENE_ID;
@@ -28,6 +30,7 @@ typedef struct Blob
 
 } BLOB;
 
+extern BLOB Blob;
 extern const int Tick_Speed;                        // Clock for blob player.
 
 extern void Blob_Init(void);                        // Prepare BLOB for use.  Call once at startup.

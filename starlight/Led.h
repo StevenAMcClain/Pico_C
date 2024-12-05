@@ -25,22 +25,28 @@ typedef union
 #define LED_DATA_SIZE (Num_LEDS * LED_SIZE)
 #define MAX_LED_DATA_SIZE (MAX_NUM_LEDS * LED_SIZE)
 
-extern size_t Num_LEDS;     // Number of leds used.
-extern LED* LED_Data;       // Current values for LEDs.
+// extern size_t Num_LEDS;     // Number of leds used.
+// extern LED* LED_Data;       // Current values for LEDs.
 
 extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
 
+extern void PHY_Set_led_count(int phynum, size_t led_count);
+
+extern void LEDS_Set_Phynum(int phynum);
+
+extern size_t Num_LEDS(void);
+
 // Returns an alternate LED_Buffer.
 //
-extern LED* ALT_LED_Data(void);    
+//extern LED* ALT_LED_Data(void);    
 
 // Sets alternate buffer to current.
 //
-extern void Switch_ALT_LED_Data(void);
+//extern void Switch_ALT_LED_Data(void);
 
 // Prepare LEDS for use.
 //
-extern void LED_Init(size_t /*num_leds*/);
+extern void LED_Init(void);
 
 // Sets a the number of leds that are used.
 //
@@ -54,11 +60,11 @@ extern void LED_Set_LED(size_t /*led_idx*/, LED* /*buffp*/);
 
 // Sets all the LEDs to the same color.
 //
-extern void LED_All_LED(LED led);
+extern void LED_All_LED(int phynum, LED led);
 
 // Sets all the LEDs to a certain color
 //
-extern void LED_All_RGB(LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
+extern void LED_All_RGB(int phynum, LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
 
 // Immediatly set all leds to black (off).
 //
@@ -66,10 +72,10 @@ extern void LEDS_All_Black(void);
 
 // Send scaled LED_Data to led string.
 //
-extern void LED_Do_Update(void);
+extern void LEDS_Do_Update(void);
 
 // Set do_update flag.
 //
-extern void LED_Update(void);
+extern void LED_Update(int phynum);
 
 #endif // LEDS_H

@@ -137,7 +137,7 @@ PUBLIC bool morph_step(void)
 
 	if (do_send)
 	{
-		LED_Update();
+		LED_Update(0);
 	}
 
 	return (morph.trans_counter == 0);
@@ -145,3 +145,109 @@ PUBLIC bool morph_step(void)
 
 
 // EndFile: Morph.c
+
+
+
+
+
+// PRIVATE void transition_step(void)
+// //
+// // Perform next step in the current transition.
+// // When transition is completed move on to next program step.
+// {
+// 	bool in_transition = false;				// set to true if still in transition.
+
+// 	if (Blob_State.trans_time)				// Is there still time left before hittng trans_time?
+// 	{
+// 		if (--Blob_State.trans_time)	// Not the last tick?
+// 		{
+// 			XITI* xitip = Blob_State.Xiti;							// Current transition.
+// 			uint8_t* ledp = led_data;								// Current value.
+// 			uint8_t* scene = get_scene(Blob_State.Seq->scene);		// Target value.
+// 			uint32_t* xtime = Blob_State.Xiti_Times;				// Current tick value for each XITI.
+// 			bool do_send = false;									// At least one Led color changed.
+
+// 			D(printf("transition step: ttime %d\n", Blob_State.trans_time);)
+
+// 			for (int i = 0; i < LED_DATA_SIZE; ++i, ++scene, ++ledp, ++xitip, ++xtime)    // For each color of each led.
+// 			{
+// 				int8_t step_size = xitip->step_size;		// Get step size.
+
+// 				if (step_size && *ledp != *scene)		// Is current value at target yet?
+// 				{
+// 					in_transition = true;     // Transition still running.
+
+// 					if (*xtime)  // Waiting for next change?
+// 					{
+// 						--*xtime;   // Count one more tick.
+// 					}
+// 					else  // do transition step.
+// 					{
+// 						D(printf("add(%d): before %d, step %d", i, *ledp, step_size);)
+// 						*xtime = xitip->step_time;  // Reset the counter.
+// 						step_size = (step_size > 0) ? MIN(step_size, 255 - *ledp) : MIN(step_size, *ledp);
+// 						*ledp += step_size;
+// 						D(printf(", after %d, step %d\n", *ledp, step_size);)
+// 						do_send = true;
+// 					}
+// 				}
+// 			}
+// 			if (do_send) { led_send(); }
+// 		}
+// 	}
+// 	if (!in_transition) 
+// 	{
+// 		D(printf("transition_step: Start next sequence(%d).\n", Blob_State.sequence_num + 1);)
+// 		start_sequence(Blob_State.sequence_num + 1);
+		
+// 		// printf("not transition: Step_Done\n");
+// 		// Program_Step_Done();
+// 	}
+// }
+
+
+// PRIVATE void start_transition(XITI_ID n, SCENE_ID scene_id)
+// {
+//  	if (n && n <= Blob.Num_Xiti)
+//  	{
+//  		uint32_t* timep = (uint32_t*)(Blob.Xiti_Base + ((n-1) * XITI_SIZE));		 // Get pointer to transistion.
+// 		FLOAT trans_time = (FLOAT)*(timep++) / 1000.0;
+// 		uint8_t* to_scene = get_scene(n);
+// 		morph_start(trans_time, to_scene);
+// 		Blob_State.State = STATE_TRANSITION;			// Now in transition state.
+// 	}
+// }
+
+
+// PRIVATE void start_transition(XITI_ID n)
+// {
+// 	if (n && n <= Blob.Num_Xiti)
+// 	{
+// 		uint32_t* timep = (uint32_t*)(Blob.Xiti_Base + ((n-1) * XITI_SIZE));		 // Get pointer to transistion.
+
+// 		Blob_State.trans_time = *timep;						// Set max transistion time.
+
+// 		XITI* xitip = (XITI*)(timep + 1);					// Get pointer to first XITI record.
+
+// 		uint32_t* xtimep = Blob_State.Xiti_Times;			// Point to first transition timer value.
+
+// 		// printf("start_transition: set times (");
+// 		if (xitip && xtimep)
+// 		{
+// 			for (int i = 0; i < LED_DATA_SIZE; ++i)		// Copy initial transistion time values.
+// 			{
+// 				// printf("t(%d)=%d, ", i, xitip->step_time);
+// 				*xtimep++ = xitip->step_time;
+// 				++xitip;
+// 			}
+// 			// (" done.\n");
+
+// 			Blob_State.Xiti = (XITI*)(timep + 1);			// Set as current transition.
+// 			Blob_State.State = STATE_TRANSITION;			// Now in transition state.
+// 		}
+
+// 		transition_step();									// Do first step of the transiiton.
+// 	}
+// 	else { All_Program_Stop("start_transition: Bad (%d), Done. *********************************\n\n", n); }
+// }
+

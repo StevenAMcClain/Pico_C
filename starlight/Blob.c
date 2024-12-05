@@ -12,6 +12,7 @@
 #include "Queue.h"
 #include "Led.h"
 #include "Morph.h"
+#include "Scene.h"
 
 PRIVATE volatile uint64_t Blob_Time = 0;
 
@@ -73,14 +74,14 @@ typedef struct Blob_State
 	PROG* prog;				    // Points to next program command.
 
 	// XITI* Xiti;				// Transition currently playing.
-	uint32_t* Xiti_Times;		// Store for transition step time counts.
+//	uint32_t* Xiti_Times;		// Store for transition step time counts.
 
 	QUEUE* program_queue;		// Pending program stack.
 
 } BLOB_STATE;
 
 
-PRIVATE BLOB Blob = {0};
+PUBLIC BLOB Blob = {0};
 PRIVATE BLOB_STATE Blob_State = {0};
 
 
@@ -133,16 +134,16 @@ PRIVATE void Push_Context(void)
 {
 	QUEUE* q = Blob_State.program_queue;
 
-	Queue_Add(q,           Blob_State.State);
-	Queue_Add(q, (uint32_t)Blob_State.prog);
+	Queue_Add(q,           Blob_State.State);			// Current state (processing command).
+	Queue_Add(q, (uint32_t)Blob_State.prog);			// Next command to run.
 	Queue_Add(q,           Blob_State.wait_counter);	// Ticks left to wait until next step.
 	Queue_Add(q,           Blob_State.repeat);			// Number of times left to repeat.
 	Queue_Add(q, (uint32_t)Blob_State.repeat_start);	// First command in program sequence.
 	// XITI* Xiti;										// Transition currently playing.
-	Queue_Add(q, (uint32_t)Blob_State.Xiti_Times);		// Store for transition step time counts.
+//	Queue_Add(q, (uint32_t)Blob_State.Xiti_Times);		// Store for transition step time counts.
 
 	Blob_State.repeat = 0;
-	Blob_State.Xiti_Times = 0;
+//	Blob_State.Xiti_Times = 0;
 }
 
 
@@ -152,199 +153,113 @@ PRIVATE void Pop_Context(void)
 {
 	QUEUE* q = Blob_State.program_queue;
 
-	Blob_State.Xiti_Times   = (uint32_t*)Queue_Pop(q);		// Store for transition step time counts.
-	// XITI* Xiti;								// Transition currently playing.
-	Blob_State.repeat_start = (PROG*)Queue_Pop(q);	// First command in program sequence.
-	Blob_State.repeat       =        Queue_Pop(q);	// Number of times left to repeat.
-	Blob_State.wait_counter =        Queue_Pop(q);	// Ticks left to wait until next step.
-	Blob_State.prog         = (PROG*)Queue_Pop(q);
-	Blob_State.State        =        Queue_Pop(q);
+//	Blob_State.Xiti_Times   = (uint32_t*)Queue_Pop(q);		// Store for transition step time counts.
+	// XITI* Xiti;											// Transition currently playing.
+	Blob_State.repeat_start = (PROG*)Queue_Pop(q);			// First command in program sequence.
+	Blob_State.repeat       =        Queue_Pop(q);			// Number of times left to repeat.
+	Blob_State.wait_counter =        Queue_Pop(q);			// Ticks left to wait until next step.
+	Blob_State.prog         = (PROG*)Queue_Pop(q);			// Next command to run.
+	Blob_State.State        =        Queue_Pop(q);			// Current state (processing command).
 }
 
 
-PUBLIC void Command_Shift_LEDS(int count, bool do_shift)
-//
-// Shift (or rotate) led array.
-{
-#define NEXT_P(startp, p) ((++(p) >= ((startp) + Num_LEDS)) ? ((p)=(startp)) : (p))
-	if (count && (abs(count) < Num_LEDS))
-	{
-		LED* srcp_start = LED_Data;
-		LED* dstp_start = ALT_LED_Data();
+// PUBLIC void Command_Shift_LEDS(int count, bool do_shift)
+// //
+// // Shift (or rotate) led array.
+// {
+// //#define NEXT_P(startp, p) ((++(p) >= ((startp) + Num_LEDS)) ? ((p)=(startp)) : (p))
+// #define NEXT_P(startp, p) 
+// //	if (count && (abs(count) < Num_LEDS))
+// 	{
+// //		LED* srcp_start = LED_Data;
+// 		LED* srcp_start = 0;
+// 		LED* dstp_start = 0; //ALT_LED_Data();
 
-		LED* dstp = dstp_start;
+// 		LED* dstp = dstp_start;
 
-		if (count > 0)
-		{
-			if (do_shift)
-			{
-				LED* srcp = srcp_start;
+// 		if (count > 0)
+// 		{
+// 			if (do_shift)
+// 			{
+// 				LED* srcp = srcp_start;
 
-				int i = Num_LEDS;
+// //				int i = Num_LEDS;
+// 				int i = 4;
 
-				int c = count;
-				while (c--)
-				{
-					dstp->val = 0;
-					NEXT_P(dstp_start, dstp);
-					--i;
-				}
+// 				int c = count;
+// 				while (c--)
+// 				{
+// 					dstp->val = 0;
+// 					NEXT_P(dstp_start, dstp);
+// 					--i;
+// 				}
 
-				while (i--)
-				{
-					dstp->val = srcp->val;
-					NEXT_P(srcp_start, srcp);
-					NEXT_P(dstp_start, dstp);
-				}
-			}
-			else
-			{
-				LED* srcp = srcp_start + Num_LEDS - count;
+// 				while (i--)
+// 				{
+// 					dstp->val = srcp->val;
+// 					NEXT_P(srcp_start, srcp);
+// 					NEXT_P(dstp_start, dstp);
+// 				}
+// 			}
+// 			else
+// 			{
+// //				LED* srcp = srcp_start + Num_LEDS - count;
+// 				LED* srcp = 0;
 
-				int i = Num_LEDS;
+// //				int i = Num_LEDS;
+// 				int i = 4;
 
-				while (i--)
-				{
-					dstp->val = srcp->val;
-					NEXT_P(srcp_start, srcp);
-					NEXT_P(dstp_start, dstp);
-				}
-			}
-		}
-		else
-		{
-			count = -count;
+// 				while (i--)
+// 				{
+// 					dstp->val = srcp->val;
+// 					NEXT_P(srcp_start, srcp);
+// 					NEXT_P(dstp_start, dstp);
+// 				}
+// 			}
+// 		}
+// 		else
+// 		{
+// 			count = -count;
 
-			if (do_shift)
-			{
-				LED* srcp = srcp_start + count;
-				LED* end_srcp = srcp_start + Num_LEDS - count;
+// 			if (do_shift)
+// 			{
+// 				LED* srcp = srcp_start + count;
+// //				LED* end_srcp = srcp_start + Num_LEDS - count;
+// 				LED* end_srcp = 0;
 
-				while (srcp < end_srcp)
-				{
-					dstp->val = srcp->val;
-					++srcp; ++dstp;
-				}
+// 				while (srcp < end_srcp)
+// 				{
+// 					dstp->val = srcp->val;
+// 					++srcp; ++dstp;
+// 				}
 
-				while (dstp < (dstp_start + Num_LEDS))
-				{
-					dstp->val = 0;
-					++dstp;
-				}
-			}
-			else
-			{
-				LED* srcp = srcp_start + count;
-				LED* end_srcp = srcp_start + Num_LEDS - count;
+// //				while (dstp < (dstp_start + Num_LEDS))
+// 				{
+// 					dstp->val = 0;
+// 					++dstp;
+// 				}
+// 			}
+// 			else
+// 			{
+// 				LED* srcp = srcp_start + count;
+// //				LED* end_srcp = srcp_start + Num_LEDS - count;
+// 				LED* end_srcp = 0;
 
-				int i = Num_LEDS;
+// //				int i = Num_LEDS;
+// 				int i = 4;
 
-				while (i--)
-				{
-					dstp->val = srcp->val;
-					++dstp;
-					NEXT_P(srcp_start, srcp);
-				}
-			}
-		}
+// 				while (i--)
+// 				{
+// 					dstp->val = srcp->val;
+// 					++dstp;
+// 					NEXT_P(srcp_start, srcp);
+// 				}
+// 			}
+// 		}
 
-		Switch_ALT_LED_Data();  // Flip to alternate.
-	}
-}
-
-
-///--- Scene ---
-
-PRIVATE void Unpack_Scene(uint32_t val, uint8_t* buff)
-//
-// Extract scene bytes from uint32 value.
-{
-	buff[0] = val & 0xFF;
-	buff[1] = (val >> 8) & 0xFF;
-	buff[2] = (val >> 16) & 0xFF;
-	buff[3] = (val >> 24) & 0xFF;
-}
-
-#define FLAGS_END      0xFF
-#define FLAGS_END_ALL  0xFE
-#define FLAGS_END_LAST 0xFD
-#define FLAGS_SKIP     0xFC
-
-
-PRIVATE void Render_Scene(uint32_t* start_ptr)
-//
-// Render scene given pointer.
-{
-	uint32_t* ptr = start_ptr;
-
-	uint32_t i = 0;
-
-	while (i < Num_LEDS)
-	{
-		uint8_t buff[4];
-		D(printf(": i = %d, ", i);)
-
-		Unpack_Scene(*ptr++, buff);
-
-		uint8_t flags = buff[0];
-
-		if (flags == FLAGS_END)
-		{
-			D(printf("End\n");)
-			break;
-		}
-		else if (flags == FLAGS_END_ALL)  
-		{
-			D(printf("End All\n");)
-			ptr = start_ptr;
-		}
-		else if (flags == FLAGS_END_LAST)
-		{
-			D(printf("End Last");)
-			while (i < Num_LEDS)
-			{
-				LED_Set_RGB(i, buff[1], buff[2], buff[3]);
-				++i;
-				D(printf(".");)
-			}
-			D(printf("\n");)
-		}
-		else if (flags == FLAGS_SKIP)
-		{
-			D(printf("skip %d\n", buff[1]);)
-				i += buff[1];
-		}
-		else
-		{
-			D(printf("%d %d %d", buff[1], buff[2], buff[3]);)
-			int count = flags ? flags : 1;
-			while (count--)
-			{
-				LED_Set_RGB(i, buff[1], buff[2], buff[3]);
-				++i;
-				D(printf(".");)
-			}
-			D(printf("\n");)
-		}
-	}
-	LED_Update();
-}
-
-
-PRIVATE void Set_Scene(SCENE_ID id)
-//
-// Render scene given scene id.
-{
-	if (id && id <= Blob.Num_Scenes)
-	{
-		uint32_t start_idx = Blob.Scene_Index[--id];
-
-		D(printf("Set scene: id = %d, start_idx= %d\n", id, start_idx);)
-
-		Render_Scene(Blob.Scene_Array + start_idx);
-	}
-	else { D(printf("Set scene: bad id = %d\n", id);) }
-}
+// //		Switch_ALT_LED_Data();  // Flip to alternate.
+// 	}
+// }
 
 
 PRIVATE bool Process_Command(void)
@@ -426,13 +341,13 @@ PRIVATE bool Process_Command(void)
 				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
 				{
 					int32_t shift = (int32_t)*cmdp++;			// Number of places to shift.
-					Command_Shift_LEDS(shift, true);
+//					Command_Shift_LEDS(shift, true);
 					break;
 				}
 				case COMMAND_ROTATE:   // rotate led value. (end wraps).
 				{
 					int32_t shift = (int32_t)*cmdp++;			// Number of places to rotate.
-					Command_Shift_LEDS(shift, false);
+//					Command_Shift_LEDS(shift, false);
 					break;
 				}
 				case COMMAND_MORPH:    // morph current scene into new scene (n) over (t) seconds.
@@ -495,7 +410,7 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 {
 	static int Tick_Count = 0;
 
-	LED_Do_Update();
+	LEDS_Do_Update();
 
 	D(if (Blob_State.State)  { printf("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Blob_State.State); })
 
@@ -702,28 +617,28 @@ PUBLIC void Blob_NumLeds(int n)
 //
 // Set number of LEDS.   Call when Num_Leds changes.
 {
-	if (Blob_State.Xiti_Times)
-	{
-		if (n == Blob.Num_Leds)
-		{
-			return;  // already setup.
-		}
-		else
-		{
-			free(Blob_State.Xiti_Times);
-			Blob_State.Xiti_Times = NULL;
-		}
-	}
-	size_t size = XITI_TIMES_SIZE(n);
+	// if (Blob_State.Xiti_Times)
+	// {
+	// 	if (n == Blob.Num_Leds)
+	// 	{
+	// 		return;  // already setup.
+	// 	}
+	// 	else
+	// 	{
+	// 		free(Blob_State.Xiti_Times);
+	// 		Blob_State.Xiti_Times = NULL;
+	// 	}
+	// }
+	// size_t size = XITI_TIMES_SIZE(n);
 
-	uint32_t* xiti_times = malloc(size);
+	// uint32_t* xiti_times = malloc(size);
 
-	if (xiti_times)
-	{
-		memset(xiti_times, 0, size);
-		Blob_State.Xiti_Times = xiti_times;
-		Blob.Num_Leds = n;
-	}
+	// if (xiti_times)
+	// {
+	// 	memset(xiti_times, 0, size);
+	// 	Blob_State.Xiti_Times = xiti_times;
+	// 	Blob.Num_Leds = n;
+	// }
 }
 
 
@@ -736,7 +651,7 @@ PUBLIC void Blob_Init(void)
 
 	Blob_State.program_queue = Queue_Initialize(PROG_QUEUE_SIZE); 
 
-	Blob_NumLeds(Num_LEDS);
+///	Blob_NumLeds(Num_LEDS);
 
 	add_repeating_timer_us(Tick_Speed, Blob_Program_Tick, NULL, &blob_timer_1);
 	add_repeating_timer_us(Tick_Speed, Blob_Time_Tick, NULL, &blob_timer_2);
@@ -744,8 +659,6 @@ PUBLIC void Blob_Init(void)
 
 
 // EndFile: Blob.c
-
-
 
 #ifdef DEBUG
 PRIVATE void mem_dump(void* ptr, size_t n)
@@ -768,334 +681,3 @@ PRIVATE void mem_dump(void* ptr, size_t n)
 }
 #endif
 
-
-// #define PROG_SIZE 8			// sizeof(PROG)
-// #define SEQU_SIZE 12		// sizeof(SEQ)
-// #define SCEN_SIZE (LED_DATA_SIZE)		// One byte for each color of each led.
-// #define XITI_SIZE (sizeof(uint32_t) + (sizeof(XITI) * LED_DATA_SIZE))
-
-// PRIVATE uint8_t* get_scene(SCENE_ID n)
-// //
-// // Get a pointer to first value in scene.
-// // Returns: NULL if invalid scene number.  (n == 0 or n > Num_Scen)
-// {
-// 	return (n && n <= Blob.Num_Scenes) ? &Blob.Scene_Base[(n - 1) * SCEN_SIZE] : NULL;
-// }
-
-
-// PRIVATE bool set_scene(SCENE_ID n)
-// //
-// // Copy Scene(n) to LED array.   (instant transition).
-// // Returns: false if invalid scene number.  (n == 0 or n > Num_Scen)
-// {
-// 	uint8_t* sptr = get_scene(n);
-
-// 	if (sptr)
-// 	{
-// 		for (int i = 0;  i < Num_LEDS; ++i)
-// 		{
-// 			led_set_buf(i, sptr);
-// 			sptr += LED_SIZE;
-// 		}
-// 		led_send();
-// 	}
-// }
-
-
-// PRIVATE bool start_sequence(SEQ_ID n);
-
-// PRIVATE void transition_step(void)
-// {
-// 	if (morph_step())
-// 	{
-//  		start_sequence(Blob_State.sequence_num + 1);
-// 	}
-// }
-
-
-// PRIVATE void transition_step(void)
-// //
-// // Perform next step in the current transition.
-// // When transition is completed move on to next program step.
-// {
-// 	bool in_transition = false;				// set to true if still in transition.
-
-// 	if (Blob_State.trans_time)				// Is there still time left before hittng trans_time?
-// 	{
-// 		if (--Blob_State.trans_time)	// Not the last tick?
-// 		{
-// 			XITI* xitip = Blob_State.Xiti;							// Current transition.
-// 			uint8_t* ledp = led_data;								// Current value.
-// 			uint8_t* scene = get_scene(Blob_State.Seq->scene);		// Target value.
-// 			uint32_t* xtime = Blob_State.Xiti_Times;				// Current tick value for each XITI.
-// 			bool do_send = false;									// At least one Led color changed.
-
-// 			D(printf("transition step: ttime %d\n", Blob_State.trans_time);)
-
-// 			for (int i = 0; i < LED_DATA_SIZE; ++i, ++scene, ++ledp, ++xitip, ++xtime)    // For each color of each led.
-// 			{
-// 				int8_t step_size = xitip->step_size;		// Get step size.
-
-// 				if (step_size && *ledp != *scene)		// Is current value at target yet?
-// 				{
-// 					in_transition = true;     // Transition still running.
-
-// 					if (*xtime)  // Waiting for next change?
-// 					{
-// 						--*xtime;   // Count one more tick.
-// 					}
-// 					else  // do transition step.
-// 					{
-// 						D(printf("add(%d): before %d, step %d", i, *ledp, step_size);)
-// 						*xtime = xitip->step_time;  // Reset the counter.
-// 						step_size = (step_size > 0) ? MIN(step_size, 255 - *ledp) : MIN(step_size, *ledp);
-// 						*ledp += step_size;
-// 						D(printf(", after %d, step %d\n", *ledp, step_size);)
-// 						do_send = true;
-// 					}
-// 				}
-// 			}
-// 			if (do_send) { led_send(); }
-// 		}
-// 	}
-// 	if (!in_transition) 
-// 	{
-// 		D(printf("transition_step: Start next sequence(%d).\n", Blob_State.sequence_num + 1);)
-// 		start_sequence(Blob_State.sequence_num + 1);
-		
-// 		// printf("not transition: Step_Done\n");
-// 		// Program_Step_Done();
-// 	}
-// }
-
-
-// PRIVATE void start_transition(XITI_ID n, SCENE_ID scene_id)
-// {
-//  	if (n && n <= Blob.Num_Xiti)
-//  	{
-//  		uint32_t* timep = (uint32_t*)(Blob.Xiti_Base + ((n-1) * XITI_SIZE));		 // Get pointer to transistion.
-// 		FLOAT trans_time = (FLOAT)*(timep++) / 1000.0;
-// 		uint8_t* to_scene = get_scene(n);
-// 		morph_start(trans_time, to_scene);
-// 		Blob_State.State = STATE_TRANSITION;			// Now in transition state.
-// 	}
-// }
-
-
-// PRIVATE void start_transition(XITI_ID n)
-// {
-// 	if (n && n <= Blob.Num_Xiti)
-// 	{
-// 		uint32_t* timep = (uint32_t*)(Blob.Xiti_Base + ((n-1) * XITI_SIZE));		 // Get pointer to transistion.
-
-// 		Blob_State.trans_time = *timep;						// Set max transistion time.
-
-// 		XITI* xitip = (XITI*)(timep + 1);					// Get pointer to first XITI record.
-
-// 		uint32_t* xtimep = Blob_State.Xiti_Times;			// Point to first transition timer value.
-
-// 		// printf("start_transition: set times (");
-// 		if (xitip && xtimep)
-// 		{
-// 			for (int i = 0; i < LED_DATA_SIZE; ++i)		// Copy initial transistion time values.
-// 			{
-// 				// printf("t(%d)=%d, ", i, xitip->step_time);
-// 				*xtimep++ = xitip->step_time;
-// 				++xitip;
-// 			}
-// 			// (" done.\n");
-
-// 			Blob_State.Xiti = (XITI*)(timep + 1);			// Set as current transition.
-// 			Blob_State.State = STATE_TRANSITION;			// Now in transition state.
-// 		}
-
-// 		transition_step();									// Do first step of the transiiton.
-// 	}
-// 	else { All_Program_Stop("start_transition: Bad (%d), Done. *********************************\n\n", n); }
-// }
-
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// PRIVATE bool Program_Step_Done(void);
-
-// PRIVATE bool start_sequence(SEQ_ID n)
-// //
-// // Start to play a sequence.
-// {
-// 	bool program_done = false;
-// // top:
-// 	D(printf("start_sequence: n %d\n", n);)
-
-// 	if (n && n <= Blob.Num_Sequ)
-// 	{
-// 		SEQ* seq = &Blob.Sequ_Base[n-1];
-
-// 		Blob_State.sequence_num = n;
-// 		Blob_State.Seq = seq;
-
-// 		D(printf("get_seq(%d): hold %d, xiti %d, scene %d\n", 
-// 				          n, seq->hold, seq->xiti, seq->scene);)
-
-// 		uint32_t hold = seq->hold;
-
-// 		if (!hold)
-// 		{
-// 			uint32_t xiti = seq->xiti;
-			
-// 			if (!xiti)					// No transistion.
-// 			{
-// 				D(printf("start_sequence: Set Scene(%d).\n", seq->scene);)
-
-// 				if (set_scene(seq->scene))		// Set scene immediate.
-// 				{
-// 					Blob_State.hold_counter = hold;
-// 					Blob_State.State = STATE_HOLDING;
-// 					// n = Blob_State.sequence_num + 1;		// Start next sequence immediately
-// 					// goto top;
-// 				}
-// 				else 
-// 				{
-// 					// E(printf("start_sequence: Bad Scene Program Done. *********************************\n\n");)
-// 					program_done = Program_Step_Done();
-// 				} 
-// 			}
-// 			else
-// 			{
-// 				D(printf("start_sequence: Start transition.\n");)
-// 				start_transition(xiti, seq->scene);
-// 			}
-// 		}
-// 		else
-// 		{
-// 			D(printf("start_sequence: Start hold (%d).\n", hold);)
-// 			Blob_State.hold_counter = hold;
-// 			Blob_State.State = STATE_HOLDING;
-// 		}
-// 	}
-// 	else 
-// 	{
-// 		E(printf("start_sequence: Bad Sequence Program Done. *********************************\n\n");)
-// 		program_done = Program_Step_Done();
-// 	} 
-// 	return program_done;
-// }
- 
-
-//PRIVATE void start_program(uint32_t n);
-
-// PRIVATE bool Program_Step_Done(void)
-// //
-// // Called when sequence is completed.
-// // Either repeat program sequence or start next program.
-// // If program is ended then pop off Running_Queue and continue.
-// // If Running_Queue is empty then get next program from Program_Queue.
-// // If Program_Queue is empty then go back to idle.
-// {
-// 	bool end = true;
-
-// 	while (end)
-// 	{
-// 		if (Blob_State.Prog->repeat != 0 && (--Blob_State.repeat == 0))
-// 		{
-// 			uint32_t pnum = Blob_State.prog_num + 1;
-// 			PROG* prog = &Blob.Prog_Base[pnum-1];		// Get program record.
-
-// 			if (prog->sequence)			// Last program in series?
-// 			{
-// 				start_program(pnum);	// No, start next program in series.
-// 			}
-// 			else
-// 			{
-// 				uint32_t pnum = DeQueu_Pop(Running_Queue);		// Are we in a nested program?
-
-// 				if (pnum)
-// 				{
-// 					Blob_State.prog_num = pnum;
-// 					uint32_t repeat = DeQueu_Pop(Running_Queue);				// Save curent state.
-// 					Blob_State.repeat = repeat;
-// 				}
-// 				else			// Not nested, check for next program in queue.
-// 				{
-// 					uint32_t pnum = DeQueu_Pop(Program_Queue);
-
-// 					if (pnum) { start_program(pnum); }
-// 					else { Blob_State.State = STATE_IDLE; }
-// 				}
-// 			}
-// 		}
-// 		else
-// 		{
-// 			if (Blob_State.Prog->repeat == 0)   // Infinate repeat?
-// 			{
-// 				uint32_t pnum = DeQueu_Pop(Program_Queue);
-
-// 				if (pnum)		// Program in the queue?
-// 				{
-// 					start_program(pnum);
-// 				}
-// 			}
-
-// 			D(printf("Program_Step_Done: Program repeat %d now %d.\n\n", Blob_State.Prog->repeat, Blob_State.repeat);)
-// 			if (Blob_State.Prog->sequence)
-// 			{
-// 				end = start_sequence(Blob_State.Prog->sequence);
-// 				continue;
-// 			}
-// 		}
-// 		break;
-// 	}
-// 	return end;
-// }
-
-		// 		SEQ* seq = Blob_State.Seq;			// Get sequence record.
-		// 		if (!seq->scene) { Program_Step_Done(); }    // End of program?
-		// 		else
-		// 		{
-		// 			if (seq->xiti) { start_transition(seq->xiti, seq->scene); }		// Has transition?
-		// 			else  // or instant transition
-		// 			{
-		// 				D(printf("next_blob_step: Set Scene(%d).\n", seq->scene);)
-		// 				if (set_scene(seq->scene))
-		// 				{
-		// 					D(printf("next_blob_step: Start next sequence(%d).\n", Blob_State.sequence_num + 1);)
-		// 					start_sequence(Blob_State.sequence_num + 1);
-		// 				}
-		// 				else { All_Program_Stop("\nBlob_Tick: Bad Scene (%d)!\n\n", seq->scene); }
-		// 			}
-		// 		}
-// 	if (n && n <= Blob.Num_Prog)		// Valid program?
-// 	{
-// 		PROG* prog = &Blob.Prog_Base[n-1];		// Get program record.
-
-// 		Blob_State.prog_num = n;		// Set as current running program.
-// 		Blob_State.Prog = prog;
-		
-// 		D(printf("start_program(%d): repeat %d, seq %d\n", 
-// 						 		n, prog->repeat, prog->sequence);)
-
-// 		int32_t seq = prog->sequence;		// Get first step of program.
-
-// 		if (seq)
-// 		{
-// 			if (seq > 0)
-// 			{
-// 				Blob_State.repeat = prog->repeat;		// Set repeat count.
-// 				start_sequence(seq);
-// 			}
-// 			else
-// 			{
-// 				DeQueu_Push(Running_Queue, Blob_State.repeat);				// Save curent state.
-// 				DeQueu_Push(Running_Queue, Blob_State.prog_num);
-// 				start_program(-seq);
-// 			}
-// 		}
-// 		else
-// 		{
-// 			printf("start_program: seq is zero, prog step done.\n");
-// 			Program_Step_Done();
-// 		}
-// 	}
-// 	else 
-// 	{
-// 		leds_all_black();
-// 		All_Program_Stop("start_program: Bad (%d), Done. *********************************\n\n", n);
-// 	}

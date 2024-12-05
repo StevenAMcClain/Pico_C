@@ -7,27 +7,24 @@
  */
 
 #include "Common.h"
-
-//#include <stdio.h>
+#include "ws2812.h"
 
 #include "hardware/dma.h"
 #include "pico/sem.h"
 #include "hardware/pio.h"
 
-#include "LED.h"
 #include "ws2812.pio.h"
 
-#include "ws2812.h"
+#include "LED.h"
+
 
 #define IS_RGBW false
 
-int do_send = 0;
-int completed = 0;
-int released = 0;
-
+PUBLIC volatile int Current_PhyNum = 0;   // Current phynum (or logical).  0 for none.
 
 typedef struct
 {
+    size_t num_leds;                                    // Number of leds on this port.
     PIO pio;                                            // PIO unit for this PHY.
     int state_machine;                                  // State machine number for PHY.
     int DMA_channel;                                    // DMA channel for PHY.
@@ -46,7 +43,6 @@ PRIVATE int64_t reset_delay_complete(__unused alarm_id_t id, __unused void *user
 
     phy->reset_delay_alarm_id = 0;
     sem_release(&phy->reset_delay_complete_sem);
-++released;
 
     return 0;    // no repeat
 }
@@ -62,14 +58,12 @@ PRIVATE void __isr dma_complete_handler()
 
     while (i++ < MAX_PHY)
     {
-//printf("Interrupts: %X\n", interrupts);
         if (interrupts & mask) 
         {
             // when the dma is complete we start the reset delay timer
             //
             if (phy->reset_delay_alarm_id) cancel_alarm(phy->reset_delay_alarm_id);
             phy->reset_delay_alarm_id = add_alarm_in_us(400 + (i * 200), reset_delay_complete, phy, true);
-++completed;
         }
         ++phy;  mask <<= 1;
     }
@@ -105,9 +99,22 @@ PRIVATE void DMA_Init(WS2812_PHY* phy)
 
 PUBLIC void WS2812_Set_Num_LEDS(uint32_t phynum, size_t num_leds)
 {
-    if (phynum < MAX_PHY && num_leds <= MAX_LEDS)
+    if (phynum == 0)
+        phynum = Current_PhyNum;
+
+    if (phynum < 0)
     {
-        WS2812_PHY* phy = WS2812_Phy + phynum;        
+        phynum = 1;
+        while (phynum <= MAX_PHY)
+        {
+            WS2812_Set_Num_LEDS(phynum, num_leds);      // Recurse.
+            ++phynum;
+        }
+    }
+    else if (phynum > 0 && phynum <= MAX_PHY && num_leds <= MAX_LEDS)
+    {
+        WS2812_PHY* phy = WS2812_Phy + phynum - 1;
+        phy->num_leds = num_leds;
         dma_channel_set_trans_count(phy->DMA_channel, num_leds, false);
     }
 }
@@ -115,12 +122,26 @@ PUBLIC void WS2812_Set_Num_LEDS(uint32_t phynum, size_t num_leds)
 
 PUBLIC void WS2812_Send(uint32_t phynum, uint32_t* buff)
 {
-    if (phynum < MAX_PHY)
+    if (phynum == 0)
+        phynum = Current_PhyNum;
+
+    if (phynum < 0)
     {
-        WS2812_PHY* phy = WS2812_Phy + phynum;        
-        sem_acquire_blocking(&phy->reset_delay_complete_sem);
-        dma_channel_set_read_addr(phy->DMA_channel, buff, true);
-++do_send;
+        phynum = 1;
+        while (phynum <= MAX_PHY)
+        {
+            WS2812_Send(phynum, buff);      // Recurse.
+            ++phynum;
+        }
+    }
+    else if (phynum > 0 && phynum < MAX_PHY)
+    {
+        WS2812_PHY* phy = WS2812_Phy + phynum - 1;        
+        if (phy->num_leds > 0)
+        {
+            sem_acquire_blocking(&phy->reset_delay_complete_sem);
+            dma_channel_set_read_addr(phy->DMA_channel, buff, true);
+        }
     }
 }
 
@@ -146,6 +167,7 @@ PUBLIC void WS2812_Init(void)
         sem_init(&phy->reset_delay_complete_sem, 1, 1); // initially posted so we don't block first time
 
         DMA_Init(phy);
+
         ++phy; ++i;
     }
 
