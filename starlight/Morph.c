@@ -137,7 +137,7 @@ PUBLIC bool morph_step(void)
 
 	if (do_send)
 	{
-		LED_Update(0);
+		//LED_Update(0);
 	}
 
 	return (morph.trans_counter == 0);

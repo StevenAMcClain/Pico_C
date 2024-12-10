@@ -4,15 +4,9 @@
 #include "Scene.h"
 
 #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-// //#include <time.h>
 
 #include "blob.h"
-// #include "obled.h"
-// #include "Queue.h"
 #include "led.h"
-// #include "Morph.h"
 
 
 PRIVATE void Unpack_Scene(uint32_t val, uint8_t* buff)
@@ -34,10 +28,9 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 
 	uint32_t i = 0;
 
-	while (i < Num_LEDS())
+	while (i < Num_LEDS(0))     // <<<<------------------------------ zero?
 	{
 		uint8_t buff[4];
-		D(printf(": i = %d, ", i);)
 
 		Unpack_Scene(*ptr++, buff);
 
@@ -45,44 +38,44 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 
 		if (flags == FLAGS_END)
 		{
-			D(printf("End\n");)
+//			D(printf("End\n");)
 			break;
 		}
 		else if (flags == FLAGS_END_ALL)  
 		{
-			D(printf("End All\n");)
+//			D(printf("End All\n");)
 			ptr = start_ptr;
 		}
 		else if (flags == FLAGS_END_LAST)
 		{
-			D(printf("End Last");)
-			while (i < Num_LEDS())
+//			D(printf("End Last");)
+			while (i < Num_LEDS(0))     // <<<<------------------------------ zero?
 			{
 				LED_Set_RGB(i, buff[1], buff[2], buff[3]);
 				++i;
-				D(printf(".");)
+//				D(printf(".");)
 			}
-			D(printf("\n");)
+//			D(printf("\n");)
 		}
 		else if (flags == FLAGS_SKIP)
 		{
-			D(printf("skip %d\n", buff[1]);)
+//			D(printf("skip %d\n", buff[1]);)
 				i += buff[1];
 		}
 		else
 		{
-			D(printf("%d %d %d", buff[1], buff[2], buff[3]);)
+//    		D(printf(": i = %d, ", i);)
+//			D(printf("%d %d %d", buff[1], buff[2], buff[3]);)
 			int count = flags ? flags : 1;
 			while (count--)
 			{
 				LED_Set_RGB(i, buff[1], buff[2], buff[3]);
 				++i;
-				D(printf(".");)
+//				D(printf(".");)
 			}
-			D(printf("\n");)
+//			D(printf("\n");)
 		}
 	}
-	LED_Update(0);
 }
 
 
@@ -94,7 +87,7 @@ PUBLIC void Set_Scene(SCENE_ID id)
 	{
 		uint32_t start_idx = Blob.Scene_Index[--id];
 
-		D(printf("Set scene: id = %d, start_idx= %d\n", id, start_idx);)
+//		D(printf("Set scene: id = %d, start_idx= %d\n", id, start_idx);)
 
 		Render_Scene(Blob.Scene_Array + start_idx);
 	}

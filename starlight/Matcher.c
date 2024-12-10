@@ -19,15 +19,17 @@ typedef struct Matcher
 PRIVATE struct Matcher Matches[MATCH_LAST] = 
 {
     {"PHYS", 0, MATCH_PHYS}, 
-    {"LARR", 0, MATCH_LARR}, 
+    {"SPHY", 0, MATCH_SPHY}, 
     {"SHOW", 0, MATCH_SHOW}, 
     {"SCEN", 0, MATCH_SCENE}, 
     {"BLAC", 0, MATCH_BLACK}, 
+    {"UPDA", 0, MATCH_UPDATE}, 
     {"BLOB", 0, MATCH_BLOB}, 
     {"TRIG", 0, MATCH_TRIGGER}, 
     {"QUEU", 0, MATCH_QUEUE}, 
     {"BRIG", 0, MATCH_BRIGHTNESS}, 
-    {"INTR", 0, MATCH_INTERRUPT}
+    {"INTR", 0, MATCH_INTERRUPT},
+    {"DUMP", 0, MATCH_DUMP}
 };
 
 

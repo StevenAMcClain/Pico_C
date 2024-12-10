@@ -3,6 +3,11 @@
 #ifndef LEDS_H
 #define LEDS_H
 
+#define ALL_PHYS (-1)       //
+#define CURRENT_PHY 0
+
+extern volatile uint32_t Current_PhyNum;   // Current phynum (or logical).  0 for none.
+
 #define LED_VAL uint8_t
 #define MAX_LED_VAL 255
 
@@ -34,7 +39,7 @@ extern void PHY_Set_led_count(int phynum, size_t led_count);
 
 extern void LEDS_Set_Phynum(int phynum);
 
-extern size_t Num_LEDS(void);
+extern size_t Num_LEDS(int phyidx);
 
 // Returns an alternate LED_Buffer.
 //
@@ -48,7 +53,7 @@ extern size_t Num_LEDS(void);
 //
 extern void LED_Init(void);
 
-// Sets a the number of leds that are used.
+// Sets the number of leds that are used.
 //
 extern size_t LED_Set_Num_Leds(size_t /*num_leds*/);
 
@@ -76,6 +81,6 @@ extern void LEDS_Do_Update(void);
 
 // Set do_update flag.
 //
-extern void LED_Update(int phynum);
+extern void LED_Needs_Update(int phynum);
 
 #endif // LEDS_H

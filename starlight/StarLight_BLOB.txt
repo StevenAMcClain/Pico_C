@@ -1,12 +1,32 @@
 
 Protocol for StarLight system.
 
-//-----------------------------------------
-BLAC:                              // Immediate all black scene.
-                                   // Stops running program and clears queue.
+These are commands that can be send over the bluetooth connection.
+
+PHYS:  // Define the number of LEDs on a physical string.
+LARR:  // Set the current LED array.
+BLAC:  // Immediate all black scene.
+
+BLOB:  // Load program blob.
+SCEN:	// Instant scene set.
+
+SHOW:	// Instant scene set using scene from loaded blob.
+
+TRIG:  // Immediatly trigger a program from the BLOB.
+INTR:  // Interrupt current command and continue after.
+QUEU:  // Add a command to execute after current command.
+
+SAVE:  // Save current blob and config to flash.
+LOAD:  // Load blob from flash.
+
+))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 
 //-----------------------------------------
-BLOB:  	// Load program blob.
+BLAC:  // Immediate all black scene.
+       // Stops running program and clears queue.
+
+//-----------------------------------------
+BLOB:   Load program blob.
   - Program(0) is automatically started when blob is loaded.
 
 		blob_vers:  uint32_t			// Version number '1.0a'.
@@ -92,25 +112,22 @@ SCEN:	// Instant scene set.
 			  ] * <=num LEDS
 			  end_flags             // scen separator (simple end, all, or last.)
 
-//-----------------------------------------
-NEXT:  decimal number ( < 4200000000)    // Trigger a program from the BLOB (after current one finishes).
-       followed by a space.
-
 
 //-----------------------------------------
 // Define the number of LEDs on a physical string.
 //
 PHYS:  {phynum} {numleds}
-		phynum = string phy number decimal number (1 -> 8)
+		phynum = physical string mask.  (0=current)
 		numleds = number of leds on this string {decimal number ( < 600)}   
 
 //-----------------------------------------
 // Set the current LED array.
 //
-LARR:   {phynum} or {lognum}
-
+SPHY:   {phynum} or {lognum}
+		phynum = physical string mask.  (0=current)
 
 // =========================================================================================================
+//  These are commands that can appear in a blob script.
 //
 Commands:
 	YIEL				# Wait until next tick.
@@ -119,14 +136,14 @@ Commands:
 	REPE (in) (cp)          	# Call command a number of times.
 	WAIT (time)			# Wait for a number of seconds.
 
-	LARR (lar)              	# Set current led array.
-	SCEN[larr] (sp)		# Set a scene
-	MORP[larr] (time) (sp)	# Morph current scene into new scene.
-	SHIF[larr] (+/-in)		# Shift led pattern forward or backaward.  (black shifts in).
-	ROTA[larr] (+/-in)		# Rotate led pattern forward or backward.  (ends wrap around).
+	SPHY (phynum)              	# Set current led array.
+	SCEN[phynum] (sp)		# Set a scene
+	MORP[phynum] (time) (sp)	# Morph current scene into new scene.
+	SHIF[phynum] (+/-in)		# Shift led pattern forward or backaward.  (black shifts in).
+	ROTA[phynum] (+/-in)		# Rotate led pattern forward or backward.  (ends wrap around).
 
 	TRIG (in) (cp)		# Bind a trigger to command
-	PHYS (parr) (in)		# Set the number of LEDs wired up to a physical string.
+	PHYS (phynum) (in)		# Set the number of LEDs wired up to a physical string.
 	END 				# End of commmand script.
 
 
@@ -134,12 +151,14 @@ cp = command pointer.  An index from the start of the command block.
 sp = scene pointer.    An index from the start
 arr = array specifier.   The name of a logical or physical led array.
        (P1 -> P8, L1 -> Ln)
-parr = physical array specifier.   The name of a physical led array.
-       (P1 -> P8)
+phynum = physical array specifier.   The name of a physical led array.
+	Bit mask (one bit for each phy).  (0=current).
 
 
 in = integer from 0->xxxx
 +/-in = integer from (-xxxx) -> xxxx
+
+'-' by itself is (-1)
 
 time = floating point in seconds.  (converts to int number of milliseconds)
 

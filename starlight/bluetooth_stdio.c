@@ -315,6 +315,7 @@ PUBLIC void BlueTooth_Printf(const char *fmt, ...)
     vsnprintf(buff, sizeof(buff), fmt, args);    //vsnprintf BlueTooth_Send_String
     va_end(args);
     BlueTooth_Send_String(buff);
+    busy_wait_ms(1);
 }
 
 

@@ -191,6 +191,42 @@ PRIVATE int read_num(void)
 }
 
 
+PRIVATE int read_snum(void)
+{
+    bool isfirst = true;
+    bool isneg = false;
+    int val = 0;
+
+    bool reading = true;
+
+    while (reading)
+    {
+        int ch = parser_getchar();
+
+        if (ch != PICO_ERROR_TIMEOUT)
+        {
+            if (isfirst && ch == '-')
+            {
+                isneg = true;
+            }
+            else if (isdigit(ch))
+            {
+                val = (val * 10) + (ch - '0');
+            }
+            else { break; }
+
+            isfirst = false;
+            continue;
+        }
+        else { printf("read_snum: TIMEOUT\n"); }
+
+        reading = false;
+    }
+
+    return isneg ? (val ? -val : -1) : val;
+}
+
+
 PRIVATE void scan_for_sync(void)
 {
     int ch = parser_getchar();
@@ -212,6 +248,12 @@ PRIVATE void scan_for_sync(void)
                     BlueTooth_Printf("BLAC\n");
                     break;
                 }
+                case MATCH_UPDATE:          // UPDA: Updatre and leds that need updating.
+                {
+                    printf("UPDA\n");
+                    LEDS_Do_Update();
+                    break;
+                }
                 case MATCH_BLOB:            // BLOB: Load a new binary object containing program.
                 {
                     printf("BLOB\n");
@@ -229,18 +271,25 @@ PRIVATE void scan_for_sync(void)
                 case MATCH_BRIGHTNESS:
                 {
                     arg = read_num();
-                    printf("BRIG %d\n", arg);
+                    printf("BRIG %d    \r", arg);
+                    fflush(stdout);
 
                     if (arg >= 0 && arg <= MAX_BRIGHTNESS_NUM)
                     {
-                        LED_Brightness = arg / (double)MAX_BRIGHTNESS_NUM;
-                        LED_Update(0);
+                        double newval = arg / (double)MAX_BRIGHTNESS_NUM;
+
+                        if (LED_Brightness != newval)
+                        {
+                            LED_Brightness = newval;
+                            LED_Needs_Update(ALL_PHYS);
+                            LEDS_Do_Update();
+                        }
                     }
                     break;
                 }
                 case MATCH_PHYS:          // Define the number of LEDs in system.
                 {
-                    int phynum = read_num();
+                    int phynum = read_snum();
                     arg = read_num();
 
                     D(printf("DO READ PHYS %d, LEDS %d\n", phynum, arg);)
@@ -248,13 +297,13 @@ PRIVATE void scan_for_sync(void)
                     BlueTooth_Printf("PHYS %d has %d LEDs.\n", phynum, arg);
                     break;
                 }
-                case MATCH_LARR:          // Set the current led array to use.
+                case MATCH_SPHY:          // Set the current led array to use.
                 {
-                    int phynum = read_num();
+                    int phynum = read_snum();
 
-                    D(printf("DO LARR %d\n", phynum);)
+                    D(printf("DO SPHY %d\n", phynum);)
                     LEDS_Set_Phynum(phynum);
-                    BlueTooth_Printf("LARR %d\n", phynum);
+                    BlueTooth_Printf("SPHY %d\n", phynum);
                     break;
                 }
                 case MATCH_SHOW:
@@ -267,9 +316,8 @@ PRIVATE void scan_for_sync(void)
                 }
                 case MATCH_QUEUE:
                 {
-                    printf("QUEU\n");
                     arg = read_num();
-                    printf("DO NEXT %d\n", arg);         // SAME as trig (for now).
+                    printf("QUEU %d\n", arg);         // SAME as trig (for now).
                     Blob_Queue_Next(arg);
                     break; 
                 }
@@ -277,6 +325,14 @@ PRIVATE void scan_for_sync(void)
                 {
                     printf("SCEN\n");
                     read_scene();
+                    break; 
+                }
+                case MATCH_DUMP:
+                {
+                    arg = read_num();
+                    printf("Dump %d\n", arg);
+                    extern void do_dump(int arg);
+                    do_dump(arg);
                     break; 
                 }
             }

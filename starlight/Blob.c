@@ -8,6 +8,8 @@
 #include <string.h>
 //#include <time.h>
 
+#include "bluetooth_stdio.h"
+
 #include "obled.h"
 #include "Queue.h"
 #include "Led.h"
@@ -35,23 +37,27 @@ PRIVATE LED LED_Morph_Data[MAX_NUM_LEDS];
 typedef enum Command
 {
     COMMAND_END       = 0,    // end                      -- end of program, stop running.
-    COMMAND_YIELD     = 1,    // yiel                     -- wait until next tick.
-    COMMAND_WAIT      = 2,    // wait (n)                 -- wait for (n) milli seconds.
-    COMMAND_JUMP      = 3,    // jump (n)                 -- jump to a new line in routine.
-    COMMAND_CALL      = 4,    // call (n)                 -- call a sub routine.
-    COMMAND_REPEAT    = 5,    // repe (n)                 -- repeat a sequence (n) times.
-    COMMAND_SCENE     = 6,    // scen (n)                 -- paint scene (n).
-    COMMAND_SHIFT     = 7,    // shif (+/-n)              -- shift led color values (values that are shifted off the end are lost).
-    COMMAND_ROTATE    = 8,    // rota (+/-n)              -- rotate led value. (end wraps).
-    COMMAND_MORPH     = 9,    // morp (t) [scene] (n)     -- morph current scene into new scene (n) over (t) seconds.
-    COMMAND_INTERRUPT = 10,   // intr (n)                 -- interrupt current routine.
-    COMMAND_QUEUE     = 11,   // queu (n)                 -- add routine to queue.
-    COMMAND_TRIGGER   = 12,   // trig (n) [routine] (n)   -- bind a trigger to a routine.
-    COMMAND_LEDS      = 13,   // leds (n)                 -- set number of leds.
+    COMMAND_UPDATE    = 1,    // upda                     -- update all leds that need updating.
+    COMMAND_YIELD     = 2,    // yiel                     -- wait until next tick.
+    COMMAND_WAIT      = 3,    // wait (n)                 -- wait for (n) milli seconds.
+    COMMAND_JUMP      = 4,    // jump (n)                 -- jump to a new line in routine.
+    COMMAND_CALL      = 5,    // call (n)                 -- call a sub routine.
+    COMMAND_REPEAT    = 6,    // repe (n)                 -- repeat a sequence (n) times.
+    COMMAND_SPHY      = 7,    // sphy (s)                 -- set current led string (1->8 is physical string), 0 is current, <1 all.
+    COMMAND_SCENE     = 8,    // scen (n)                 -- paint scene (n).
+    COMMAND_RENDER    = 9,    // rend (n)                 -- paint scene (n), no update.
+    COMMAND_SHIFT     = 10,    // shif (+/-n)              -- shift led color values (values that are shifted off the end are lost).
+    COMMAND_ROTATE    = 11,    // rota (+/-n)              -- rotate led value. (end wraps).
+    COMMAND_MORPH     = 12,   // morp (t) [scene] (n)     -- morph current scene into new scene (n) over (t) seconds.
+    COMMAND_INTERRUPT = 13,   // intr (n)                 -- interrupt current routine.
+    COMMAND_QUEUE     = 14,   // queu (n)                 -- add routine to queue.
+    COMMAND_TRIGGER   = 15,   // trig (n) [routine] (n)   -- bind a trigger to a routine.
+    COMMAND_PHYS      = 16,   // phys (s) (n)             -- set number of leds for specific string.
 
     COMMAND_LAST             // This must always be last!
 } COMMAND;
 
+#define CMD_MASK (0xFFFF)
 
 typedef enum
 {
@@ -106,20 +112,25 @@ PRIVATE const char* Command_Name(COMMAND cmd)
 {
     const char* command_name[] = {
             "end",  // COMMAND_END      -- end of program, stop running.
+            "upda", // COMMAND_UPDATE   -- update all leds that need updaing.
             "yiel", // COMMAND_YIELD    -- wait until next tick.
             "wait", // COMMAND_WAIT     -- wait for (n) seconds.
             "jump", // COMMAND_JUMP     -- jump to a new line in routine.
             "call", // COMMAND_CALL     -- call a sub routine.
             "repe", // COMMAND_REPEAT   -- repeat a sequence (n) times.
+            "sphy", // COMMAND_SPHY     -- set current led string (1->8 is physical string), 0 is current, <1 all.
             "scen", // COMMAND_SCENE    -- paint scene (n).
+            "rend", // COMMAND_RENDER   -- paint scene (n), no update.
             "shif", // COMMAND_SHIFT    -- shift led color values (values that are shifted off the end are lost).
             "rota", // COMMAND_ROTATE   -- rotate led value. (end wraps).
             "morp", // COMMAND_MORPH    -- morph current scene into new scene (n) over (t) seconds.
             "intr", // COMMAND_INTRRUPT -- interrupt current routine.
             "queu", // COMMAND_QUEUE    -- add routine to queue.
             "trig", // COMMAND_TRIGGER  -- bind a trigger to a routine.
-            "leds", // COMMAND_LEDS     -- set number of leds.
+            "phys", // COMMAND_PHYS     -- set number of leds for specific string.
         };
+
+    cmd &= CMD_MASK;
 
     if (cmd >= COMMAND_END && cmd < COMMAND_LAST)
         return command_name[cmd];
@@ -272,11 +283,12 @@ PRIVATE bool Process_Command(void)
 	{
 		while (result && !done)
 		{
-			D(printf("PC [%d]:", Prog_Id(cmdp));)
-
 			COMMAND cmd = *(COMMAND*)cmdp++;
 
-			D(printf("%d '%s'\n", cmd, Command_Name(cmd));)
+            cmd &= CMD_MASK;
+
+			// D(printf("PC [%d]:", Prog_Id(cmdp));)
+			// D(printf("%d '%s'\n", cmd, Command_Name(cmd));)
 
 			switch (cmd)
 			{
@@ -287,6 +299,11 @@ PRIVATE bool Process_Command(void)
 					result = false;
 					break;
 				}
+                case COMMAND_UPDATE:    // Update LED Strings.
+                {
+                    LEDS_Do_Update();
+                    break;
+                }
 				case COMMAND_YIELD:     // wait until next tick.
 				{
 					done = true;
@@ -300,7 +317,28 @@ PRIVATE bool Process_Command(void)
 					done = true;
 					break;
 				}
+				case COMMAND_PHYS:    // set number of leds for specific string.
+                {
+					int32_t phynum = (int32_t)*cmdp++;	// Get the phynum to set.
+					uint32_t num_leds = (PROG)*cmdp++;	// Get the number of leds on string.
+                    PHY_Set_led_count(phynum, num_leds);
+                    printf(" *** PHYS %d %d\n", phynum, num_leds);
+                    break;
+                }
+				case COMMAND_SPHY:    // select current phy string.
+				{
+					int32_t arg = (int32_t)*cmdp++;
+					LEDS_Set_Phynum(arg);
+					break;
+				}
 				case COMMAND_SCENE:    // paint scene (n).
+				{
+					uint32_t arg = (uint32_t)*cmdp++;
+					Set_Scene(arg);
+                    LEDS_Do_Update();
+					break;
+				}
+				case COMMAND_RENDER:    // paint scene (n), no update.
 				{
 					uint32_t arg = (uint32_t)*cmdp++;
 					Set_Scene(arg);
@@ -326,8 +364,8 @@ PRIVATE bool Process_Command(void)
 				}
 				case COMMAND_REPEAT:   // repeat a sequence (n) times.
 				{
-					uint32_t repeat = (uint32_t)*cmdp++;			// Number of times left to repeat.
-					PROG cmd_idx = (PROG)*cmdp++;	// First command in program sequence.
+					uint32_t repeat = (uint32_t)*cmdp++;	// Number of times left to repeat.
+					PROG cmd_idx = (PROG)*cmdp++;	        // First command in program sequence.
 
 					Blob_State.prog = cmdp;
 					Push_Context();
@@ -355,7 +393,6 @@ PRIVATE bool Process_Command(void)
 
 				case COMMAND_QUEUE:     // add routine to queue.
 				case COMMAND_INTERRUPT: // interrupt current routine.
-				case COMMAND_LEDS:      // set number of leds.
 					cmdp++;
 				{
 					printf("Command(%d) '%s' is not implemented yet.\n", cmd, Command_Name(cmd));
@@ -385,14 +422,18 @@ PRIVATE void start_program(PROG_ID n)
 //
 // Start playing a program.
 {
-	if (n == 0) { Blob_State.State = STATE_IDLE; }
+	if (n == 0) 
+    {
+        Blob_State.State = STATE_IDLE; 
+        Blob_State.prog = 0;
+    }
 	else
 	{
 		D(printf("start_program: n %d\n", n);)
 		Blob_State.State = STATE_COMMAND;
 		Blob_State.prog = Prog_Ptr(n);
 		
-		Process_Command();
+//		Process_Command();
 	}
 
 }
@@ -410,9 +451,7 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 {
 	static int Tick_Count = 0;
 
-	LEDS_Do_Update();
-
-	D(if (Blob_State.State)  { printf("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Blob_State.State); })
+//	D(if (Blob_State.State)  { printf("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Blob_State.State); })
 
 	switch (Blob_State.State)
 	{
@@ -468,7 +507,7 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 			break;
 		}
 	}
-	D(if (Blob_State.State)  { printf("== Blob_Tick: Done (%d).\n\n", Tick_Count); })
+//	D(if (Blob_State.State)  { printf("== Blob_Tick: Done (%d).\n\n", Tick_Count); })
 
 	return true;
 }
@@ -599,48 +638,11 @@ PUBLIC void Blob_Load(uint8_t* blob_base)
 		Blob.Num_Scenes = scen_count;	// Number of Scenes defined.
 		Blob.Scene_Size = scen_size;	// Sizeof Scenes array.
 
-		int i;
-		uint32_t* Trig = Blob.Trigger_Base;
-
-		for (i=0; i < (Blob.Num_Trig / 2) - 1; ++i)
-		{
-			printf("\tTrigger(%d) id= %d, prog= %d\n", i, *Trig++, *Trig++);
-		}
-
 		start_program(1);			// Always start running program from start.
 	}
 }
 
 #define XITI_TIMES_SIZE(n) (sizeof(uint32_t) * (n) * LED_SIZE)
-
-PUBLIC void Blob_NumLeds(int n)
-//
-// Set number of LEDS.   Call when Num_Leds changes.
-{
-	// if (Blob_State.Xiti_Times)
-	// {
-	// 	if (n == Blob.Num_Leds)
-	// 	{
-	// 		return;  // already setup.
-	// 	}
-	// 	else
-	// 	{
-	// 		free(Blob_State.Xiti_Times);
-	// 		Blob_State.Xiti_Times = NULL;
-	// 	}
-	// }
-	// size_t size = XITI_TIMES_SIZE(n);
-
-	// uint32_t* xiti_times = malloc(size);
-
-	// if (xiti_times)
-	// {
-	// 	memset(xiti_times, 0, size);
-	// 	Blob_State.Xiti_Times = xiti_times;
-	// 	Blob.Num_Leds = n;
-	// }
-}
-
 
 PUBLIC void Blob_Init(void)
 //
@@ -658,26 +660,93 @@ PUBLIC void Blob_Init(void)
 }
 
 
-// EndFile: Blob.c
+// PRIVATE void dump_blob_stats(void)
+// {
+//     BlueTooth_Printf("Blob Stats: \nNum triggers %d\n Prog Size %d\nNum Scenes %d\n Scene Size\n",
+// 		Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size);
+// }
 
-#ifdef DEBUG
-PRIVATE void mem_dump(void* ptr, size_t n)
-{
-	uint8_t* bptr = ptr;
-	uint8_t count = 0;
 
-	while (n--)
-	{
-		if (!count)
-		{
-			printf("\n%8.8X: ", bptr);
-			count = 16;
-		}
-		else --count;
+// PRIVATE void dump_blob_triggers(void)
+// {
+//     int i;
+//     uint32_t* Trig = Blob.Trigger_Base;
 
-		printf("%2.2X ", *bptr++);
-	}
-	printf("\n");
-}
-#endif
+//     printf("Triggers:\n");
+//     BlueTooth_Printf("Triggers:\n");
+
+//     for (i=0; i < (Blob.Num_Trig / 2) - 1; ++i, Trig += 2)
+//     {
+//         printf("  %d - id= %d, prog= %d\n", i, *Trig, *Trig+1);
+//         BlueTooth_Printf("  %d - id= %d, prog= %d\n", i, *Trig, *Trig+1);
+//     }
+// }
+
+
+// PRIVATE void dump_blob_scene_index(void)
+// {
+//     int i;
+
+//     printf("\nScenes:\n");
+//     BlueTooth_Printf("\nScenes\n");
+
+//     for (i=0; i < Blob.Num_Scenes; ++i)
+//     {
+//         printf("   %d - %d\n", i, Blob.Scene_Index[i]);
+//         BlueTooth_Printf("   %d - %d\n", i, Blob.Scene_Index[i]);
+//     }
+// }
+
+
+// PUBLIC void do_dump(int arg)
+// {
+//     switch (arg)
+//     {
+//         case 0:
+//         {
+//             printf("Dump:\n1 - Stats\n2 - Triggers.\n3 - Scene Index.");
+//             BlueTooth_Printf("Dump:\n1 - Stats\n2 - Triggers.\n3 - Scene Index.");
+//             break;
+//         }
+//         case 1:
+//         {
+//             dump_blob_stats();
+//             break;
+//         }
+//         case 2:
+//         {
+//             dump_blob_triggers();
+//             break;
+//         }
+//         case 3:
+//         {
+//             dump_blob_scene_index();
+//             break;
+//         }
+//     }
+// }
+
+
+// // EndFile: Blob.c
+
+// #ifdef DEBUG
+// PRIVATE void mem_dump(void* ptr, size_t n)
+// {
+// 	uint8_t* bptr = ptr;
+// 	uint8_t count = 0;
+
+// 	while (n--)
+// 	{
+// 		if (!count)
+// 		{
+// 			printf("\n%8.8X: ", bptr);
+// 			count = 16;
+// 		}
+// 		else --count;
+
+// 		printf("%2.2X ", *bptr++);
+// 	}
+// 	printf("\n");
+// }
+//#endif
 
