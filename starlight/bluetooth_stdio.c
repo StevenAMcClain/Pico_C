@@ -256,6 +256,7 @@ PUBLIC void BlueTooth_Send_String(char* str)
 {
     lineBuffer = str;
     rfcomm_request_can_send_now_event(rfcomm_channel_id);
+    while (lineBuffer) { continue; }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -278,7 +279,7 @@ PRIVATE void BlueTooth_Server(void)   // This is the main for the second core.
     btstack_run_loop_execute();
 }
 
-PUBLIC void Start_BlueTooth_Server(void)
+PUBLIC void Start_BlueTooth_Core(void)
 {
     multicore_lockout_victim_init();
     multicore_launch_core1(BlueTooth_Server);
@@ -314,8 +315,8 @@ PUBLIC void BlueTooth_Printf(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(buff, sizeof(buff), fmt, args);    //vsnprintf BlueTooth_Send_String
     va_end(args);
+    printf(buff);
     BlueTooth_Send_String(buff);
-    busy_wait_ms(1);
 }
 
 

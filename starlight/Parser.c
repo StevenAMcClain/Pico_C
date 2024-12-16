@@ -147,7 +147,6 @@ PRIVATE void read_blob(void)
                             if (check == blob_check)
                             {
                                 // printf("read_blob: base %X %X\n", real_base, base);
-                                printf("\n* * * * * * BLOB LOADED * * * * * *\n");
                                 Blob_Load(base);
                                 BlueTooth_Printf("BLOB loaded.\n");
                                 return;
@@ -191,7 +190,7 @@ PRIVATE int read_num(void)
 }
 
 
-PRIVATE int read_snum(void)
+PRIVATE int read_snum(void)   // Read signed number.
 {
     bool isfirst = true;
     bool isneg = false;
@@ -227,6 +226,37 @@ PRIVATE int read_snum(void)
 }
 
 
+PRIVATE int read_hnum(void)   // Read hex number.
+{
+    int val = 0;
+
+    bool reading = true;
+
+    while (reading)
+    {
+        int ch = parser_getchar();
+
+        if (ch != PICO_ERROR_TIMEOUT)
+        {
+            if (isxdigit(ch))
+            {
+                ch = tolower(ch);
+                ch = (ch >= 'a' && ch <= 'f') ? ch - 'a' + 10 : ch - '0';
+                val = (val << 4) + ch;
+            }
+            else { break; }
+
+            continue;
+        }
+        else { printf("read_hnum: TIMEOUT\n"); }
+
+        reading = false;
+    }
+
+    return val;
+}
+
+
 PRIVATE void scan_for_sync(void)
 {
     int ch = parser_getchar();
@@ -242,7 +272,6 @@ PRIVATE void scan_for_sync(void)
             {
                 case MATCH_BLACK:           // BLAC: Set all leds to black.
                 {
-                    printf("BLAC\n");
                     Blob_Stop();
                     LEDS_All_Black();
                     BlueTooth_Printf("BLAC\n");
@@ -250,13 +279,12 @@ PRIVATE void scan_for_sync(void)
                 }
                 case MATCH_UPDATE:          // UPDA: Updatre and leds that need updating.
                 {
-                    printf("UPDA\n");
                     LEDS_Do_Update();
+                    printf("UPDA\n");
                     break;
                 }
                 case MATCH_BLOB:            // BLOB: Load a new binary object containing program.
                 {
-                    printf("BLOB\n");
                     read_blob();
                     break;
                 }
@@ -265,7 +293,6 @@ PRIVATE void scan_for_sync(void)
                     arg = read_num();
                     Blob_Trigger(arg);
                     BlueTooth_Printf("TRIG %d\n", arg);
-                    printf("DO TRIGGER %d\n", arg);
                     break; 
                 }
                 case MATCH_BRIGHTNESS:
@@ -292,7 +319,6 @@ PRIVATE void scan_for_sync(void)
                     int phynum = read_snum();
                     arg = read_num();
 
-                    D(printf("DO READ PHYS %d, LEDS %d\n", phynum, arg);)
                     PHY_Set_led_count(phynum, arg);
                     BlueTooth_Printf("PHYS %d has %d LEDs.\n", phynum, arg);
                     break;
@@ -301,7 +327,6 @@ PRIVATE void scan_for_sync(void)
                 {
                     int phynum = read_snum();
 
-                    D(printf("DO SPHY %d\n", phynum);)
                     LEDS_Set_Phynum(phynum);
                     BlueTooth_Printf("SPHY %d\n", phynum);
                     break;
@@ -330,9 +355,10 @@ PRIVATE void scan_for_sync(void)
                 case MATCH_DUMP:
                 {
                     arg = read_num();
-                    printf("Dump %d\n", arg);
-                    extern void do_dump(int arg);
-                    do_dump(arg);
+                    int start = read_hnum();
+                    printf("Dump %d, start %X\n", arg, start);
+                    extern void do_dump(int arg, int arg2);
+                    do_dump(arg, start);
                     break; 
                 }
             }

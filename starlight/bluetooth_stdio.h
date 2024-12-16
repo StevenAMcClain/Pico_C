@@ -5,7 +5,7 @@
 
 #define QUEUE_SIZE 100
 
-extern void Start_BlueTooth_Server(void);
+extern void Start_BlueTooth_Core(void);
 
 extern char BlueTooth_GetChar();
 extern bool BlueTooth_Check_Receive(void);

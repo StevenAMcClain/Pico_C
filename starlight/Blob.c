@@ -435,7 +435,6 @@ PRIVATE void start_program(PROG_ID n)
 		
 //		Process_Command();
 	}
-
 }
 
 
@@ -596,6 +595,23 @@ PUBLIC void Blob_Unload(void)
 }
 
 
+typedef struct
+{
+    uint32_t trig_start;
+    uint32_t trig_size;
+
+    uint32_t prog_start;
+    uint32_t prog_size;
+
+    uint32_t scen_index;
+    uint32_t scen_count;
+
+    uint32_t scen_array;
+    uint32_t scen_size;
+
+} BLOB_HEAD;
+
+
 PUBLIC void Blob_Load(uint8_t* blob_base)
 //
 // Load a new blob_base.
@@ -604,39 +620,39 @@ PUBLIC void Blob_Load(uint8_t* blob_base)
 	{
 		Blob_Unload();
 
-		uint32_t* bptr = (uint32_t*)blob_base;
+	    BLOB_HEAD* bhptr = (BLOB_HEAD*)blob_base;
+    
+		// uint32_t trig_start = *bptr++;
+		// uint32_t trig_size  = *bptr++;
 
-		uint32_t trig_start = *bptr++;
-		uint32_t trig_size  = *bptr++;
+		// uint32_t prog_start = *bptr++;
+		// uint32_t prog_size  = *bptr++;
 
-		uint32_t prog_start = *bptr++;
-		uint32_t prog_size  = *bptr++;
+		// uint32_t scen_index = *bptr++;
+		// uint32_t scen_count = *bptr++;
 
-		uint32_t scen_index = *bptr++;
-		uint32_t scen_count = *bptr++;
-
-		uint32_t scen_array = *bptr++;
-		uint32_t scen_size  = *bptr++;
-
+		// uint32_t scen_array = *bptr++;
+		// uint32_t scen_size  = *bptr++;
+    
 		printf("trig_size=%d, prog_size=%d, scen_count=%d, scen_size=%d\n",
-				(trig_size / 2) - 1, prog_size, scen_count, scen_size);
+				(bhptr->trig_size / 2) - 1, bhptr->prog_size, bhptr->scen_count, bhptr->scen_size);
 
 		Blob_State.State = STATE_IDLE;
 
 		Blob.Blob_Base = blob_base;
 		Blob.Blob_Size = *blob_base - sizeof(uint32_t);
 
-		bptr = (uint32_t*)blob_base;   // Reset bptr.
+	    uint32_t* bptr = (uint32_t*)blob_base;
 
-		Blob.Trigger_Base = (PROG_ID*)(bptr + trig_start);
-		Blob.Program_Base = (PROG*)   (bptr + prog_start);
-		Blob.Scene_Index = (SCENE_ID*)(bptr + scen_index);
-		Blob.Scene_Array = (SCENE*)   (bptr + scen_array);
+		Blob.Trigger_Base = (PROG_ID*)(bptr + bhptr->trig_start);
+		Blob.Program_Base = (PROG*)   (bptr + bhptr->prog_start);
+		Blob.Scene_Index = (SCENE_ID*)(bptr + bhptr->scen_index);
+		Blob.Scene_Array = (SCENE*)   (bptr + bhptr->scen_array);
 
-		Blob.Num_Trig = trig_size;		// Number of trigger records.
-		Blob.Num_Prog = prog_size;		// Number of PROG records.
-		Blob.Num_Scenes = scen_count;	// Number of Scenes defined.
-		Blob.Scene_Size = scen_size;	// Sizeof Scenes array.
+		Blob.Num_Trig = bhptr->trig_size;		// Number of trigger records.
+		Blob.Num_Prog = bhptr->prog_size;		// Number of PROG records.
+		Blob.Num_Scenes = bhptr->scen_count;	// Number of Scenes defined.
+		Blob.Scene_Size = bhptr->scen_size;	// Sizeof Scenes array.
 
 		start_program(1);			// Always start running program from start.
 	}
@@ -660,93 +676,4 @@ PUBLIC void Blob_Init(void)
 }
 
 
-// PRIVATE void dump_blob_stats(void)
-// {
-//     BlueTooth_Printf("Blob Stats: \nNum triggers %d\n Prog Size %d\nNum Scenes %d\n Scene Size\n",
-// 		Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size);
-// }
-
-
-// PRIVATE void dump_blob_triggers(void)
-// {
-//     int i;
-//     uint32_t* Trig = Blob.Trigger_Base;
-
-//     printf("Triggers:\n");
-//     BlueTooth_Printf("Triggers:\n");
-
-//     for (i=0; i < (Blob.Num_Trig / 2) - 1; ++i, Trig += 2)
-//     {
-//         printf("  %d - id= %d, prog= %d\n", i, *Trig, *Trig+1);
-//         BlueTooth_Printf("  %d - id= %d, prog= %d\n", i, *Trig, *Trig+1);
-//     }
-// }
-
-
-// PRIVATE void dump_blob_scene_index(void)
-// {
-//     int i;
-
-//     printf("\nScenes:\n");
-//     BlueTooth_Printf("\nScenes\n");
-
-//     for (i=0; i < Blob.Num_Scenes; ++i)
-//     {
-//         printf("   %d - %d\n", i, Blob.Scene_Index[i]);
-//         BlueTooth_Printf("   %d - %d\n", i, Blob.Scene_Index[i]);
-//     }
-// }
-
-
-// PUBLIC void do_dump(int arg)
-// {
-//     switch (arg)
-//     {
-//         case 0:
-//         {
-//             printf("Dump:\n1 - Stats\n2 - Triggers.\n3 - Scene Index.");
-//             BlueTooth_Printf("Dump:\n1 - Stats\n2 - Triggers.\n3 - Scene Index.");
-//             break;
-//         }
-//         case 1:
-//         {
-//             dump_blob_stats();
-//             break;
-//         }
-//         case 2:
-//         {
-//             dump_blob_triggers();
-//             break;
-//         }
-//         case 3:
-//         {
-//             dump_blob_scene_index();
-//             break;
-//         }
-//     }
-// }
-
-
-// // EndFile: Blob.c
-
-// #ifdef DEBUG
-// PRIVATE void mem_dump(void* ptr, size_t n)
-// {
-// 	uint8_t* bptr = ptr;
-// 	uint8_t count = 0;
-
-// 	while (n--)
-// 	{
-// 		if (!count)
-// 		{
-// 			printf("\n%8.8X: ", bptr);
-// 			count = 16;
-// 		}
-// 		else --count;
-
-// 		printf("%2.2X ", *bptr++);
-// 	}
-// 	printf("\n");
-// }
-//#endif
-
+// EndFile: Blob.c

@@ -20,21 +20,15 @@
 
 void main(void)
 {
-    stdio_init_all();               // Prepare stdio for use.
+    stdio_init_all();           // Prepare stdio for use.
 
-    printf("\r\n\nStartlight %s %s %s: startup.\n", __VERSION__ , __TIME__, __DATE__);
+    printf("\r\n\nStartlight %s %s %s: startup.\n", 
+                         __VERSION__ , __TIME__, __DATE__);
 
-    Start_BlueTooth_Server();
-
-    LED_Init();           // Prepare LED strings driver for use.
-
-    Blob_Init();
-
-    // PHY_Set_led_count(1, 19);
-    // LEDS_Set_Phynum(1);
-    // LEDS_All_Black();
-
-    Start_Parser();  // Never returns.
+    Start_BlueTooth_Core();     // Startup server on second core.
+    LED_Init();                 // Prepare LED strings PIO driver for use.
+    Blob_Init();                // Get blob engine ready to run.
+    Start_Parser();             // Parse bluetooth stream..... Never return.
 }
 
 

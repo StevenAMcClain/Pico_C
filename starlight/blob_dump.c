@@ -10,29 +10,45 @@
 
 #include "bluetooth_stdio.h"
 
-// #include "obled.h"
-// #include "Queue.h"
-// #include "Led.h"
-// #include "Morph.h"
-// #include "Scene.h"
 
-// PRIVATE volatile uint64_t Blob_Time = 0;
+PRIVATE void mem_dump(void* ptr, size_t n)
+{
+	uint8_t* bptr = ptr;
+	uint8_t count = 0;
 
-// PUBLIC const int Tick_Speed = 
-// //#ifdef DEBUG
-// //1000000;
-// //#else
-// 1000;
-// //#endif
+	while (n--)
+	{
+		if (!count)
+		{
+			BlueTooth_Printf("\n%8.8X: ", bptr);
+			count = 15;
+		}
+		else --count;
 
-// PRIVATE LED LED_Morph_Data[MAX_NUM_LEDS];
+		BlueTooth_Printf("%2.2X ", *bptr++);
+	}
+	BlueTooth_Printf("\n");
+}
 
-// #define PROG_QUEUE_SIZE 10   // Maximum number of pending programs.
 
-// // #define RUNNING_QUEUE_SIZE 10   // Maximum number of pending programs.
+PRIVATE void mem_dump_ints(void* ptr, size_t n)
+{
+	uint32_t* bptr = ptr;
+	uint8_t count = 0;
 
+	while (n--)
+	{
+		if (!count)
+		{
+			BlueTooth_Printf("\n%8.8X: ", bptr);
+			count = 4;
+		}
+		else --count;
 
-// #define All_Program_Stop(msg, n) { printf(msg, n); Blob_Stop(); }
+		BlueTooth_Printf("%8.8X ", *bptr++);
+	}
+	BlueTooth_Printf("\n");
+}
 
 // typedef enum Command
 // {
@@ -57,15 +73,6 @@
 // } COMMAND;
 
 // #define CMD_MASK (0xFFFF)
-
-// typedef enum
-// {
-// 	STATE_IDLE,             // Nothing running.
-// 	STATE_WAITING,          // In wait.
-// 	STATE_COMMAND,          // Running commands.
-// 	STATE_TRANSITION,       // In transition.
-
-// } STATE;
 
 
 // typedef struct Blob_State
@@ -139,22 +146,19 @@
 
 PRIVATE void dump_blob_stats(void)
 {
-    BlueTooth_Printf("Blob Stats: \nNum triggers %d\n Prog Size %d\nNum Scenes %d\n Scene Size\n",
+    BlueTooth_Printf("Blob Stats: \n  Num triggers %d\n  Prog Size %d\n  Num Scenes %d\n  Scene Size\n",
 		Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size);
 }
 
 
 PRIVATE void dump_blob_triggers(void)
 {
-    int i;
-    uint32_t* Trig = Blob.Trigger_Base;
-
-    printf("Triggers:\n");
     BlueTooth_Printf("Triggers:\n");
 
-    for (i=0; i < (Blob.Num_Trig / 2) - 1; ++i, Trig += 2)
+    uint32_t* Trig = Blob.Trigger_Base;
+
+    for (int i=0; i < (Blob.Num_Trig / 2) - 1; ++i, Trig += 2)
     {
-        printf("  %d - id= %d, prog= %d\n", i, *Trig, *Trig+1);
         BlueTooth_Printf("  %d - id= %d, prog= %d\n", i, *Trig, *Trig+1);
     }
 }
@@ -162,68 +166,35 @@ PRIVATE void dump_blob_triggers(void)
 
 PRIVATE void dump_blob_scene_index(void)
 {
-    int i;
-
-    printf("\nScenes:\n");
     BlueTooth_Printf("\nScenes\n");
 
-    for (i=0; i < Blob.Num_Scenes; ++i)
+    for (int i=0; i < Blob.Num_Scenes; ++i)
     {
-        printf("   %d - %d\n", i, Blob.Scene_Index[i]);
         BlueTooth_Printf("   %d - %d\n", i, Blob.Scene_Index[i]);
     }
 }
 
-
-PUBLIC void do_dump(int arg)
+#define HELP_STRING "\
+Dump:\n\
+  1 - Stats\n\
+  2 - Triggers.\n\
+  3 - Scene Index.\n\
+  4 - Dump bytes. (start)\n\
+  5 - Dump ints. (start)\n\
+  \n"
+"
+PUBLIC void do_dump(int arg, int arg2)
 {
     switch (arg)
     {
-        case 0:
-        {
-            printf("Dump:\n1 - Stats\n2 - Triggers.\n3 - Scene Index.");
-            BlueTooth_Printf("Dump:\n1 - Stats\n2 - Triggers.\n3 - Scene Index.");
-            break;
-        }
-        case 1:
-        {
-            dump_blob_stats();
-            break;
-        }
-        case 2:
-        {
-            dump_blob_triggers();
-            break;
-        }
-        case 3:
-        {
-            dump_blob_scene_index();
-            break;
-        }
+        case 1: { dump_blob_stats(); break; }
+        case 2: { dump_blob_triggers(); break; }
+        case 3: { dump_blob_scene_index(); break; }
+        case 4: { mem_dump( (void*)arg2, 64); break; }
+        case 5: { mem_dump_ints( (void*)arg2, 20); break; }
+        case 0: default: { BlueTooth_Printf(HELP_STRING); break; }
     }
 }
 
 
 // EndFile: Blob.c
-
-#ifdef DEBUG
-PRIVATE void mem_dump(void* ptr, size_t n)
-{
-	uint8_t* bptr = ptr;
-	uint8_t count = 0;
-
-	while (n--)
-	{
-		if (!count)
-		{
-			printf("\n%8.8X: ", bptr);
-			count = 16;
-		}
-		else --count;
-
-		printf("%2.2X ", *bptr++);
-	}
-	printf("\n");
-}
-#endif
-
