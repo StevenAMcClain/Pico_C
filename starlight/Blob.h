@@ -1,6 +1,6 @@
 // File: Blob.h
 
-#define BLOB_VERSION "0.1a"
+#define BLOB_VERSION "0.2a"
 
 typedef uint32_t TRIG_ID;
 typedef int32_t PROG_ID;

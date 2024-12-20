@@ -1,11 +1,12 @@
 // File: Scene.c
 
-#include "Common.h"
-#include "Scene.h"
+#include "common.h"
+#include "scene.h"
 
 #include <stdio.h>
 
 #include "blob.h"
+#include "debug.h"
 #include "led.h"
 
 
@@ -85,13 +86,14 @@ PUBLIC void Set_Scene(SCENE_ID id)
 {
 	if (id && id <= Blob.Num_Scenes)
 	{
-		uint32_t start_idx = Blob.Scene_Index[--id];
+        int idx = (--id) * 2;
+		uint32_t start_idx = Blob.Scene_Index[idx + 1];
 
 //		D(printf("Set scene: id = %d, start_idx= %d\n", id, start_idx);)
 
 		Render_Scene(Blob.Scene_Array + start_idx);
 	}
-	else { D(printf("Set scene: bad id = %d\n", id);) }
+	else { D(DEBUG_SCENES, printf("Set scene: bad id = %d\n", id);) }
 }
 
 

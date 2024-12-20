@@ -174,6 +174,7 @@ PRIVATE void dump_blob_scene_index(void)
     }
 }
 
+
 #define HELP_STRING "\
 Dump:\n\
   1 - Stats\n\
@@ -182,7 +183,8 @@ Dump:\n\
   4 - Dump bytes. (start)\n\
   5 - Dump ints. (start)\n\
   \n"
-"
+
+
 PUBLIC void do_dump(int arg, int arg2)
 {
     switch (arg)

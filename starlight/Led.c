@@ -81,7 +81,7 @@ PUBLIC void LEDS_Set_Phynum(int phynum)
 PRIVATE LED_VAL apply_brightness(LED_VAL val)
 {
 	uint32_t big_val = (uint32_t)(((FLOAT)val) * LED_Brightness);
-	return (big_val <= MAX_LED_VAL) ? big_val : MAX_LED_VAL;
+	return (big_val <= LED_VAL_MAX) ? big_val : LED_VAL_MAX;
 }
 
 

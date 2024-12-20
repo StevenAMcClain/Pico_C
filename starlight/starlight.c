@@ -1,19 +1,19 @@
 // File: StarLight.c
 
-#include "Common.h"
+#include "common.h"
 
 #include <stdio.h>
 
-#include "hardware/pio.h"
-
 #include "bluetooth_stdio.h"
 
+#include "blob.h"
+#include "debug.h"
+#include "led.h"
 #include "obled.h"
-#include "Blob.h"
-#include "Led.h"
-#include "Parser.h"
+#include "parser.h"
 
-#include "ws2812.h"
+
+PUBLIC uint32_t Debug_Mask = DEBUG_ALL;
 
 //__attribute__((section(".uninitialized_data")))
 //int xxx[8] = {593, 594, 595, 596, 597, 598, 599, 600};

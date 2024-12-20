@@ -16,6 +16,7 @@ typedef enum match_code
     MATCH_BRIGHTNESS,   // Set led brighness (0.0 -> 1.0)
     MATCH_INTERRUPT,    // Halt running program, run new program, then resume halted program.
     MATCH_DUMP,         // Dump debug info.
+    MATCH_DEBUG,        // Set debug mask.
 
     MATCH_LAST     // Must be last.
 

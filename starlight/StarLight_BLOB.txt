@@ -37,8 +37,8 @@ BLOB:   Load program blob.
 
 		larr_index: uint32_t			// Logical led array index starts here (relative to start).
 		larr_count: uint32_t			// Number of logical led arrays defined.
-		larr_array: uint32_t			// 
-		larr_size:  uint32_t			// 
+		larr_array: uint32_t			// Logical array record start here.
+		larr_size:  uint32_t			// Size of the logical record array.
 
 		prog_start: uint32_t			// Program array starts here (relative to start).
 		prog_size:  uint32_t			// Size of program array.
@@ -47,6 +47,13 @@ BLOB:   Load program blob.
 		scen_count: uint32_t               // Number of scenes defined.
 		scen_array: uint32_t               // Scene array starts here (relative to start).
 		scen_size:  uint32_t			// Size of scene array.
+
+		prog_symtab_start			// Start of the program symbol table
+		prog_symtab_size			// Size of the program sysmbol table.
+
+		strindx_start				// Start of the string table.
+		strindx_size				// Size of the string table.
+
 
 		trig:	[  // Maps program start points to triggers.
 				   trig_idx:   uint32_t // Trigger number.
@@ -67,7 +74,10 @@ BLOB:   Load program blob.
 		        ] * size
 
 		scen_index: [
+
+			   scene_name:  uint32_t  // Strindx start of name string.
 		          scene_start: uint32_t  // Start point for scene in scen_array.
+
 		        ] * scen_count
 
 		scen_array:	[
@@ -84,6 +94,13 @@ BLOB:   Load program blob.
 				  ] * <=num LEDS
 				  end_flags             // scen separator (simple end, all, or last.)
 				] * scen_count
+
+		prog_symtab: [
+		                sym_name: uint32_t  // Strindx start of sym name.
+		                prog_idx: uint32_t // Program start point [index into prog array].
+		             ]
+		             
+		stringx: [ null terminated strings packed end to end. ]
 
 
 //-----------------------------------------

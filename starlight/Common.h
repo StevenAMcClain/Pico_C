@@ -14,14 +14,6 @@
 #define AFTER_PTR(x, s) ((void*)(((uint8_t*)(x)) + (s)))
 
 //------------------------
-#define DEBUG /**/
-
-#ifdef DEBUG
-#define D(x) x
-#else
-#define D(x)
-#endif
-//------------------------
 #define ERRORS /**/
 
 #ifdef ERRORS

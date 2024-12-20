@@ -29,7 +29,8 @@ PRIVATE struct Matcher Matches[MATCH_LAST] =
     {"QUEU", 0, MATCH_QUEUE}, 
     {"BRIG", 0, MATCH_BRIGHTNESS}, 
     {"INTR", 0, MATCH_INTERRUPT},
-    {"DUMP", 0, MATCH_DUMP}
+    {"DUMP", 0, MATCH_DUMP},
+    {"DEBU", 0, MATCH_DEBUG}
 };
 
 

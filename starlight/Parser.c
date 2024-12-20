@@ -11,6 +11,7 @@
 #include "bluetooth_stdio.h"
 
 #include "blob.h"
+#include "debug.h"
 #include "led.h"
 #include "matcher.h"
 #include "scene.h"
@@ -94,6 +95,18 @@ PRIVATE uint32_t Version()
     return ver[3] << 24 | ver[2] << 16 | ver[1] << 8 | ver[0];
 }
 
+PRIVATE char* version_to_str(char* buff, uint32_t val)
+{
+    buff[0] = val & 0xFF;
+    buff[1] = (val >> 8) & 0xFF;
+    buff[2] = (val >> 16) & 0xFF;
+    buff[3] = (val >> 24) & 0xFF;
+    buff[4] = 0;
+
+    return buff;
+}
+
+
 
 PRIVATE uint32_t Checksum(uint8_t* buff, size_t size)
 {
@@ -120,7 +133,7 @@ PRIVATE void read_blob(void)
 
         if (*ptr++ == Version())
         {
-            ptr++;
+            // ptr++;
             // if (*ptr++ == Num_LEDS)
             // {
                 blob_size = *ptr++ * sizeof(uint32_t);
@@ -158,7 +171,13 @@ PRIVATE void read_blob(void)
             // }
             // else { BlueTooth_Printf("!!! Wrong number of LEDS: expected %d, got %d\n", Num_LEDS, *(ptr-1)); }
         }
-        else { BlueTooth_Printf("!!! Bad blob version: expected %X, got %X\n", Version(), *(ptr-1)); }
+        else 
+        { 
+            char s1[10], s2[10];
+            BlueTooth_Printf("!!! Bad blob version: expected '%s', got '%s'\n", 
+                                version_to_str(s1, Version()), 
+                                version_to_str(s2, *(ptr-1))); 
+        }
     }
     BlueTooth_Printf("!!! BLOB load load fail.\n\n");
 }
@@ -334,7 +353,7 @@ PRIVATE void scan_for_sync(void)
                 case MATCH_SHOW:
                 {
                     arg = read_num();
-                    D(printf("DO SHOW SCENE %d\n", arg);)
+                    D(DEBUG_PARSER, printf("DO SHOW SCENE %d\n", arg);)
 					Set_Scene(arg);
                     LEDS_Do_Update();
                     break;
@@ -360,6 +379,13 @@ PRIVATE void scan_for_sync(void)
                     extern void do_dump(int arg, int arg2);
                     do_dump(arg, start);
                     break; 
+                }
+                case MATCH_DEBUG:
+                {
+                    arg = read_num();
+                    printf("Set Debug Flag %d(%X)\n", arg, arg);
+                    Debug_Mask = arg;
+                    break;
                 }
             }
             Matchers_Reset();
