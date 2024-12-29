@@ -21,6 +21,10 @@
 
 #define MAX_BRIGHTNESS_NUM 100
 
+#define MAX_BLOB_SIZE (16 * 1024)    // Fairly arbitrary max size
+
+#define BLOB_PRE_HEADER_SIZE 8      // Number of bytes to read before reading header.
+
 
 
 PRIVATE int parser_getchar(void)
@@ -28,26 +32,40 @@ PRIVATE int parser_getchar(void)
     return BlueTooth_Check_Receive() ? BlueTooth_GetChar() : PICO_ERROR_TIMEOUT;
 }
 
+uint64_t retry_counter = 0;     // Number of retries... ever!
+
+#define NUM_RETRIES 5
 
 PRIVATE bool read_bytes(int n, uint8_t* buff)
 {
-    while (n--)
+    int retries = NUM_RETRIES;
+
+    while (n)
     {
         int ch = parser_getchar();
 
         if (ch != PICO_ERROR_TIMEOUT)
         {
             *buff++ = ch;
+            --n;
+            retries = NUM_RETRIES;
+        }
+        else if (retries--)
+        {
+            // BlueTooth_Printf("!!! Retry.\n"); 
+            retry_counter++;
+            sleep_ms(3);
+            continue;
         }
         else
         {
-            printf("read_bytes: TIMEOUT expecting %d more bytes.\n", n); 
+            //printf("!!! Blob read TIMEOUT expecting %d more bytes.\n", n); 
+            BlueTooth_Printf("!!! Blob read TIMEOUT expecting %d more bytes.\n", n); 
             break;
         }
-
     }
 
-    return n == (-1);   // True if all bytes were read.
+    return n == 0;   // True if all bytes were read.
 }
 
 
@@ -87,8 +105,6 @@ PRIVATE void read_scene(void)
     }
 }
 
-#define BLOB_PRE_HEADER_SIZE 12         // Number of bytes to read before reading header.
-
 PRIVATE uint32_t Version()
 {
     uint8_t* ver = BLOB_VERSION;
@@ -107,7 +123,6 @@ PRIVATE char* version_to_str(char* buff, uint32_t val)
 }
 
 
-
 PRIVATE uint32_t Checksum(uint8_t* buff, size_t size)
 {
     uint32_t check = 0;
@@ -122,8 +137,10 @@ PRIVATE uint32_t Checksum(uint8_t* buff, size_t size)
 
 PRIVATE void read_blob(void)
 {
-    uint8_t buff[BLOB_PRE_HEADER_SIZE + 4];
+    uint8_t buff[BLOB_PRE_HEADER_SIZE];
     uint32_t blob_size = 0;
+
+    memset(buff, -1, sizeof(buff));
 
     printf("\nread_blob: ");
 
@@ -133,19 +150,17 @@ PRIVATE void read_blob(void)
 
         if (*ptr++ == Version())
         {
-            // ptr++;
-            // if (*ptr++ == Num_LEDS)
-            // {
-                blob_size = *ptr++ * sizeof(uint32_t);
-                // printf(" size %d\n", blob_size);
+            blob_size = *ptr++ * sizeof(uint32_t);
+            printf(" size %d\n", blob_size);
 
+            if (blob_size < MAX_BLOB_SIZE)
+            {
                 uint8_t* base = malloc(blob_size);
 
                 if (base)
                 {
                     memset(base, 0, blob_size);
                     *(uint32_t*)base = blob_size;       // Copy blob_size into header.
-
                     base += sizeof(uint32_t);
 
                     if (read_bytes(blob_size, base))
@@ -168,8 +183,8 @@ PRIVATE void read_blob(void)
                         }
                     }
                 }
-            // }
-            // else { BlueTooth_Printf("!!! Wrong number of LEDS: expected %d, got %d\n", Num_LEDS, *(ptr-1)); }
+            }
+            else { BlueTooth_Printf("!!! Bab blob size (%d) must be less than %d\n", blob_size, MAX_BLOB_SIZE); }
         }
         else 
         { 
@@ -275,6 +290,42 @@ PRIVATE int read_hnum(void)   // Read hex number.
     return val;
 }
 
+#define MAX_BUFF_SIZE 1000
+
+PRIVATE void do_export()
+{
+    if (Blob.Blob_Base)
+    {
+        uint8_t*ptr = Blob.Blob_Base;
+        size_t size = Blob.Blob_Size;
+
+        // BlueTooth_Printf("Size: %d\n", size);
+        char s1[10];
+        version_to_str(s1, Version());
+
+        char buff[MAX_BUFF_SIZE];
+        char* bufp = buff;
+        char* endp = buff + MAX_BUFF_SIZE - 8;
+
+        bufp += sprintf(bufp, "BLOB%s", s1);
+
+        while (size--) 
+        {
+            bufp += sprintf(bufp, "%2.2X", *ptr++);
+
+            if (bufp > endp)
+            {
+                *bufp = 0;
+                BlueTooth_Send_String(buff);
+                bufp = buff; 
+            }
+        }
+        *bufp = 0;
+        BlueTooth_Send_String(buff);
+    }
+    else { BlueTooth_Printf("<<NONE>>\n"); }
+}
+
 
 PRIVATE void scan_for_sync(void)
 {
@@ -302,7 +353,7 @@ PRIVATE void scan_for_sync(void)
                     printf("UPDA\n");
                     break;
                 }
-                case MATCH_BLOB:            // BLOB: Load a new binary object containing program.
+                case MATCH_SET_BLOB:            // BLOB: Load a new binary object containing program.
                 {
                     read_blob();
                     break;
@@ -385,6 +436,18 @@ PRIVATE void scan_for_sync(void)
                     arg = read_num();
                     printf("Set Debug Flag %d(%X)\n", arg, arg);
                     Debug_Mask = arg;
+                    break;
+                }
+                case MATCH_VERSION:
+                {
+                    char s1[10];
+                    version_to_str(s1, Version());
+                    BlueTooth_Printf("VERS:%s\n", s1);
+                    break;
+                }
+                case MATCH_GET_BLOB:
+                {
+                    do_export();
                     break;
                 }
             }

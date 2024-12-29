@@ -29,7 +29,9 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 
 	uint32_t i = 0;
 
-	while (i < Num_LEDS(0))     // <<<<------------------------------ zero?
+    size_t num_leds = Num_LEDS(0);     // <<<<------------------------------ zero?
+
+	while (i < num_leds)
 	{
 		uint8_t buff[4];
 
@@ -45,12 +47,13 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 		else if (flags == FLAGS_END_ALL)  
 		{
 //			D(printf("End All\n");)
+            if ((ptr - 1) == start_ptr) break;  // Just end all
 			ptr = start_ptr;
 		}
 		else if (flags == FLAGS_END_LAST)
 		{
 //			D(printf("End Last");)
-			while (i < Num_LEDS(0))     // <<<<------------------------------ zero?
+			while (i < num_leds)
 			{
 				LED_Set_RGB(i, buff[1], buff[2], buff[3]);
 				++i;
@@ -91,7 +94,10 @@ PUBLIC void Set_Scene(SCENE_ID id)
 
 //		D(printf("Set scene: id = %d, start_idx= %d\n", id, start_idx);)
 
-		Render_Scene(Blob.Scene_Array + start_idx);
+        if (start_idx)
+        {
+    		Render_Scene(Blob.Scene_Array + start_idx - 1);
+        }
 	}
 	else { D(DEBUG_SCENES, printf("Set scene: bad id = %d\n", id);) }
 }

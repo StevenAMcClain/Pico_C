@@ -12,6 +12,7 @@ extern bool BlueTooth_Check_Receive(void);
 
 extern void BlueTooth_Send_String(char* str);
 extern void BlueTooth_Printf(const char *fmt, ...);
+extern void BlueTooth_Printf_faster(const char *fmt, ...);
 
 #endif // BLUETOOTH_STDIO_H
 

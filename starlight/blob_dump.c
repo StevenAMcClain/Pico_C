@@ -10,8 +10,7 @@
 
 #include "bluetooth_stdio.h"
 
-
-PRIVATE void mem_dump(void* ptr, size_t n)
+PUBLIC void mem_dump(void* ptr, size_t n)
 {
 	uint8_t* bptr = ptr;
 	uint8_t count = 0;
@@ -146,8 +145,10 @@ PRIVATE void mem_dump_ints(void* ptr, size_t n)
 
 PRIVATE void dump_blob_stats(void)
 {
-    BlueTooth_Printf("Blob Stats: \n  Num triggers %d\n  Prog Size %d\n  Num Scenes %d\n  Scene Size\n",
-		Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size);
+    BlueTooth_Printf("Blob Stats: \n  Blob Size %d\n  Num triggers %d\n  Prog Size %d\n  Num Scenes %d\n  Scene Size %d\n\
+  StrindX bytes %d\n  Number of symbols %d\n  VStr_Index_Size %d\n  VStr_Array_Size %d\n",
+		Blob.Blob_Size, Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size,
+        Blob.StrindX_Size, Blob.SymTab_Size, Blob.VStr_Index_Size, Blob.VStr_Array_Size);
 }
 
 
@@ -155,22 +156,23 @@ PRIVATE void dump_blob_triggers(void)
 {
     BlueTooth_Printf("Triggers:\n");
 
-    uint32_t* Trig = Blob.Trigger_Base;
+    uint32_t* trigp = Blob.Trigger_Base;
 
-    for (int i=0; i < (Blob.Num_Trig / 2) - 1; ++i, Trig += 2)
+    for (int i=0; i < (Blob.Num_Trig / 2) - 1; ++i, trigp += 2)
     {
-        BlueTooth_Printf("  %d - id= %d, prog= %d\n", i, *Trig, *Trig+1);
+        BlueTooth_Printf("  %d - id= %d, prog= %d\n", i, trigp[0], trigp[1]);
     }
 }
 
 
 PRIVATE void dump_blob_scene_index(void)
 {
-    BlueTooth_Printf("\nScenes\n");
+    BlueTooth_Printf("\nScenes:\n");
 
-    for (int i=0; i < Blob.Num_Scenes; ++i)
+    for (int i=0; i < Blob.Num_Scenes; i += 2)
     {
-        BlueTooth_Printf("   %d - %d\n", i, Blob.Scene_Index[i]);
+        BlueTooth_Printf("%d) - name %d, val %d\n", 
+                1 + i, Blob.Scene_Index[i], Blob.Scene_Index[i + 1]);
     }
 }
 

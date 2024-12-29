@@ -15,18 +15,28 @@ typedef struct Blob
     uint8_t* Blob_Base;		// Pointer to base of Blob.
     uint32_t Blob_Size;		// Number of bytes in Blob.
 
-    PROG_ID* Trigger_Base;  // Start of the trigger table.
-    PROG*    Program_Base;	// Blob Programs start here.
+    uint8_t* StrindX;       // Point to base of string table.
+
+    void* SymTab;           // Pointer to start of symbol table.
+    void* VStr_Index;       // Pointer to base of virtual string index.
+    void* VStr_Array;       // Pointer to base of virtual string array.
 
     SCENE_ID* Scene_Index;	// Scene index start here.
     SCENE*    Scene_Array;	// Scene array start here.
 
-	uint32_t Num_Leds;		// Number of leds defined.
+    PROG_ID* Trigger_Base;  // Start of the trigger table.
+    PROG*    Program_Base;	// Blob Programs start here.
 
-    uint32_t Num_Trig;		// Number of trigger records.
-    uint32_t Num_Prog;		// Number of PROG records.
+    uint32_t StrindX_Size;
+    uint32_t SymTab_Size;
+
+    uint32_t VStr_Index_Size;
+    uint32_t VStr_Array_Size;
+    
     uint32_t Num_Scenes;	// Number of scenes defined.
     uint32_t Scene_Size;	// Sizeof the scene array.
+    uint32_t Num_Trig;		// Number of trigger records.
+    uint32_t Num_Prog;		// Number of PROG records.
 
 } BLOB;
 

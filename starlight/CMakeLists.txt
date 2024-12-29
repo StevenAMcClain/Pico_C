@@ -33,6 +33,7 @@ project(starlight C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(starlight starlight.c bluetooth_stdio.c Led.c ws2812.c blob.c matcher.c morph.c parser.c stack.c obled.c scene.c blob_dump.c)
@@ -40,6 +41,10 @@ add_executable(starlight starlight.c bluetooth_stdio.c Led.c ws2812.c blob.c mat
 # Get all C and C++ files, when the glob value changes, cmake will run again and update the files
 # file(GLOB_RECURSE app_src CONFIGURE_DEPENDS "${SOURCE_FOLDER}/*.c" "${SOURCE_FOLDER}/*.cpp" )
 
+# -- Added by steven
+#pico_set_linker_script(starlight ${CMAKE_SOURCE_DIR}/pico_flash_region_protect.ld)
+set_target_properties(starlight PROPERTIES PICO_TARGET_LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/build/pico_flash_region_protect.ld)
+# -- End Added by steven
 
 #include_directories($ENV{PICO_SDK_PATH})
 pico_set_program_name(starlight "starlight")

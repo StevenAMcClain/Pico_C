@@ -24,13 +24,17 @@ PRIVATE struct Matcher Matches[MATCH_LAST] =
     {"SCEN", 0, MATCH_SCENE}, 
     {"BLAC", 0, MATCH_BLACK}, 
     {"UPDA", 0, MATCH_UPDATE}, 
-    {"BLOB", 0, MATCH_BLOB}, 
+    {"BLOB", 0, MATCH_SET_BLOB}, 
     {"TRIG", 0, MATCH_TRIGGER}, 
     {"QUEU", 0, MATCH_QUEUE}, 
     {"BRIG", 0, MATCH_BRIGHTNESS}, 
     {"INTR", 0, MATCH_INTERRUPT},
     {"DUMP", 0, MATCH_DUMP},
-    {"DEBU", 0, MATCH_DEBUG}
+    {"DEBU", 0, MATCH_DEBUG},
+    {"VERS", 0, MATCH_VERSION},
+    {"GETB", 0, MATCH_GET_BLOB},
+    {"SAVE", 0, MATCH_SAVE},
+    {"LOAD", 0, MATCH_LOAD},
 };
 
 

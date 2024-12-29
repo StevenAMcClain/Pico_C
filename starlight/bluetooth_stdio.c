@@ -183,13 +183,13 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                 case HCI_EVENT_SIMPLE_PAIRING_COMPLETE:
                 {
                     printf("PAIRING_COMPLETE\n");
-ObLED_On();
-sleep_ms(500);
-ObLED_Off();
-sleep_ms(500);
-ObLED_On();
-sleep_ms(500);
-ObLED_Off();
+// ObLED_On();
+// sleep_ms(500);
+// ObLED_Off();
+// sleep_ms(500);
+// ObLED_On();
+// sleep_ms(500);
+// ObLED_Off();
 
                     break;
                 }
@@ -276,6 +276,8 @@ PRIVATE void BlueTooth_Server(void)   // This is the main for the second core.
 
     hci_power_control(HCI_POWER_ON);    // turn on!
 
+    multicore_lockout_victim_init();
+
     btstack_run_loop_execute();
 }
 
@@ -316,6 +318,17 @@ PUBLIC void BlueTooth_Printf(const char *fmt, ...)
     vsnprintf(buff, sizeof(buff), fmt, args);    //vsnprintf BlueTooth_Send_String
     va_end(args);
     printf(buff);
+    fflush(stdout);
+    BlueTooth_Send_String(buff);
+}
+
+PUBLIC void BlueTooth_Printf_faster(const char *fmt, ...) 
+{
+    uint8_t buff[MAX_BT_PRINTF_BUFF] = {0};
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buff, sizeof(buff), fmt, args);    //vsnprintf BlueTooth_Send_String
+    va_end(args);
     BlueTooth_Send_String(buff);
 }
 

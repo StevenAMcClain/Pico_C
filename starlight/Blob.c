@@ -438,8 +438,6 @@ PRIVATE void start_program(PROG_ID n)
 		D(DEBUG_BLOB, printf("start_program: n %d\n", n);)
 		Blob_State.State = STATE_COMMAND;
 		Blob_State.prog = Prog_Ptr(n);
-		
-//		Process_Command();
 	}
 }
 
@@ -602,28 +600,29 @@ PUBLIC void Blob_Unload(void)
 
 typedef struct
 {
-    uint32_t trig_start;	// Trigger array starts here (relative to start).
-    uint32_t trig_size;		// Number of triggers defined.
+	uint32_t strindx_start;	    // Start of the string table.
+	uint32_t strindx_size;	    // Size of the string table.
 
-	uint32_t vstr_index;	// Virual LED string array index starts here (relative to start).
-	uint32_t vstr_count;	// Number of Virual LED string arrays defined.
-	uint32_t vstr_array;	// Virual LED string record start here.
-	uint32_t vstr_size;   	// Size of the Virual LED string array.
+	uint32_t symtab_start;	    // Start of the program symbol table
+	uint32_t symtab_size;	    // Size of the program sysmbol table.
 
-    uint32_t prog_start;	// Program array starts here (relative to start).
-    uint32_t prog_size;		// Size of program array.
+	uint32_t vstr_index;	    // Virual LED string array index starts here (relative to start).
+	uint32_t vstr_count;	    // Number of Virual LED string arrays defined.
 
-    uint32_t scen_index;	// Scene index starts here (relative to start).
-    uint32_t scen_count;    // Number of scenes defined.
+	uint32_t vstr_array;	    // Virual LED string record start here.
+	uint32_t vstr_size;   	    // Size of the Virual LED string array.
 
-    uint32_t scen_array;    // Scene array starts here (relative to start).
-    uint32_t scen_size;		// Size of scene array.
+    uint32_t scen_index;	    // Scene index starts here (relative to start).
+    uint32_t scen_count;        // Number of scenes defined.
 
-	uint32_t prog_symtab_start;		// Start of the program symbol table
-	uint32_t prog_symtab_size;		// Size of the program sysmbol table.
+    uint32_t scen_array;        // Scene array starts here (relative to start).
+    uint32_t scen_size;		    // Size of scene array.
 
-	uint32_t strindx_start;			// Start of the string table.
-	uint32_t strindx_size;			// Size of the string table.
+    uint32_t trig_start;	    // Trigger array starts here (relative to start).
+    uint32_t trig_size;		    // Number of triggers defined.
+
+    uint32_t prog_start;	    // Program array starts here (relative to start).
+    uint32_t prog_size;		    // Size of program array.
 
 } BLOB_HEAD;
 
@@ -644,19 +643,33 @@ PUBLIC void Blob_Load(uint8_t* blob_base)
 		Blob_State.State = STATE_IDLE;
 
 		Blob.Blob_Base = blob_base;
-		Blob.Blob_Size = *blob_base - sizeof(uint32_t);
+		Blob.Blob_Size = *(uint32_t*)(blob_base - sizeof(uint32_t));
 
 	    uint32_t* bptr = (uint32_t*)blob_base;
 
-		Blob.Trigger_Base = (PROG_ID*) (bptr + bhptr->trig_start);
-		Blob.Program_Base = (PROG*)    (bptr + bhptr->prog_start);
-		Blob.Scene_Index  = (SCENE_ID*)(bptr + bhptr->scen_index);
-		Blob.Scene_Array  = (SCENE*)   (bptr + bhptr->scen_array);
+        Blob.StrindX = (uint8_t*)(bptr + bhptr->strindx_start);     // Point to base of string table.
 
-		Blob.Num_Trig   = bhptr->trig_size;		// Number of trigger records.
-		Blob.Num_Prog   = bhptr->prog_size;		// Number of PROG records.
-		Blob.Num_Scenes = bhptr->scen_count;	// Number of Scenes defined.
-		Blob.Scene_Size = bhptr->scen_size;	    // Sizeof Scenes array.
+        Blob.SymTab = bptr + bhptr->symtab_start;       // Pointer to start of symbol table.
+
+        Blob.VStr_Index = bptr + bhptr->vstr_index;     // Pointer to base of virtual string index.
+        Blob.VStr_Array = bptr + bhptr->vstr_array;     // Pointer to base of virtual string array.
+
+        Blob.Scene_Index = (SCENE_ID*)(bptr + bhptr->scen_index);	// Scene index start here.
+        Blob.Scene_Array = (SCENE*)   (bptr + bhptr->scen_array);	// Scene array start here.
+
+        Blob.Trigger_Base = (PROG_ID*) (bptr + bhptr->trig_start);  // Start of the trigger table.
+        Blob.Program_Base = (PROG*)    (bptr + bhptr->prog_start);	// Blob Programs start here.
+
+        Blob.StrindX_Size = bhptr->strindx_size;
+        Blob.SymTab_Size = bhptr->symtab_size / 2;
+
+        Blob.VStr_Index_Size = bhptr->vstr_count;
+        Blob.VStr_Array_Size = bhptr->vstr_size;
+            
+        Blob.Num_Scenes = bhptr->scen_count / 2;    // Number of scenes defined.
+        Blob.Scene_Size = bhptr->scen_size;	        // Sizeof the scene array.
+        Blob.Num_Trig = bhptr->trig_size / 2;   	// Number of trigger records.
+        Blob.Num_Prog = bhptr->prog_size;		    // Number of PROG records.
 
 		start_program(1);			// Always start running program from start.
 	}
