@@ -3,15 +3,16 @@
 #ifndef LEDS_H
 #define LEDS_H
 
-#define MAX_NUM_LEDS 600        // Fairly arbitrary maximum for one physical string of LEDS.
+#define MAX_PHY 8           // Maximum number of strings.
+#define MAX_NUM_LEDS 600    // Fairly arbitrary maximum for one physical string of LEDS.
 
 #define ALL_PHYS (-1)       // Mask for all physical strings.
 #define CURRENT_PHY 0       // Code for use current string (or no string if current is also 0)
 
-extern volatile uint32_t Current_PhyNum;   // Current phynum (or logical).  0 for none.
+extern volatile uint32_t Current_Phy_Mask;   // Current phynum (or logical).  0 for none.
 
-#define LED_VAL uint8_t         // Type for a single LED color value.
-#define LED_VAL_MAX 255         // Maximum value that can be stored in a LED_VAL
+#define LED_VAL uint8_t     // Type for a single LED color value.
+#define LED_VAL_MAX 255     // Maximum value that can be stored in a LED_VAL
 
 typedef union
 {
@@ -32,37 +33,45 @@ typedef union
 
 extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
 
-extern void PHY_Set_led_count(int phynum, size_t led_count);
+extern volatile uint32_t Current_Phy_Mask;  // Current phynum (or logical).  0 for none.
 
-extern void LEDS_Set_Phynum(int phynum);
+extern size_t PHY_Get_LED_Count(int phy_idx);
 
-extern size_t Num_LEDS(int phyidx);
-
-// Prepare LEDS for use.
+extern void PHY_Set_led_count(int phy_mask, size_t led_count);
 //
-extern void LED_Init(void);
+// Set the number of leds on a string.  (re)Allocates buffers.
 
-// Sets a specific LED to a certain color, led_idx starts at 0
-//
-extern void LED_Set_LED(size_t /*led_idx*/, LED* /*buffp*/);
-extern void LED_Set_RGB(size_t /*led_idx*/, LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
+extern void LEDS_Set_Phynum(int phy_mask);
 
-// Sets all the LEDs to a certain color
-//
-extern void LED_All_LED(int phynum, LED led);
-extern void LED_All_RGB(int phynum, LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
-
-// Immediatly set all leds on all phy strings to black (off).
-//
-extern void LEDS_All_Black(void);
-
-// Set do_update flag.
-//
-extern void LED_Needs_Update(int phynum);
-
-// Send scaled LED_Data to led string.
-//
 extern void LEDS_Do_Update(void);
+//
+// Sends the data to the LEDs for all PHY that are flagged for update.
+
+extern void LED_Needs_Update(int phy_mask);
+//
+// Sets the update flag(s) for phynum.
+
+extern size_t Num_LEDS(int phy_mask);
+
+extern void LED_Set_LED(size_t led_idx, LED* source_ledp);
+
+extern void LED_Set_RGB(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b);
+
+extern void LED_All_LED(int phynum, LED led);
+//
+// Sets all LEDs to the same color.
+
+extern void LED_All_RGB(int phynum, LED_VAL r, LED_VAL g, LED_VAL b);
+//
+// Sets all the LEDs to a certain color.
+
+extern void LEDS_All_Black();
+//
+// Immediately set ALL leds to black (off).
+
+extern void LED_Init(void);
+//
+// Call once at startup to setup leds.
 
 #endif // LEDS_H
 

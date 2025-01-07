@@ -59,7 +59,6 @@ PRIVATE bool read_bytes(int n, uint8_t* buff)
         }
         else
         {
-            //printf("!!! Blob read TIMEOUT expecting %d more bytes.\n", n); 
             BlueTooth_Printf("!!! Blob read TIMEOUT expecting %d more bytes.\n", n); 
             break;
         }
@@ -105,23 +104,6 @@ PRIVATE void read_scene(void)
     }
 }
 
-PRIVATE uint32_t Version()
-{
-    uint8_t* ver = BLOB_VERSION;
-    return ver[3] << 24 | ver[2] << 16 | ver[1] << 8 | ver[0];
-}
-
-PRIVATE char* version_to_str(char* buff, uint32_t val)
-{
-    buff[0] = val & 0xFF;
-    buff[1] = (val >> 8) & 0xFF;
-    buff[2] = (val >> 16) & 0xFF;
-    buff[3] = (val >> 24) & 0xFF;
-    buff[4] = 0;
-
-    return buff;
-}
-
 
 PRIVATE uint32_t Checksum(uint8_t* buff, size_t size)
 {
@@ -161,7 +143,7 @@ PRIVATE void read_blob(void)
                 {
                     memset(base, 0, blob_size);
                     *(uint32_t*)base = blob_size;       // Copy blob_size into header.
-                    base += sizeof(uint32_t);
+                    base += sizeof(uint32_t);           // Move base past the size value.
 
                     if (read_bytes(blob_size, base))
                     {
@@ -175,9 +157,11 @@ PRIVATE void read_blob(void)
                             if (check == blob_check)
                             {
                                 // printf("read_blob: base %X %X\n", real_base, base);
-                                Blob_Load(base);
-                                BlueTooth_Printf("BLOB loaded.\n");
-                                return;
+                                if (Unpack_Blob_Header(base, check))
+                                {
+                                    BlueTooth_Printf("BLOB loaded.\n");
+                                    return;
+                                }
                             }
                             else { BlueTooth_Printf("!!! Bad checksum: expected %X, got %X\n", blob_check, check); }
                         }
@@ -282,7 +266,7 @@ PRIVATE int read_hnum(void)   // Read hex number.
 
             continue;
         }
-        else { printf("read_hnum: TIMEOUT\n"); }
+        // else { printf("read_hnum: TIMEOUT\n"); }
 
         reading = false;
     }
@@ -425,8 +409,8 @@ PRIVATE void scan_for_sync(void)
                 case MATCH_DUMP:
                 {
                     arg = read_num();
-                    int start = read_hnum();
-                    printf("Dump %d, start %X\n", arg, start);
+                    int start = read_hnum();  // Try to read another arg.
+                    // printf("Dump %d, start %X\n", arg, start);
                     extern void do_dump(int arg, int arg2);
                     do_dump(arg, start);
                     break; 
@@ -434,15 +418,8 @@ PRIVATE void scan_for_sync(void)
                 case MATCH_DEBUG:
                 {
                     arg = read_num();
-                    printf("Set Debug Flag %d(%X)\n", arg, arg);
+                    printf("Set Debug Flag %d(0x%X)\n", arg, arg);
                     Debug_Mask = arg;
-                    break;
-                }
-                case MATCH_VERSION:
-                {
-                    char s1[10];
-                    version_to_str(s1, Version());
-                    BlueTooth_Printf("VERS:%s\n", s1);
                     break;
                 }
                 case MATCH_GET_BLOB:

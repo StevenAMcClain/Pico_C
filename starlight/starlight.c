@@ -75,6 +75,9 @@ void main(void)
 
     stdio_init_all();           // Prepare stdio for use.
 
+    // extern int __flash_binary_start;
+    // printf("xxx %X\n", &__flash_binary_start);
+
     printf("\r\n\nStartlight %s %s %s: startup.\n", 
                          __VERSION__ , __TIME__, __DATE__);
 

@@ -51,6 +51,7 @@
 
 #include <btstack.h>
 
+#include "debug.h"
 #include "obled.h"
 
 
@@ -317,7 +318,7 @@ PUBLIC void BlueTooth_Printf(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(buff, sizeof(buff), fmt, args);    //vsnprintf BlueTooth_Send_String
     va_end(args);
-    printf(buff);
+    D(DEBUG_BLUETOOTH, printf(buff);)
     fflush(stdout);
     BlueTooth_Send_String(buff);
 }

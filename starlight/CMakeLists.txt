@@ -78,6 +78,7 @@ target_link_libraries(starlight
         hardware_timer
         pico_cyw43_arch_none
         pico_stdlib
+        pico_malloc 
         pico_btstack_classic
         pico_btstack_cyw43
         pico_cyw43_arch_none

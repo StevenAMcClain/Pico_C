@@ -1,6 +1,6 @@
 // File: Blob.h
 
-#define BLOB_VERSION "0.2a"
+#define BLOB_VERSION "0.2c"
 
 typedef uint32_t TRIG_ID;
 typedef int32_t PROG_ID;
@@ -12,6 +12,9 @@ typedef uint32_t SCENE;
 
 typedef struct Blob
 {
+    char *name;
+    uint32_t Blob_Checksum; // Checksum for entire blob.
+
     uint8_t* Blob_Base;		// Pointer to base of Blob.
     uint32_t Blob_Size;		// Number of bytes in Blob.
 
@@ -42,14 +45,19 @@ typedef struct Blob
 
 extern BLOB Blob;
 extern const int Tick_Speed;                        // Clock for blob player.
+extern bool Blob_Is_Loaded;
 
 extern void Blob_Init(void);                        // Prepare BLOB for use.  Call once at startup.
 extern void Blob_NumLeds(int n);                    // Set number of LEDS.   Call when Num_Leds changes.
-extern void Blob_Load(uint8_t* /* blob_base */);    // Call to load a new blob_base.
+extern bool Unpack_Blob_Header(uint8_t* /* blob_base */, uint32_t /* check */);    // Call to load a new blob_base.
 extern void Blob_Unload(void);                      // Release blob_base memory.
 
 extern void Blob_Trigger(TRIG_ID n);                // Immediately Start playing a BLOB program.  (Cancel any running or queue'd)
 extern void Blob_Queue_Next(TRIG_ID n);             // Start playing a BLOB program (after current completes).
 extern void Blob_Stop(void);                        // Stop current program and clear queue.
+
+extern uint32_t Version();
+extern char* version_to_str(char* buff, uint32_t val);
+
 
 // Endfile: Blob.h

@@ -4,14 +4,14 @@
 
 #include <stdlib.h>
 
-#include "hardware/clocks.h"
+#include <hardware/clocks.h>
 
 #include "led.h"
 #include "ws2812.h"
 
-PUBLIC volatile uint32_t Current_PhyNum = 0;   // Current phynum (or logical).  0 for none.
+PUBLIC volatile uint32_t Current_Phy_Mask = 0;  // Current phynum (or logical).  0 for none.
 
-PUBLIC FLOAT LED_Brightness = 1.0;			// Overall brightness for all strings.
+PUBLIC FLOAT LED_Brightness = 1.0;			    // Overall brightness for all strings.
 
 PRIVATE volatile uint32_t needs_update = 0;     // Bit mask for strings that need to be updated.
 
@@ -28,20 +28,31 @@ typedef struct
 PRIVATE LEDS_PHY LEDS_Phy[MAX_PHY] = {0};
 
 
-PUBLIC void PHY_Set_led_count(int phynum, size_t led_count)
+PUBLIC size_t PHY_Get_LED_Count(int phy_idx)
+{
+	if (phy_idx >= 0 && phy_idx < MAX_PHY)
+    {
+        LEDS_PHY* phy = LEDS_Phy + phy_idx;
+        return phy->led_count;
+    }
+    return (-1);
+}
+
+
+PUBLIC void PHY_Set_led_count(int phy_mask, size_t led_count)
 //
 // Set the number of leds on a string.  (re)Allocates buffers.
 {
-    if (phynum == 0)
-        phynum = Current_PhyNum;
+    if (phy_mask == 0)
+        phy_mask = Current_Phy_Mask;
 
     LEDS_PHY* phy = LEDS_Phy;
     uint32_t mask = 1;
     int i = 0;
 
-    while (phynum && i < MAX_PHY)
+    while (phy_mask && i < MAX_PHY)
     {
-        if (phynum & mask)
+        if (phy_mask & mask)
         {
             if (led_count != phy->led_count)		// Is this a different led_count?
             {
@@ -65,16 +76,16 @@ PUBLIC void PHY_Set_led_count(int phynum, size_t led_count)
 
                 WS2812_Set_Num_LEDS(i, led_count);
             }
-            phynum &= ~mask;
+            phy_mask &= ~mask;
         }
         ++i;  ++phy;  mask <<= 1;
     }
 }
 
 
-PUBLIC void LEDS_Set_Phynum(int phynum)
+PUBLIC void LEDS_Set_Phynum(int phy_mask)
 {
-	Current_PhyNum = phynum;
+	Current_Phy_Mask = phy_mask;
 }
 
 
@@ -141,24 +152,24 @@ PUBLIC void LEDS_Do_Update(void)
 // }
 
 
-PUBLIC void LED_Needs_Update(int phynum)
+PUBLIC void LED_Needs_Update(int phy_mask)
 //
 // Sets the update flag(s) for phynum.
 {
-	if (phynum == 0)
-		phynum = Current_PhyNum;
+	if (phy_mask == 0)
+		phy_mask = Current_Phy_Mask;
 
-    needs_update |= phynum;
+    needs_update |= phy_mask;
 }
 
 
-PRIVATE LED* get_ledp(int phyidx, size_t* num_ledsp)
+PRIVATE LED* get_ledp(int phy_idx, size_t* num_ledsp)
 {
 	LED* result = NIL;
 
-	if (phyidx >= 0 && phyidx < MAX_PHY)
+	if (phy_idx >= 0 && phy_idx < MAX_PHY)
     {
-        LEDS_PHY* phy = LEDS_Phy + phyidx;
+        LEDS_PHY* phy = LEDS_Phy + phy_idx;
 
         result = phy->led_data;
 
@@ -168,25 +179,25 @@ PRIVATE LED* get_ledp(int phyidx, size_t* num_ledsp)
 }
 
 
-PUBLIC size_t Num_LEDS(int phynum)
+PUBLIC size_t Num_LEDS(int phy_mask)
 {
     int num_leds = 0;
 
-	if (phynum == 0)								// Just current phy?
-		phynum = Current_PhyNum;
+	if (phy_mask == 0)								// Just current phy?
+		phy_mask = Current_Phy_Mask;
 
 	LEDS_PHY* phy = LEDS_Phy;
 	int i = 0;
 
-	while (phynum && i++ < MAX_PHY)
+	while (phy_mask && i++ < MAX_PHY)
 	{
-        if (phynum & phy->mask)
+        if (phy_mask & phy->mask)
         {
             if (phy->led_count > num_leds)
             {
                 num_leds = phy->led_count;
             }
-            phynum &= ~phy->mask;
+            phy_mask &= ~phy->mask;
         }
         ++phy;
     }
@@ -195,12 +206,12 @@ PUBLIC size_t Num_LEDS(int phynum)
 }
 
 
-PRIVATE void do_LED_Set_RGB(int phyidx, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
+PRIVATE void do_LED_Set_RGB(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
 //
 // Sets a specific LED to a certain color.   LEDs start at 0
 {
 	size_t num_leds = 0;
-	LED* ledp_base = get_ledp(phyidx, &num_leds);
+	LED* ledp_base = get_ledp(phy_idx, &num_leds);
 
 	if (ledp_base && led_idx < num_leds)
 	{
@@ -210,29 +221,29 @@ PRIVATE void do_LED_Set_RGB(int phyidx, size_t led_idx, LED_VAL r, LED_VAL g, LE
 		ledp->led.green = g;	// Green.
 		ledp->led.blue  = b;	// Blue.
 
-        needs_update |= (1 << phyidx);
+        needs_update |= (1 << phy_idx);
 	}
 }
 
 
-PRIVATE void do_LED_Set_LED(int phyidx, size_t led_idx, LED* source_ledp)
+PRIVATE void do_LED_Set_LED(int phy_idx, size_t led_idx, LED* source_ledp)
 {
 	size_t num_leds = 0;
-	LED* ledp_base = get_ledp(phyidx, &num_leds);
+	LED* ledp_base = get_ledp(phy_idx, &num_leds);
 
 	if (ledp_base && led_idx < num_leds)
 	{
 		LED* ledp = ledp_base + led_idx;
 		ledp->val = source_ledp->val;
 
-        needs_update |= (1 << phyidx);
+        needs_update |= (1 << phy_idx);
 	}
 }
 
 
 PUBLIC void LED_Set_LED(size_t led_idx, LED* source_ledp)
 {
-    int phynum = Current_PhyNum;
+    int phynum = Current_Phy_Mask;
 
     uint32_t mask = 1;
     int i = 0;
@@ -256,12 +267,12 @@ PUBLIC void LED_Set_RGB(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
 }
 
 
-// Sets all LEDs to the same color.
-//
 PUBLIC void LED_All_LED(int phynum, LED led)
+//
+// Sets all LEDs to the same color.
 {
 	if (phynum == 0)								// Just current phy?
-		phynum = Current_PhyNum;
+		phynum = Current_Phy_Mask;
 
 	LEDS_PHY* phy = LEDS_Phy;
 	int i = 0;
@@ -286,27 +297,27 @@ PUBLIC void LED_All_LED(int phynum, LED led)
 }
 
 
-// Sets all the LEDs to a certain color.
-//
 PUBLIC void LED_All_RGB(int phynum, LED_VAL r, LED_VAL g, LED_VAL b)
+//
+// Sets all the LEDs to a certain color.
 {
     LED led = {.led.red = r, .led.green = g, .led.blue = b};
 	LED_All_LED(phynum, led);
 }
 
 
-// Immediately set ALL leds to black (off).
-//
 PUBLIC void LEDS_All_Black()
+//
+// Immediately set ALL leds to black (off).
 {
 	LED_All_RGB(ALL_PHYS, 0, 0, 0);
 	LEDS_Do_Update();			// Write all LEDs NOW!
 }
 
 
-// Call once at startup to setup leds.
-//
 PUBLIC void LED_Init(void)
+//
+// Call once at startup to setup leds.
 {
     LEDS_PHY* phy = LEDS_Phy;
     int i = MAX_PHY;
@@ -319,10 +330,8 @@ PUBLIC void LED_Init(void)
     }
 
 	WS2812_Init();		// Starts LED driver for all PHYs.
-
 	sleep_ms(10);		// Wait a bit to ensure clock is running and force LEDs to reset
-
-	LEDS_All_Black();
+	LEDS_All_Black();   // Start with everything off.
 }
 
 

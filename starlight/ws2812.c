@@ -9,11 +9,12 @@
 
 #include <stdio.h>
 
-#include "hardware/dma.h"
-#include "pico/sem.h"
-#include "hardware/pio.h"
+#include <hardware/dma.h>
+#include <pico/sem.h>
+#include <hardware/pio.h>
 
 #include "ws2812.pio.h"
+#include "led.h"
 
 #define IS_RGBW false
 
@@ -63,7 +64,7 @@ PRIVATE void DMA_Init(WS2812_PHY* phy)
         &cfg,                           // The configuration we just created
         &pio->txf[phy->state_machine],  // The initial write address
         0,                              // The initial read address
-        MAX_LEDS,                       // Number of transfers; in this case each is 4 bytes.
+        MAX_NUM_LEDS,                   // Number of transfers; in this case each is 4 bytes.
         false                           // Don't start immediately.
     );
 

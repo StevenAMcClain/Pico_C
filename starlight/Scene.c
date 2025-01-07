@@ -92,7 +92,7 @@ PUBLIC void Set_Scene(SCENE_ID id)
         int idx = (--id) * 2;
 		uint32_t start_idx = Blob.Scene_Index[idx + 1];
 
-//		D(printf("Set scene: id = %d, start_idx= %d\n", id, start_idx);)
+        D(DEBUG_SCENES, printf("Set scene: id = %d, start_idx= %d\n", id, start_idx);)
 
         if (start_idx)
         {

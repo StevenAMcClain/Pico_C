@@ -17,7 +17,29 @@
 #include "stack.h"
 
 
+
+PUBLIC uint32_t Version()
+{
+    uint8_t* ver = BLOB_VERSION;
+    return ver[3] << 24 | ver[2] << 16 | ver[1] << 8 | ver[0];
+}
+
+PUBLIC char* version_to_str(char* buff, uint32_t val)
+{
+    buff[0] = val & 0xFF;
+    buff[1] = (val >> 8) & 0xFF;
+    buff[2] = (val >> 16) & 0xFF;
+    buff[3] = (val >> 24) & 0xFF;
+    buff[4] = 0;
+
+    return buff;
+}
+
+
 PRIVATE volatile uint64_t Blob_Time = 0;
+PRIVATE struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
+PRIVATE bool tick_is_running = false;
+
 
 PUBLIC const int Tick_Speed = 
 //#ifdef DEBUG
@@ -74,6 +96,7 @@ typedef enum
 typedef struct Blob_State
 {
 	STATE State;				// Start in IDLE state.
+    bool is_idle;               // True if in idle state.
 
 	uint32_t wait_counter;		// Ticks left to wait until next step.
 
@@ -89,6 +112,7 @@ typedef struct Blob_State
 } BLOB_STATE;
 
 
+PUBLIC bool Blob_Is_Loaded = false;
 PUBLIC BLOB Blob = {0};
 PRIVATE BLOB_STATE Blob_State = {0};
 
@@ -450,9 +474,16 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 
 	D(DEBUG_BLOB2, if (Blob_State.State)  { printf("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Blob_State.State); })
 
+	if (Blob_State.State != STATE_IDLE)
+        Blob_State.is_idle = false;
+
 	switch (Blob_State.State)
 	{
-		case STATE_IDLE: { break; }
+		case STATE_IDLE: 
+        {
+            Blob_State.is_idle = true;
+            break; 
+        }
 		case STATE_WAITING:
 		{
 			if (Blob_State.wait_counter) { --Blob_State.wait_counter; }
@@ -522,8 +553,15 @@ PUBLIC void Blob_Stop(void)
 {
 	Stack_Clear(Blob_State.program_stack); 
 	Blob_State.State = STATE_IDLE;
+
+    while (!Blob_State.is_idle)
+    {
+        sleep_ms(1);
+    }
+
 	Blob_State.repeat = 0;
 	Blob_State.wait_counter = 0;
+    Blob_State.prog = 0;
 }
 
 
@@ -579,6 +617,23 @@ PUBLIC void Blob_Queue_Next(TRIG_ID n)
 	}
 }
 
+PRIVATE void start_prog_tick()
+{
+    if (!tick_is_running)
+    {
+    	add_repeating_timer_us(Tick_Speed, Blob_Program_Tick, NULL, &blob_timer_prog_tick);
+        tick_is_running = true;
+    }
+}
+
+PRIVATE void stop_prog_tick()
+{
+    if (tick_is_running)
+    {
+        cancel_repeating_timer(&blob_timer_prog_tick);
+        tick_is_running = false;
+    }
+}
 
 PUBLIC void Blob_Unload(void)
 //
@@ -587,6 +642,8 @@ PUBLIC void Blob_Unload(void)
 	if (Blob.Blob_Base)
 	{
 		Blob_Stop();
+
+        stop_prog_tick();
 
 		uint8_t* base = Blob.Blob_Base - sizeof(uint32_t);
 
@@ -600,8 +657,16 @@ PUBLIC void Blob_Unload(void)
 
 typedef struct
 {
+	uint32_t blob_name;	        // Physical string definitions.
+
+	uint32_t phystr_start;	    // Physical string definitions.
+	uint32_t phystr_size;	    // Size of the phystring table.
+
 	uint32_t strindx_start;	    // Start of the string table.
 	uint32_t strindx_size;	    // Size of the string table.
+
+	uint32_t vartab_start;	    // Start of the variable table.
+	uint32_t vartab_size;	    // Size of the variable table.
 
 	uint32_t symtab_start;	    // Start of the program symbol table
 	uint32_t symtab_size;	    // Size of the program sysmbol table.
@@ -627,7 +692,7 @@ typedef struct
 } BLOB_HEAD;
 
 
-PUBLIC void Blob_Load(uint8_t* blob_base)
+PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base, uint32_t check)
 //
 // Load a new blob_base.
 {
@@ -640,14 +705,27 @@ PUBLIC void Blob_Load(uint8_t* blob_base)
 		D(DEBUG_BLOB, printf("trig_size=%d, prog_size=%d, scen_count=%d, scen_size=%d\n",
 				(bhptr->trig_size / 2) - 1, bhptr->prog_size, bhptr->scen_count, bhptr->scen_size);)
 
-		Blob_State.State = STATE_IDLE;
+        Blob.Blob_Checksum = check;
 
 		Blob.Blob_Base = blob_base;
 		Blob.Blob_Size = *(uint32_t*)(blob_base - sizeof(uint32_t));
 
 	    uint32_t* bptr = (uint32_t*)blob_base;
 
+        if (bhptr->phystr_size)
+        {
+            uint32_t* phystr = (bptr + bhptr->phystr_start);     // Point to base of phy string table.
+            size_t num_phys = bhptr->phystr_size / 2;            // Get phystring size.
+            while (num_phys--)
+            {
+                PHY_Set_led_count(phystr[0], phystr[1]);
+                phystr += 2;
+            }
+        }
+
         Blob.StrindX = (uint8_t*)(bptr + bhptr->strindx_start);     // Point to base of string table.
+
+        Blob.name = Blob.StrindX + bhptr->blob_name - 1;
 
         Blob.SymTab = bptr + bhptr->symtab_start;       // Pointer to start of symbol table.
 
@@ -671,8 +749,16 @@ PUBLIC void Blob_Load(uint8_t* blob_base)
         Blob.Num_Trig = bhptr->trig_size / 2;   	// Number of trigger records.
         Blob.Num_Prog = bhptr->prog_size;		    // Number of PROG records.
 
+		Blob_State.State = STATE_IDLE;
+
+        Blob_Is_Loaded = true;
+
+        start_prog_tick();          // Startup program tick.
+
 		start_program(1);			// Always start running program from start.
+        return true;
 	}
+    return false;
 }
 
 //#define XITI_TIMES_SIZE(n) (sizeof(uint32_t) * (n) * LED_SIZE)
@@ -687,13 +773,13 @@ PUBLIC void Blob_Init(void)
 //
 // Prepare BLOB for use.  Call once at startup.
 {
-	static struct repeating_timer blob_timer_1;		// Timer to call Blob_Tick.
-	static struct repeating_timer blob_timer_2;		// Timer to call Blob_Time.
+	static struct repeating_timer blob_timer_1;		// Timer to call Blob_Time.
 
 	Blob_State.program_stack = Stack_Initialize(PROG_STACK_SIZE); 
 
 	add_repeating_timer_us(Tick_Speed, Blob_Time_Tick, NULL, &blob_timer_1);
-	add_repeating_timer_us(Tick_Speed, Blob_Program_Tick, NULL, &blob_timer_2);
+
+    start_prog_tick();
 }
 
 

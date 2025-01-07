@@ -1,14 +1,172 @@
 // File: Blob.c
 
-#include "Common.h"
-#include "Blob.h"
+#include "common.h"
+
+#include <hardware/flash.h>
+//                                                 #include <pico/btstack_flash_bank.h>
+#include "blob.h"
 
 #include <stdio.h>
-// #include <stdlib.h>
+#include <stdlib.h>
 // #include <string.h>
 // //#include <time.h>
 
+#include "led.h"
 #include "bluetooth_stdio.h"
+
+
+PRIVATE void dump_version(void)
+{
+    char s1[10];
+    version_to_str(s1, Version());
+    BlueTooth_Printf("VERS:%s\n", s1);
+}
+
+
+PRIVATE void dump_uuid(void)
+{
+    uint8_t buff[8];
+    flash_get_unique_id(buff);
+    BlueTooth_Printf("UUID:%02X%02X%02X%02X%02X%02X%02X%02X\n", 
+                    buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6], buff[7]);
+}
+
+
+PRIVATE void dump_phystr(void)
+{
+    bool first = true;
+    size_t phy_idx = 0;
+
+    while (phy_idx < MAX_PHY)
+    {
+        size_t count = PHY_Get_LED_Count(phy_idx);
+
+        if (count)
+        {
+            char *msg = "PhyStr List:\n%d) %d\n" 
+                          + (first ? 0 : 13);
+            BlueTooth_Printf(msg, phy_idx + 1, count);
+            first = false;
+        }
+        ++phy_idx;
+    }
+
+    if (first) { BlueTooth_Printf("PhyStr List: Empty.\n"); }
+}
+
+
+PRIVATE void dump_checksum(void)
+{
+    if (Blob_Is_Loaded)
+    {
+        char *name = Blob.name;
+        BlueTooth_Printf("Blob '%s', check %d\n", name, Blob.Blob_Checksum);
+    }
+    else { BlueTooth_Printf("NOBLOB\n"); }
+}
+
+#define MAX_DUMP_BUFF_SIZE 200
+
+PRIVATE void dump_info(void)
+{
+    char buff[MAX_DUMP_BUFF_SIZE] = {0};
+    char* bptr = buff;
+    int chars_left = MAX_DUMP_BUFF_SIZE-1;
+    int n;
+
+    char version_str[10];
+    version_to_str(version_str, Version());
+
+    uint8_t uuid[8];
+    flash_get_unique_id(uuid);
+    n = snprintf(bptr, chars_left, "UUID: %02X%02X%02X%02X%02X%02X%02X%02X\nVERS: %s\n", 
+                    uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], version_str);
+    bptr += n;   chars_left -=n;
+
+    if (Blob_Is_Loaded)
+    {
+        n = snprintf(bptr, chars_left, "Blob: '%s', Check: %d\n", Blob.name, Blob.Blob_Checksum);
+    }
+    else { n = snprintf(bptr, chars_left, "NOBLOB\n"); }
+
+    bptr += n;   chars_left -=n;
+
+    // Dump Phys
+    bool first = true;
+    size_t phy_idx = 0;
+
+    while (phy_idx < MAX_PHY)
+    {
+        size_t count = PHY_Get_LED_Count(phy_idx);
+
+        if (count)
+        {
+            char *msg = first ? "Phys: %d, %d" : ", %d, %d";
+            n = snprintf(bptr, chars_left, msg, phy_idx + 1, count);
+            bptr += n;   chars_left -=n;
+            first = false;
+        }
+        ++phy_idx;
+    }
+
+    if (first) { n = snprintf(bptr, chars_left, "PhyStr List: Empty.\n"); }
+    else       { n = snprintf(bptr, chars_left, "\n"); }
+    bptr += n;   chars_left -=n;
+
+    BlueTooth_Send_String(buff);
+}
+
+
+#define STATS_STRING "\
+Blob Stats: \n  Blob Size %d\n  Num triggers %d\n  Prog Size %d\n  Num Scenes %d\n  Scene Size %d\n\
+  StrindX bytes %d\n  Number of symbols %d\n  VStr_Index_Size %d\n  VStr_Array_Size %d\n"
+
+
+PRIVATE void dump_blob_stats(void)
+{
+    if (Blob_Is_Loaded)
+    {
+        BlueTooth_Printf(STATS_STRING,
+                		 Blob.Blob_Size, Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size,
+                         Blob.StrindX_Size, Blob.SymTab_Size, Blob.VStr_Index_Size, Blob.VStr_Array_Size);
+    }
+    else { BlueTooth_Printf("NOBLOB\n"); }
+}
+
+
+PRIVATE void dump_blob_scene_index(void)
+{
+    if (Blob_Is_Loaded)
+    {
+        BlueTooth_Printf("\nScenes:\n");
+
+        for (int i=0; i < Blob.Num_Scenes; i += 2)
+        {
+            BlueTooth_Printf("%d) - name %d, val %d\n", 
+                    1 + i, Blob.Scene_Index[i], Blob.Scene_Index[i + 1]);
+        }
+    }
+    else { BlueTooth_Printf("NOBLOB\n"); }
+}
+
+
+PRIVATE void dump_blob_triggers(void)
+{
+    if (Blob_Is_Loaded)
+    {
+        BlueTooth_Printf("Triggers:\n");
+
+        uint32_t* trigp = Blob.Trigger_Base;
+
+        for (int i=0; i < (Blob.Num_Trig / 2) - 1; ++i, trigp += 2)
+        {
+            BlueTooth_Printf("  %d - id= %d, prog= %d\n", i, trigp[0], trigp[1]);
+        }
+    }
+    else { BlueTooth_Printf("NOBLOB\n"); }
+}
+
+
 
 PUBLIC void mem_dump(void* ptr, size_t n)
 {
@@ -48,6 +206,43 @@ PRIVATE void mem_dump_ints(void* ptr, size_t n)
 	}
 	BlueTooth_Printf("\n");
 }
+
+
+#define HELP_STRING "\
+Dump:\n\
+  1 - Version\n\
+  2 - Device UUID.\n\
+  3 - Phy Strings.\n\
+  4 - Blob Checksum.\n\
+  5 - Blob Stats\n\
+  6 - Scene Index.\n\
+  7 - Triggers.\n\
+  8 - Dump bytes. (start)\n\
+  9 - Dump ints. (start)\n\
+  \n"
+
+
+PUBLIC void do_dump(int arg, int arg2)
+{
+    switch (arg)
+    {
+        case 1: { dump_version(); break; }
+        case 2: { dump_uuid(); break; }
+        case 3: { dump_phystr(); break; }
+        case 4: { dump_checksum(); break; }
+        case 5: { dump_blob_stats(); break; }
+        case 6: { dump_blob_scene_index(); break; }
+        case 7: { dump_blob_triggers(); break; }
+        case 8: { mem_dump( (void*)arg2, 64); break; }
+        case 9: { mem_dump_ints( (void*)arg2, 20); break; }
+        case 100: { dump_info(); break; }
+        case 0: default: { BlueTooth_Printf(HELP_STRING); break; }
+    }
+}
+
+
+// EndFile: Blob.c
+
 
 // typedef enum Command
 // {
@@ -141,64 +336,3 @@ PRIVATE void mem_dump_ints(void* ptr, size_t n)
 
 //     return "";
 // }
-
-
-PRIVATE void dump_blob_stats(void)
-{
-    BlueTooth_Printf("Blob Stats: \n  Blob Size %d\n  Num triggers %d\n  Prog Size %d\n  Num Scenes %d\n  Scene Size %d\n\
-  StrindX bytes %d\n  Number of symbols %d\n  VStr_Index_Size %d\n  VStr_Array_Size %d\n",
-		Blob.Blob_Size, Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size,
-        Blob.StrindX_Size, Blob.SymTab_Size, Blob.VStr_Index_Size, Blob.VStr_Array_Size);
-}
-
-
-PRIVATE void dump_blob_triggers(void)
-{
-    BlueTooth_Printf("Triggers:\n");
-
-    uint32_t* trigp = Blob.Trigger_Base;
-
-    for (int i=0; i < (Blob.Num_Trig / 2) - 1; ++i, trigp += 2)
-    {
-        BlueTooth_Printf("  %d - id= %d, prog= %d\n", i, trigp[0], trigp[1]);
-    }
-}
-
-
-PRIVATE void dump_blob_scene_index(void)
-{
-    BlueTooth_Printf("\nScenes:\n");
-
-    for (int i=0; i < Blob.Num_Scenes; i += 2)
-    {
-        BlueTooth_Printf("%d) - name %d, val %d\n", 
-                1 + i, Blob.Scene_Index[i], Blob.Scene_Index[i + 1]);
-    }
-}
-
-
-#define HELP_STRING "\
-Dump:\n\
-  1 - Stats\n\
-  2 - Triggers.\n\
-  3 - Scene Index.\n\
-  4 - Dump bytes. (start)\n\
-  5 - Dump ints. (start)\n\
-  \n"
-
-
-PUBLIC void do_dump(int arg, int arg2)
-{
-    switch (arg)
-    {
-        case 1: { dump_blob_stats(); break; }
-        case 2: { dump_blob_triggers(); break; }
-        case 3: { dump_blob_scene_index(); break; }
-        case 4: { mem_dump( (void*)arg2, 64); break; }
-        case 5: { mem_dump_ints( (void*)arg2, 20); break; }
-        case 0: default: { BlueTooth_Printf(HELP_STRING); break; }
-    }
-}
-
-
-// EndFile: Blob.c

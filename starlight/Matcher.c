@@ -31,7 +31,6 @@ PRIVATE struct Matcher Matches[MATCH_LAST] =
     {"INTR", 0, MATCH_INTERRUPT},
     {"DUMP", 0, MATCH_DUMP},
     {"DEBU", 0, MATCH_DEBUG},
-    {"VERS", 0, MATCH_VERSION},
     {"GETB", 0, MATCH_GET_BLOB},
     {"SAVE", 0, MATCH_SAVE},
     {"LOAD", 0, MATCH_LOAD},
