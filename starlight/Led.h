@@ -4,7 +4,7 @@
 #define LEDS_H
 
 #define MAX_PHY 8           // Maximum number of strings.
-#define MAX_NUM_LEDS 600    // Fairly arbitrary maximum for one physical string of LEDS.
+#define MAX_NUM_LEDS 1000  // Fairly arbitrary maximum for one physical string of LEDS.
 
 #define ALL_PHYS (-1)       // Mask for all physical strings.
 #define CURRENT_PHY 0       // Code for use current string (or no string if current is also 0)
@@ -37,11 +37,16 @@ extern volatile uint32_t Current_Phy_Mask;  // Current phynum (or logical).  0 f
 
 extern size_t PHY_Get_LED_Count(int phy_idx);
 
-extern void PHY_Set_led_count(int phy_mask, size_t led_count);
+extern void LEDS_Buff_Reset();
+extern LED* LEDS_Buff_Allocate(size_t size);
+
+extern void PHY_Set_led_count(int phy_idx, size_t led_count);
 //
-// Set the number of leds on a string.  (re)Allocates buffers.
+// Set the number of leds on a string.  Allocates LED buffers.
 
 extern void LEDS_Set_Phynum(int phy_mask);
+
+extern LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp);
 
 extern void LEDS_Do_Update(void);
 //

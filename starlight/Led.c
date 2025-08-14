@@ -1,8 +1,8 @@
 // File: Led.c
 
-#include "Common.h"
+#include "common.h"
 
-#include <stdlib.h>
+// #include <stdlib.h>
 
 #include <hardware/clocks.h>
 
@@ -17,16 +17,48 @@ PRIVATE volatile uint32_t needs_update = 0;     // Bit mask for strings that nee
 
 typedef struct
 {
-    uint32_t mask;                  // Bit for phy mask.
+    // uint32_t maskxxx;                  // Bit for phy mask.
 	size_t led_count;				// Number of leds on string.
 	LED* led_data;					// Data for LED string.
 	LED* scaled_led_data;			// Buffer that is actually sent to LEDS.
 
 } LEDS_PHY;
 
+PRIVATE LED Leds_Buff[MAX_NUM_LEDS];
+PRIVATE size_t Leds_Allocated = 0;
 
 PRIVATE LEDS_PHY LEDS_Phy[MAX_PHY] = {0};
+// PRIVATE bool is_updating = false;
 
+
+/// @brief 
+/// @return 
+PUBLIC void LEDS_Buff_Reset()
+{
+    Leds_Allocated = 0;
+
+    LEDS_PHY* phy = LEDS_Phy;
+    int i = 0;
+
+    while (i < MAX_PHY)
+    {
+        phy->led_count = 0;
+        phy->led_data = phy->scaled_led_data = 0;
+        ++phy; ++i;
+    }
+}
+
+
+PUBLIC LED* LEDS_Buff_Allocate(size_t size)
+{
+    LED* leds = 0;
+    if (Leds_Allocated + size < MAX_NUM_LEDS)
+    {
+        leds = &Leds_Buff[Leds_Allocated];
+        Leds_Allocated += size;
+    }
+    return leds;
+}
 
 PUBLIC size_t PHY_Get_LED_Count(int phy_idx)
 {
@@ -39,46 +71,25 @@ PUBLIC size_t PHY_Get_LED_Count(int phy_idx)
 }
 
 
-PUBLIC void PHY_Set_led_count(int phy_mask, size_t led_count)
+PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
 //
 // Set the number of leds on a string.  (re)Allocates buffers.
 {
-    if (phy_mask == 0)
-        phy_mask = Current_Phy_Mask;
-
-    LEDS_PHY* phy = LEDS_Phy;
-    uint32_t mask = 1;
-    int i = 0;
-
-    while (phy_mask && i < MAX_PHY)
+    if (phy_idx < MAX_PHY && led_count > 0)
     {
-        if (phy_mask & mask)
+        LEDS_PHY* phy = LEDS_Phy + phy_idx;
+
+        LED* buff = LEDS_Buff_Allocate(2 * led_count);
+
+        if (buff)
         {
-            if (led_count != phy->led_count)		// Is this a different led_count?
-            {
-                if (phy->led_data)		// Is there already a data buffer?
-                {
-                    free(phy->led_data);						// Yes, free buffer.
-                    phy->led_data = phy->scaled_led_data = 0;   // And zero out pointers.
-                }
-
-                if (led_count > 0)
-                {
-                    phy->led_data = malloc(led_count * 2 * LED_SIZE);                                // ---------  Malloc!
-                    if (phy->led_data)
-                    {
-                        phy->scaled_led_data = phy->led_data + led_count * LED_SIZE;
-                        phy->led_count = led_count;
-                    }
-                    else { phy->led_count = 0; }
-                }
-                else { phy->led_count = 0; }
-
-                WS2812_Set_Num_LEDS(i, led_count);
-            }
-            phy_mask &= ~mask;
+            phy->led_data = buff;
+            phy->scaled_led_data = buff + led_count;
+            phy->led_count = led_count;
         }
-        ++i;  ++phy;  mask <<= 1;
+        else { phy->led_count = 0; }
+
+        WS2812_Set_Num_LEDS(phy_idx, led_count);
     }
 }
 
@@ -112,21 +123,26 @@ PUBLIC void LEDS_Do_Update(void)
 //
 // Sends the data to the LEDs for all PHY that are flagged for update.
 {
-	LEDS_PHY* phy = LEDS_Phy;
-	int i = 1;
-    uint32_t mask = 1;
+    // if (!is_updating)
+    // {
+    //     is_updating = true;
 
-	while (needs_update && i <= MAX_PHY)
-	{
-		if (mask & needs_update)
-		{
-			scale_led_data(phy->led_data, phy->scaled_led_data, phy->led_count);
-			WS2812_Prime_Send(mask, (uint32_t*)phy->scaled_led_data);
-            needs_update &= ~mask;
-		}
-		++phy; ++i; mask <<= 1;
-	}
-	WS2812_Do_Send();   // Trigger DMA to start.... actuall send the data.
+        LEDS_PHY* phy = LEDS_Phy;
+        int i = 1;
+        uint32_t mask = 1;
+
+        while (needs_update && i <= MAX_PHY)
+        {
+            if (mask & needs_update)
+            {
+                scale_led_data(phy->led_data, phy->scaled_led_data, phy->led_count);
+                WS2812_Prime_Send(mask, (uint32_t*)phy->scaled_led_data);
+                needs_update &= ~mask;
+            }
+            ++phy; ++i; mask <<= 1;
+        }
+        WS2812_Do_Send();   // Trigger DMA to start.... actuall send the data.
+    // }
 }
 
 //------------------------------------------------ old
@@ -163,7 +179,7 @@ PUBLIC void LED_Needs_Update(int phy_mask)
 }
 
 
-PRIVATE LED* get_ledp(int phy_idx, size_t* num_ledsp)
+PUBLIC LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp)
 {
 	LED* result = NIL;
 
@@ -188,18 +204,19 @@ PUBLIC size_t Num_LEDS(int phy_mask)
 
 	LEDS_PHY* phy = LEDS_Phy;
 	int i = 0;
+    uint32_t mask = 1;
 
 	while (phy_mask && i++ < MAX_PHY)
 	{
-        if (phy_mask & phy->mask)
+        if (mask & phy_mask)
         {
             if (phy->led_count > num_leds)
             {
                 num_leds = phy->led_count;
             }
-            phy_mask &= ~phy->mask;
+            phy_mask &= ~mask;
         }
-        ++phy;
+        ++phy;  mask <<= 1;
     }
 
     return num_leds;
@@ -211,7 +228,7 @@ PRIVATE void do_LED_Set_RGB(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, L
 // Sets a specific LED to a certain color.   LEDs start at 0
 {
 	size_t num_leds = 0;
-	LED* ledp_base = get_ledp(phy_idx, &num_leds);
+	LED* ledp_base = LED_Get_Phy(phy_idx, &num_leds);
 
 	if (ledp_base && led_idx < num_leds)
 	{
@@ -229,7 +246,7 @@ PRIVATE void do_LED_Set_RGB(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, L
 PRIVATE void do_LED_Set_LED(int phy_idx, size_t led_idx, LED* source_ledp)
 {
 	size_t num_leds = 0;
-	LED* ledp_base = get_ledp(phy_idx, &num_leds);
+	LED* ledp_base = LED_Get_Phy(phy_idx, &num_leds);
 
 	if (ledp_base && led_idx < num_leds)
 	{
@@ -276,10 +293,11 @@ PUBLIC void LED_All_LED(int phynum, LED led)
 
 	LEDS_PHY* phy = LEDS_Phy;
 	int i = 0;
+    uint32_t mask = 1;
 
 	while (phynum && i++ < MAX_PHY)
 	{
-        if (phynum & phy->mask)
+        if (mask & phynum)
         {
 			LED* ledp = phy->led_data;
 			size_t count = phy->led_count;
@@ -289,10 +307,10 @@ PUBLIC void LED_All_LED(int phynum, LED led)
 				(ledp++)->val = led.val;
 			}
 
-            needs_update |= phy->mask;
-            phynum &= ~phy->mask;
+            needs_update |= mask;
+            phynum &= ~mask;
         }
-        ++phy;
+        ++phy; mask <<= 1;
     }
 }
 
@@ -319,16 +337,6 @@ PUBLIC void LED_Init(void)
 //
 // Call once at startup to setup leds.
 {
-    LEDS_PHY* phy = LEDS_Phy;
-    int i = MAX_PHY;
-    uint32_t mask = 1;
-
-    while (i--)
-    {
-        phy->mask = mask;
-        ++phy;  mask <<= 1;
-    }
-
 	WS2812_Init();		// Starts LED driver for all PHYs.
 	sleep_ms(10);		// Wait a bit to ensure clock is running and force LEDs to reset
 	LEDS_All_Black();   // Start with everything off.

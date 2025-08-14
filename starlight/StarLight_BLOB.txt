@@ -3,11 +3,11 @@ Protocol for StarLight system.
 
 These are commands that can be send over the bluetooth connection.
 
-PHYS:  // Define the number of LEDs on a physical string.
 LARR:  // Set the current LED array.
 BLAC:  // Immediate all black scene.
 
-BLOB:  // Load program blob.
+RESE:  	// Reset back to no blob.
+BLOB:  	// Load program blob.
 SCEN:	// Instant scene set.
 
 SHOW:	// Instant scene set using scene from loaded blob.
@@ -32,7 +32,8 @@ BLAC:  // Immediate all black scene.
 
 //-----------------------------------------
 BLOB:   Load program blob.
-  - Program(0) is automatically started when blob is loaded.
+
+  - Program(0) is automatically started after blob is loaded.
 
 		blob_vers:  uint32_t			// Version number '1.0a'.
 		blob_size:  uint32_t			// size of whole blob in bytes.
@@ -49,15 +50,15 @@ BLOB:   Load program blob.
 		prog_size:  uint32_t			// Size of program array.
 
 		scen_index: uint32_t			// Scene index starts here (relative to start).
-		scen_count: uint32_t               // Number of scenes defined.
-		scen_array: uint32_t               // Scene array starts here (relative to start).
+		scen_count: uint32_t            // Number of scenes defined.
+		scen_array: uint32_t            // Scene array starts here (relative to start).
 		scen_size:  uint32_t			// Size of scene array.
 
-		prog_symtab_start			// Start of the program symbol table
-		prog_symtab_size			// Size of the program sysmbol table.
+		prog_symtab_start			    // Start of the program symbol table
+		prog_symtab_size			    // Size of the program sysmbol table.
 
-		strindx_start				// Start of the string table.
-		strindx_size				// Size of the string table.
+		strindx_start				    // Start of the string table.
+		strindx_size				    // Size of the string table.
 
 
 		trig:	[  // Maps program start points to triggers.
@@ -138,15 +139,23 @@ SCEN:	// Instant scene set.
 //-----------------------------------------
 // Define the number of LEDs on a physical string.
 //
-PHYS:  {phynum} {numleds}
-		phynum = physical string mask.  (0=current)
-		numleds = number of leds on this string {decimal number ( < 600)}   
+:phys  {numleds}....
+	numleds = number of leds on this string {decimal number}
+	num leds is specified for each physical string.
+	you do not need to (and should not) specified mirror strings.
+	total number of leds must not exceed 10,000
+	this will reset whole phy setup and will clear all mirrors.
+
+:mirr {phy_idx} {mirror_mask}
+	Causes a specific phy strings as specified by mirror_mask to use same memory as specific string {phy_idx}
+	You must define a phys string before using the :mirr command.
+	eg:   :mirr 0 0xee    # string 0 is duplicated to strings 1..6
 
 //-----------------------------------------
 // Set the current LED array.
 //
 SPHY:   {phynum} or {lognum}
-		phynum = physical string mask.  (0=current)
+	phynum = physical string mask.  (0=current)
 
 // =========================================================================================================
 //  These are commands that can appear in a blob script.
@@ -165,7 +174,7 @@ Commands:
 	ROTA[phynum] (+/-in)		# Rotate led pattern forward or backward.  (ends wrap around).
 
 	TRIG (in) (cp)		# Bind a trigger to command
-	PHYS (phynum) (in)		# Set the number of LEDs wired up to a physical string.
+	PHYS (in) ...			# Set the number of LEDs wired up to a physical string.
 	END 				# End of commmand script.
 
 

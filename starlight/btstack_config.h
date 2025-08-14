@@ -7,10 +7,12 @@
 #define ENABLE_LE_CENTRAL
 #define ENABLE_L2CAP_LE_CREDIT_BASED_FLOW_CONTROL_MODE
 #endif
-// #define ENABLE_LOG_INFO
-// #define ENABLE_LOG_ERROR
+//#define ENABLE_LOG_DEBUG
+//#define ENABLE_LOG_INFO
+#define ENABLE_LOG_ERROR
 #define ENABLE_PRINTF_HEXDUMP
-#define ENABLE_SCO_OVER_HCI
+// #define ENABLE_SCO_OVER_HCI
+//#define WANT_HCI_DUMP 1
 
 // BTstack configuration. buffers, sizes, ...
 #define HCI_OUTGOING_PRE_BUFFER_SIZE 4
@@ -67,7 +69,7 @@
 #define ENABLE_SOFTWARE_AES128
 #define ENABLE_MICRO_ECC_FOR_LE_SECURE_CONNECTIONS
 
-#define HAVE_BTSTACK_STDIN
+//#define HAVE_BTSTACK_STDIN
 
 // To get the audio demos working even with HCI dump at 115200, this truncates long ACL packets
 //#define HCI_DUMP_STDOUT_MAX_SIZE_ACL 100

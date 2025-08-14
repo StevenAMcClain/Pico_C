@@ -1,5 +1,5 @@
 // File: Morph.c
-
+#ifdef COMMENT
 #include "Common.h"
 
 // #include <stdio.h>
@@ -167,7 +167,7 @@ PUBLIC bool morph_step(void)
 // 			uint32_t* xtime = Blob_State.Xiti_Times;				// Current tick value for each XITI.
 // 			bool do_send = false;									// At least one Led color changed.
 
-// 			D(printf("transition step: ttime %d\n", Blob_State.trans_time);)
+// 			D(PRINTF("transition step: ttime %d\n", Blob_State.trans_time);)
 
 // 			for (int i = 0; i < LED_DATA_SIZE; ++i, ++scene, ++ledp, ++xitip, ++xtime)    // For each color of each led.
 // 			{
@@ -183,11 +183,11 @@ PUBLIC bool morph_step(void)
 // 					}
 // 					else  // do transition step.
 // 					{
-// 						D(printf("add(%d): before %d, step %d", i, *ledp, step_size);)
+// 						D(PRINTF("add(%d): before %d, step %d", i, *ledp, step_size);)
 // 						*xtime = xitip->step_time;  // Reset the counter.
 // 						step_size = (step_size > 0) ? MIN(step_size, 255 - *ledp) : MIN(step_size, *ledp);
 // 						*ledp += step_size;
-// 						D(printf(", after %d, step %d\n", *ledp, step_size);)
+// 						D(PRINTF(", after %d, step %d\n", *ledp, step_size);)
 // 						do_send = true;
 // 					}
 // 				}
@@ -197,10 +197,10 @@ PUBLIC bool morph_step(void)
 // 	}
 // 	if (!in_transition) 
 // 	{
-// 		D(printf("transition_step: Start next sequence(%d).\n", Blob_State.sequence_num + 1);)
+// 		D(PRINTF("transition_step: Start next sequence(%d).\n", Blob_State.sequence_num + 1);)
 // 		start_sequence(Blob_State.sequence_num + 1);
 		
-// 		// printf("not transition: Step_Done\n");
+// 		// PRINTF("not transition: Step_Done\n");
 // 		// Program_Step_Done();
 // 	}
 // }
@@ -231,12 +231,12 @@ PUBLIC bool morph_step(void)
 
 // 		uint32_t* xtimep = Blob_State.Xiti_Times;			// Point to first transition timer value.
 
-// 		// printf("start_transition: set times (");
+// 		// PRINTF("start_transition: set times (");
 // 		if (xitip && xtimep)
 // 		{
 // 			for (int i = 0; i < LED_DATA_SIZE; ++i)		// Copy initial transistion time values.
 // 			{
-// 				// printf("t(%d)=%d, ", i, xitip->step_time);
+// 				// PRINTF("t(%d)=%d, ", i, xitip->step_time);
 // 				*xtimep++ = xitip->step_time;
 // 				++xitip;
 // 			}
@@ -251,3 +251,4 @@ PUBLIC bool morph_step(void)
 // 	else { All_Program_Stop("start_transition: Bad (%d), Done. *********************************\n\n", n); }
 // }
 
+#endif

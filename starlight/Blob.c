@@ -3,24 +3,29 @@
 #include "common.h"
 #include "blob.h"
 
-#include <stdio.h>
+//#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "bluetooth_stdio.h"
-
+#include "btstdio.h"
 #include "debug.h"
 #include "led.h"
 #include "morph.h"
 #include "obled.h"
 #include "scene.h"
+#include "shifter.h"
 #include "stack.h"
 
 
+PUBLIC bool Blob_Is_Loaded = false;
+PUBLIC BLOB Blob = {0};
+
+uint8_t Blob_Buff[2][MAX_BLOB_SIZE] = {0};
+int Current_Blob_Buffer = 0;
 
 PUBLIC uint32_t Version()
 {
-    uint8_t* ver = BLOB_VERSION;
+    uint8_t* ver = (uint8_t*)BLOB_VERSION;
     return ver[3] << 24 | ver[2] << 16 | ver[1] << 8 | ver[0];
 }
 
@@ -36,7 +41,23 @@ PUBLIC char* version_to_str(char* buff, uint32_t val)
 }
 
 
-PRIVATE volatile uint64_t Blob_Time = 0;
+PUBLIC uint8_t* Get_New_Blob_Base()
+{
+    int i = (Current_Blob_Buffer == 0) ? 1 : 0;
+    uint8_t* base = &Blob_Buff[i][0];
+    memset(base, 0, MAX_BLOB_SIZE);
+    Current_Blob_Buffer = i;
+    return base;
+}
+
+
+PUBLIC uint8_t* Get_Blob_Base()
+{
+    return &Blob_Buff[Current_Blob_Buffer][0];
+}
+
+
+PUBLIC volatile uint64_t Blob_Time = 0;
 PRIVATE struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
 PRIVATE bool tick_is_running = false;
 
@@ -48,15 +69,10 @@ PUBLIC const int Tick_Speed =
 1000;
 //#endif
 
-#define CONTEXT_ITEMS 5         // Number of uint32_t that are saved.
-#define CONTEXT_DEPTH 5         // Maximum number of saves.
-
-#define PROG_STACK_SIZE (CONTEXT_ITEMS * CONTEXT_DEPTH)      // Maximum number of pending programs.
-
 
 // #define RUNNING_QUEUE_SIZE 10   // Maximum number of pending programs.
 // PRIVATE LED LED_Morph_Data[MAX_NUM_LEDS];
-// #define All_Program_Stop(msg, n) { printf(msg, n); Blob_Stop(); }
+// #define All_Program_Stop(msg, n) { PRINTF(msg, n); Blob_Stop(); }
 
 typedef enum Command
 {
@@ -75,8 +91,8 @@ typedef enum Command
     COMMAND_MORPH     = 12,   // morp (t) [scene] (n)     -- morph current scene into new scene (n) over (t) seconds.
     COMMAND_INTERRUPT = 13,   // intr (n)                 -- interrupt current routine.
     COMMAND_QUEUE     = 14,   // queu (n)                 -- add routine to queue.
-    COMMAND_TRIGGER   = 15,   // trig (n) [routine] (n)   -- bind a trigger to a routine.
-    COMMAND_PHYS      = 16,   // phys (s) (n)             -- set number of leds for specific string.
+    // COMMAND_TRIGGER   = 15,   // trig (n) [routine] (n)   -- bind a trigger to a routine.
+    // COMMAND_PHYS      = 16,   // phys (s) (n)             -- set number of leds for specific string.
 
     COMMAND_LAST              // This must always be last!
 } COMMAND;
@@ -93,6 +109,19 @@ typedef enum
 } STATE;
 
 
+#define CONTEXT_ITEMS 5         // Number of uint32_t that are saved.
+#define CONTEXT_DEPTH 5         // Maximum number of saves.
+
+#define PROG_STACK_SIZE (CONTEXT_ITEMS * CONTEXT_DEPTH)      // Maximum number of pending programs.
+
+
+typedef struct Prog_Stack
+{
+    STACK stk;
+    uint32_t buff[PROG_STACK_SIZE];
+
+} PROG_STACK;
+
 typedef struct Blob_State
 {
 	STATE State;				// Start in IDLE state.
@@ -107,13 +136,12 @@ typedef struct Blob_State
 	// XITI* Xiti;				// Transition currently playing.
 //	uint32_t* Xiti_Times;		// Store for transition step time counts.
 
-	STACK* program_stack;		// Pending program stack. 
-
+	PROG_STACK program_stack_buffer;
+    STACK* program_stack;	// Pending program stack. 
+    
 } BLOB_STATE;
 
 
-PUBLIC bool Blob_Is_Loaded = false;
-PUBLIC BLOB Blob = {0};
 PRIVATE BLOB_STATE Blob_State = {0};
 
 
@@ -200,103 +228,6 @@ PRIVATE void Pop_Context(void)
 }
 
 
-// PUBLIC void Command_Shift_LEDS(int count, bool do_shift)
-// //
-// // Shift (or rotate) led array.
-// {
-// //#define NEXT_P(startp, p) ((++(p) >= ((startp) + Num_LEDS)) ? ((p)=(startp)) : (p))
-// #define NEXT_P(startp, p) 
-// //	if (count && (abs(count) < Num_LEDS))
-// 	{
-// //		LED* srcp_start = LED_Data;
-// 		LED* srcp_start = 0;
-// 		LED* dstp_start = 0; //ALT_LED_Data();
-
-// 		LED* dstp = dstp_start;
-
-// 		if (count > 0)
-// 		{
-// 			if (do_shift)
-// 			{
-// 				LED* srcp = srcp_start;
-
-// //				int i = Num_LEDS;
-// 				int i = 4;
-
-// 				int c = count;
-// 				while (c--)
-// 				{
-// 					dstp->val = 0;
-// 					NEXT_P(dstp_start, dstp);
-// 					--i;
-// 				}
-
-// 				while (i--)
-// 				{
-// 					dstp->val = srcp->val;
-// 					NEXT_P(srcp_start, srcp);
-// 					NEXT_P(dstp_start, dstp);
-// 				}
-// 			}
-// 			else
-// 			{
-// //				LED* srcp = srcp_start + Num_LEDS - count;
-// 				LED* srcp = 0;
-
-// //				int i = Num_LEDS;
-// 				int i = 4;
-
-// 				while (i--)
-// 				{
-// 					dstp->val = srcp->val;
-// 					NEXT_P(srcp_start, srcp);
-// 					NEXT_P(dstp_start, dstp);
-// 				}
-// 			}
-// 		}
-// 		else
-// 		{
-// 			count = -count;
-
-// 			if (do_shift)
-// 			{
-// 				LED* srcp = srcp_start + count;
-// //				LED* end_srcp = srcp_start + Num_LEDS - count;
-// 				LED* end_srcp = 0;
-
-// 				while (srcp < end_srcp)
-// 				{
-// 					dstp->val = srcp->val;
-// 					++srcp; ++dstp;
-// 				}
-
-// //				while (dstp < (dstp_start + Num_LEDS))
-// 				{
-// 					dstp->val = 0;
-// 					++dstp;
-// 				}
-// 			}
-// 			else
-// 			{
-// 				LED* srcp = srcp_start + count;
-// //				LED* end_srcp = srcp_start + Num_LEDS - count;
-// 				LED* end_srcp = 0;
-
-// //				int i = Num_LEDS;
-// 				int i = 4;
-
-// 				while (i--)
-// 				{
-// 					dstp->val = srcp->val;
-// 					++dstp;
-// 					NEXT_P(srcp_start, srcp);
-// 				}
-// 			}
-// 		}
-
-// //		Switch_ALT_LED_Data();  // Flip to alternate.
-// 	}
-// }
 
 #define DEBUG_BLOB2 (DEBUG_BLOB | DEBUG_BUSY)
 
@@ -318,7 +249,7 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 
             cmd &= CMD_MASK;
 
-			D(DEBUG_BLOB2, printf("PC [%d]: %d '%s'\n", 
+			D(DEBUG_BLOB2, PRINTF("PC [%d]: %d '%s'\n", 
                     Prog_Id(cmdp), cmd, Command_Name(cmd));)
 
 			switch (cmd)
@@ -348,14 +279,6 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 					done = true;
 					break;
 				}
-				case COMMAND_PHYS:    // set number of leds for specific string.
-                {
-					int32_t phynum = (int32_t)*cmdp++;	// Get the phynum to set.
-					uint32_t num_leds = (PROG)*cmdp++;	// Get the number of leds on string.
-                    PHY_Set_led_count(phynum, num_leds);
-                    D(DEBUG_BLOB, printf(" *** PHYS %d %d\n", phynum, num_leds);)
-                    break;
-                }
 				case COMMAND_SPHY:    // select current phy string.
 				{
 					int32_t arg = (int32_t)*cmdp++;
@@ -384,7 +307,7 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 				case COMMAND_CALL:     // call a sub routine.
 				{
 					PROG arg = (PROG)*cmdp++;
-					D(DEBUG_BLOB, printf("Call: pgm 0x%X\n", arg);)
+					D(DEBUG_BLOB, PRINTF("Call: pgm 0x%X\n", arg);)
 
 					Blob_State.prog = cmdp;   // Make sure State.prog is up to date.
 					Push_Context();
@@ -401,7 +324,7 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 					Blob_State.prog = cmdp;
 					Push_Context();
 
-					D(DEBUG_BLOB, printf("Repeat: %d, pgm %d\n", repeat, cmd_idx);)
+					D(DEBUG_BLOB, PRINTF("Repeat: %d, pgm %d\n", repeat, cmd_idx);)
 
 					Blob_State.repeat = repeat;
 					cmdp = Blob_State.repeat_start = Blob_State.prog = Prog_Ptr(cmd_idx);;
@@ -410,13 +333,13 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
 				{
 					int32_t shift = (int32_t)*cmdp++;			// Number of places to shift.
-//					Command_Shift_LEDS(shift, true);
+					Command_Shift_LEDS(true, shift);
 					break;
 				}
 				case COMMAND_ROTATE:   // rotate led value. (end wraps).
 				{
 					int32_t shift = (int32_t)*cmdp++;			// Number of places to rotate.
-//					Command_Shift_LEDS(shift, false);
+					Command_Shift_LEDS(shift, false);
 					break;
 				}
 				case COMMAND_MORPH:    // morph current scene into new scene (n) over (t) seconds.
@@ -426,12 +349,12 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 				case COMMAND_INTERRUPT: // interrupt current routine.
 					cmdp++;
 				{
-					D(DEBUG_BLOB, printf("Command(%d) '%s' is not implemented yet.\n", cmd, Command_Name(cmd));)
+					D(DEBUG_BLOB, PRINTF("Command(%d) '%s' is not implemented yet.\n", cmd, Command_Name(cmd));)
 					break;
 				}
 				default:
 				{
-					D(DEBUG_BLOB, printf("Process_Command: Bad command %d\n", cmd);)
+					D(DEBUG_BLOB, PRINTF("Process_Command: Bad command %d\n", cmd);)
 					break;
 				}
 			}
@@ -459,7 +382,7 @@ PRIVATE void start_program(PROG_ID n)
     }
 	else
 	{
-		D(DEBUG_BLOB, printf("start_program: n %d\n", n);)
+		D(DEBUG_BLOB, PRINTF("start_program: n %d\n", n);)
 		Blob_State.State = STATE_COMMAND;
 		Blob_State.prog = Prog_Ptr(n);
 	}
@@ -472,7 +395,7 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 {
 	static int Tick_Count = 0;
 
-	D(DEBUG_BLOB2, if (Blob_State.State)  { printf("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Blob_State.State); })
+	D(DEBUG_BLOB2, if (Blob_State.State)  { PRINTF("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Blob_State.State); })
 
 	if (Blob_State.State != STATE_IDLE)
         Blob_State.is_idle = false;
@@ -504,7 +427,7 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 
 			if ( !cmd_is_running )
 			{ 							// Command sequence ended.
-				D(DEBUG_BLOB, printf("-- Sequence End.\n\n");)
+				D(DEBUG_BLOB, PRINTF("-- Sequence End.\n\n");)
 
 				if (Blob_State.repeat)  // Repeating?
 				{
@@ -516,17 +439,17 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 					else  // Done repeat.
 					{
 						Pop_Context();
-                        printf("Done repeat. next %X\n", Blob_State.prog);
+                        D(DEBUG_BLOB, PRINTF("Done repeat. next %X\n", Blob_State.prog);)
 					}
 				}
 				else if (Blob_State.program_stack->count)		// Anything on stack?
 				{
 					Pop_Context();
-                    printf("next command %X\n", Blob_State.prog);
+                    D(DEBUG_BLOB, PRINTF("next command %X\n", Blob_State.prog);)
 				}
 				else
 				{
-                    printf("To Idle\n");
+                    D(DEBUG_BLOB, PRINTF("To Idle\n");)
 					Blob_State.State = STATE_IDLE; 
 				}
 			}
@@ -534,13 +457,13 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 		}
 		case STATE_TRANSITION:
 		{
-			D(DEBUG_BLOB, printf("Transition State:\n");)
+			D(DEBUG_BLOB, PRINTF("Transition State:\n");)
 			Blob_State.State = STATE_COMMAND;
 //			transition_step();
 			break;
 		}
 	}
-	D(DEBUG_BLOB2, if (Blob_State.State)  { printf("== Blob_Tick: Done (%d).\n\n", Tick_Count); })
+	D(DEBUG_BLOB2, if (Blob_State.State)  { PRINTF("== Blob_Tick: Done (%d).\n\n", Tick_Count); })
 
 	return true;
 }
@@ -551,13 +474,14 @@ PUBLIC void Blob_Stop(void)
 //
 // Stop current program and clear stack.
 {
-	Stack_Clear(Blob_State.program_stack); 
 	Blob_State.State = STATE_IDLE;
 
     while (!Blob_State.is_idle)
     {
         sleep_ms(1);
     }
+
+	Stack_Clear(Blob_State.program_stack); 
 
 	Blob_State.repeat = 0;
 	Blob_State.wait_counter = 0;
@@ -593,29 +517,29 @@ PUBLIC void Blob_Trigger(TRIG_ID n)
 
 	if (pnum)
 	{
-		D(DEBUG_BLOB, printf("Blob_Trigger: n %d, program: %d\n", n, pnum);)
+		D(DEBUG_BLOB, PRINTF("Blob_Trigger: n %d, program: %d\n", n, pnum);)
 		start_program(pnum);
 	}	
 }
 
 
-PUBLIC void Blob_Queue_Next(TRIG_ID n)
-//
-// Start playing a BLOB program (after current completes).
-{
-	if (Blob_State.State == STATE_IDLE)		// Nothing running right now?
-	{
-		Blob_Trigger(n);					// Same as trig.
-	}
-	else if (n && n <= Blob.Num_Trig)
-	{
-		D(DEBUG_BLOB, printf("Blob_Queue_Next: n %d\n", n);)
-		Blob_Stop();
+// PUBLIC void Blob_Queue_Next(TRIG_ID n)
+// //
+// // Start playing a BLOB program (after current completes).
+// {
+// 	if (Blob_State.State == STATE_IDLE)		// Nothing running right now?
+// 	{
+// 		Blob_Trigger(n);					// Same as trig.
+// 	}
+// 	else if (n && n <= Blob.Num_Trig)
+// 	{
+// 		D(DEBUG_BLOB, PRINTF("Blob_Queue_Next: n %d\n", n);)
+// 		Blob_Stop();
 
-		PROG_ID pnum = Blob.Trigger_Base[n-1];
-//		Queue_Add(Blob_State.program_queue, pnum);		// Add to back of queue.
-	}
-}
+// 		PROG_ID pnum = Blob.Trigger_Base[n-1];
+// //		Queue_Add(Blob_State.program_queue, pnum);		// Add to back of queue.
+// 	}
+// }
 
 PRIVATE void start_prog_tick()
 {
@@ -641,16 +565,13 @@ PUBLIC void Blob_Unload(void)
 {
 	if (Blob.Blob_Base)
 	{
-		Blob_Stop();
-
         stop_prog_tick();
+
+		Blob_Stop();
 
 		uint8_t* base = Blob.Blob_Base - sizeof(uint32_t);
 
-		D(DEBUG_BLOB, printf("Blob_Unload: %X\n", base);)
-		free(base); 
-
-		memset(&Blob, 0, sizeof(Blob));
+		D(DEBUG_BLOB, PRINTF("Blob_Unload: %X\n", base);)
 	}
 }
 
@@ -692,7 +613,7 @@ typedef struct
 } BLOB_HEAD;
 
 
-PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base, uint32_t check)
+PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 //
 // Load a new blob_base.
 {
@@ -702,10 +623,8 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base, uint32_t check)
 
 	    BLOB_HEAD* bhptr = (BLOB_HEAD*)blob_base;
     
-		D(DEBUG_BLOB, printf("trig_size=%d, prog_size=%d, scen_count=%d, scen_size=%d\n",
+		D(DEBUG_BLOB, PRINTF("trig_size=%d, prog_size=%d, scen_count=%d, scen_size=%d\n",
 				(bhptr->trig_size / 2) - 1, bhptr->prog_size, bhptr->scen_count, bhptr->scen_size);)
-
-        Blob.Blob_Checksum = check;
 
 		Blob.Blob_Base = blob_base;
 		Blob.Blob_Size = *(uint32_t*)(blob_base - sizeof(uint32_t));
@@ -715,11 +634,11 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base, uint32_t check)
         if (bhptr->phystr_size)
         {
             uint32_t* phystr = (bptr + bhptr->phystr_start);     // Point to base of phy string table.
-            size_t num_phys = bhptr->phystr_size / 2;            // Get phystring size.
+            size_t num_phys = *phystr++;            // Get phystring size.
+            int phyidx = 0;
             while (num_phys--)
             {
-                PHY_Set_led_count(phystr[0], phystr[1]);
-                phystr += 2;
+                PHY_Set_led_count(phyidx++, *phystr++);
             }
         }
 
@@ -735,8 +654,8 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base, uint32_t check)
         Blob.Scene_Index = (SCENE_ID*)(bptr + bhptr->scen_index);	// Scene index start here.
         Blob.Scene_Array = (SCENE*)   (bptr + bhptr->scen_array);	// Scene array start here.
 
-        Blob.Trigger_Base = (PROG_ID*) (bptr + bhptr->trig_start);  // Start of the trigger table.
-        Blob.Program_Base = (PROG*)    (bptr + bhptr->prog_start);	// Blob Programs start here.
+        Blob.Trigger_Base = (PROG_ID*)(bptr + bhptr->trig_start);   // Start of the trigger table.
+        Blob.Program_Base = (PROG*)   (bptr + bhptr->prog_start);	// Blob Programs start here.
 
         Blob.StrindX_Size = bhptr->strindx_size;
         Blob.SymTab_Size = bhptr->symtab_size / 2;
@@ -753,9 +672,9 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base, uint32_t check)
 
         Blob_Is_Loaded = true;
 
-        start_prog_tick();          // Startup program tick.
+        // start_prog_tick();       // Startup program tick.
+		// start_program(1);		// Always start running program from start.
 
-		start_program(1);			// Always start running program from start.
         return true;
 	}
     return false;
@@ -769,13 +688,14 @@ PRIVATE bool Blob_Time_Tick(struct repeating_timer* ptr)
 	++Blob_Time;   // uint64_t
 }
 
+
 PUBLIC void Blob_Init(void)
 //
 // Prepare BLOB for use.  Call once at startup.
 {
 	static struct repeating_timer blob_timer_1;		// Timer to call Blob_Time.
-
-	Blob_State.program_stack = Stack_Initialize(PROG_STACK_SIZE); 
+	
+    Blob_State.program_stack = Stack_Initialize(&Blob_State.program_stack_buffer, PROG_STACK_SIZE); 
 
 	add_repeating_timer_us(Tick_Speed, Blob_Time_Tick, NULL, &blob_timer_1);
 

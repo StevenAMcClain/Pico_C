@@ -27,23 +27,25 @@ set(PICO_BOARD pico_w CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
+# include($ENV{PICO_EXTRAS_PATH}/external/pico_extras_import.cmake)
 
 project(starlight C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(starlight starlight.c bluetooth_stdio.c Led.c ws2812.c blob.c matcher.c morph.c parser.c stack.c obled.c scene.c blob_dump.c)
+add_executable(starlight 
+    starlight.c btstdio.c Led.c ws2812.c blob.c matcher.c morph.c parser.c 
+    stack.c obled.c scene.c blob_dump.c shifter.c flashblob.c)
 
 # Get all C and C++ files, when the glob value changes, cmake will run again and update the files
 # file(GLOB_RECURSE app_src CONFIGURE_DEPENDS "${SOURCE_FOLDER}/*.c" "${SOURCE_FOLDER}/*.cpp" )
 
 # -- Added by steven
 #pico_set_linker_script(starlight ${CMAKE_SOURCE_DIR}/pico_flash_region_protect.ld)
-set_target_properties(starlight PROPERTIES PICO_TARGET_LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/build/pico_flash_region_protect.ld)
+#set_target_properties(starlight PROPERTIES PICO_TARGET_LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/build/pico_flash_region_protect.ld)
 # -- End Added by steven
 
 #include_directories($ENV{PICO_SDK_PATH})
@@ -65,6 +67,9 @@ pico_enable_stdio_usb(starlight 0)
 #         bluetooth
 #         bluetooth_stdio)
 
+set_target_properties(starlight PROPERTIES PICO_TARGET_LINKER_SCRIPT 
+    ${CMAKE_SOURCE_DIR}/starlight.ld)
+
 # Add the standard include files to the build
 target_include_directories(starlight PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
@@ -76,7 +81,7 @@ target_link_libraries(starlight
         hardware_dma
         hardware_pio
         hardware_timer
-        pico_cyw43_arch_none
+        pico_platform
         pico_stdlib
         pico_malloc 
         pico_btstack_classic

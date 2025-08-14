@@ -1,10 +1,10 @@
 // File: matcher.c
 
-#include "Common.h"
+#include "common.h"
 
-#include <stdio.h>
+//#include <stdio.h>
 
-#include "Matcher.h"
+#include "matcher.h"
 
 
 typedef struct Matcher
@@ -18,22 +18,22 @@ typedef struct Matcher
 
 PRIVATE struct Matcher Matches[MATCH_LAST] = 
 {
-    {"PHYS", 0, MATCH_PHYS}, 
-    {"SPHY", 0, MATCH_SPHY}, 
-    {"SHOW", 0, MATCH_SHOW}, 
-    {"SCEN", 0, MATCH_SCENE}, 
-    {"BLAC", 0, MATCH_BLACK}, 
-    {"UPDA", 0, MATCH_UPDATE}, 
-    {"BLOB", 0, MATCH_SET_BLOB}, 
-    {"TRIG", 0, MATCH_TRIGGER}, 
-    {"QUEU", 0, MATCH_QUEUE}, 
-    {"BRIG", 0, MATCH_BRIGHTNESS}, 
-    {"INTR", 0, MATCH_INTERRUPT},
-    {"DUMP", 0, MATCH_DUMP},
-    {"DEBU", 0, MATCH_DEBUG},
-    {"GETB", 0, MATCH_GET_BLOB},
-    {"SAVE", 0, MATCH_SAVE},
-    {"LOAD", 0, MATCH_LOAD},
+    // {"PHYS", 0, MATCH_PHYS}, 
+    {(uint8_t*)"SPHY", 0, MATCH_SPHY}, 
+    {(uint8_t*)"SHOW", 0, MATCH_SHOW}, 
+    {(uint8_t*)"SCEN", 0, MATCH_SCENE}, 
+    {(uint8_t*)"BLAC", 0, MATCH_BLACK}, 
+    {(uint8_t*)"UPDA", 0, MATCH_UPDATE}, 
+    {(uint8_t*)"BLOB", 0, MATCH_SET_BLOB}, 
+    {(uint8_t*)"TRIG", 0, MATCH_TRIGGER}, 
+    {(uint8_t*)"QUEU", 0, MATCH_QUEUE}, 
+    {(uint8_t*)"BRIG", 0, MATCH_BRIGHTNESS}, 
+    {(uint8_t*)"INTR", 0, MATCH_INTERRUPT},
+    {(uint8_t*)"DUMP", 0, MATCH_DUMP},
+    {(uint8_t*)"DEBU", 0, MATCH_DEBUG},
+    {(uint8_t*)"GETB", 0, MATCH_GET_BLOB},
+    {(uint8_t*)"SAVE", 0, MATCH_SAVE},
+    {(uint8_t*)"LOAD", 0, MATCH_LOAD},
 };
 
 

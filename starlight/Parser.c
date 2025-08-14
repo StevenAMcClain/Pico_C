@@ -8,9 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
  
-#include "bluetooth_stdio.h"
-
 #include "blob.h"
+#include "btstdio.h"
 #include "debug.h"
 #include "led.h"
 #include "matcher.h"
@@ -19,22 +18,16 @@
 
 #define CHAR_TIMEOUT 50000
 
-#define MAX_BRIGHTNESS_NUM 100
+#define MAX_BRIGHTNESS_NUM 1000     // 100.0 %
 
-#define MAX_BLOB_SIZE (16 * 1024)    // Fairly arbitrary max size
+#define BLOB_PRE_HEADER_SIZE 12      // Number of bytes to read before reading header.
 
-#define BLOB_PRE_HEADER_SIZE 8      // Number of bytes to read before reading header.
+uint64_t read_bytes_retry_counter = 0;     // Number of retries during read_bytes... ever!
 
+#define NUM_RETRIES 5   // Maximum number of consecutive retries for a single call to read_bytes.
 
+#define parser_getchar BlueTooth_TryGetChar
 
-PRIVATE int parser_getchar(void)
-{
-    return BlueTooth_Check_Receive() ? BlueTooth_GetChar() : PICO_ERROR_TIMEOUT;
-}
-
-uint64_t retry_counter = 0;     // Number of retries... ever!
-
-#define NUM_RETRIES 5
 
 PRIVATE bool read_bytes(int n, uint8_t* buff)
 {
@@ -52,14 +45,15 @@ PRIVATE bool read_bytes(int n, uint8_t* buff)
         }
         else if (retries--)
         {
-            // BlueTooth_Printf("!!! Retry.\n"); 
-            retry_counter++;
+            D(DEBUG_PARSER, BTPRINTF("!!! Retry.\n"); )
+            read_bytes_retry_counter++;
             sleep_ms(3);
             continue;
         }
         else
         {
-            BlueTooth_Printf("!!! Blob read TIMEOUT expecting %d more bytes.\n", n); 
+            BTPRINTF("!!! Blob read TIMEOUT expecting %d more bytes, total retries %lld.\n", 
+                                  n, read_bytes_retry_counter); 
             break;
         }
     }
@@ -68,41 +62,41 @@ PRIVATE bool read_bytes(int n, uint8_t* buff)
 }
 
 
-PRIVATE void read_scene(void)
-{
-    int scene_led_num = 0;
-    int scene_led_idx = 0;
-    uint8_t scene_led_val[LED_SIZE] = {0};
+// PRIVATE void read_scene(void)
+// {
+//     int scene_led_num = 0;
+//     int scene_led_idx = 0;
+//     uint8_t scene_led_val[LED_SIZE] = {0};
 
-    bool reading = true;
+//     bool reading = true;
 
-    while (reading)
-    {
-        int ch = parser_getchar();
+//     while (reading)
+//     {
+//         int ch = parser_getchar();
 
-        if (ch != PICO_ERROR_TIMEOUT)
-        {
-            scene_led_val[scene_led_idx++] = ch;
+//         if (ch != PICO_ERROR_TIMEOUT)
+//         {
+//             scene_led_val[scene_led_idx++] = ch;
 
-            if (scene_led_idx == LED_SIZE)
-            {
-                scene_led_idx = 0;
-// fix /////////////                // LED_Set_LED(scene_led_num, scene_led_val);
+//             if (scene_led_idx == LED_SIZE)
+//             {
+//                 scene_led_idx = 0;
+// // fix /////////////                // LED_Set_LED(scene_led_num, scene_led_val);
 
-//                if (++scene_led_num == Num_LEDS)
-                {
-// fix /////////////                    led_send();
-                    reading = false; 
-                }
-            }
-        }    
-        else 
-        {
-            printf("read_scene: TIMEOUT\n"); 
-            reading = false; 
-        }
-    }
-}
+// //                if (++scene_led_num == Num_LEDS)
+//                 {
+// // fix /////////////                    led_send();
+//                     reading = false; 
+//                 }
+//             }
+//         }    
+//         else 
+//         {
+//             PRINTF("read_scene: TIMEOUT\n"); 
+//             reading = false; 
+//         }
+//     }
+// }
 
 
 PRIVATE uint32_t Checksum(uint8_t* buff, size_t size)
@@ -119,29 +113,83 @@ PRIVATE uint32_t Checksum(uint8_t* buff, size_t size)
 
 PRIVATE void read_blob(void)
 {
-    uint8_t buff[BLOB_PRE_HEADER_SIZE];
+    uint8_t* base = Get_New_Blob_Base();
+    uint8_t* buff = base;
+
+    if (base)
+    {
+        BLOB_PRE_HEADER* prehead = (void*)buff;
+        D(DEBUG_PARSER, PRINTF("\nread_blob: ");)
+
+        buff[0] = 'B'; buff[1] = 'L'; buff[2] = 'O'; buff[3] = 'B';
+        buff += 4;
+
+        if (read_bytes(BLOB_PRE_HEADER_SIZE, buff))
+        {     
+            if (prehead->Version == Version())
+            {
+                uint32_t blob_size = prehead->Size * sizeof(uint32_t);
+
+                D(DEBUG_PRINTF, PRINTF(" size %d\n", blob_size);)
+
+                if (blob_size < (MAX_BLOB_SIZE - BLOB_PRE_HEADER_SIZE - 4))
+                {
+                    buff += BLOB_PRE_HEADER_SIZE;
+
+                    if (read_bytes(blob_size, buff))
+                    {
+                        uint32_t blob_check = Checksum(buff, blob_size);
+
+                        if (prehead->Checksum == blob_check)
+                        {
+                            // PRINTF("read_blob: base %X %X\n", real_base, base);
+                            if (Unpack_Blob_Header(buff))
+                            {
+                                BTPRINTF("BLOB loaded.\n");
+                                return;
+                            }
+                        }
+                        else { BTPRINTF("!!! Bad checksum: expected %X, got %X\n", blob_check, prehead->Checksum); }
+                    }
+               }
+                else { BTPRINTF("!!! Bab blob size (%d) must be less than %d\n", blob_size, MAX_BLOB_SIZE); }
+            }
+            else 
+            { 
+                char s1[10], s2[10];
+                BTPRINTF("!!! Bad blob version: expected '%s', got '%s'\n", 
+                                    version_to_str(s1, Version()), 
+                                    version_to_str(s2, prehead->Version)); 
+            }
+        }
+    }
+    BTPRINTF("!!! BLOB load load fail.\n\n");
+}
+
+
+#ifdef COMMENT
+PRIVATE void read_blob(void)
+{
+    uint8_t buff[BLOB_PRE_HEADER_SIZE] = {0};
     uint32_t blob_size = 0;
 
-    memset(buff, -1, sizeof(buff));
-
-    printf("\nread_blob: ");
+    D(DEBUG_PARSER, PRINTF("\nread_blob: ");)
 
     if (read_bytes(BLOB_PRE_HEADER_SIZE, buff))
-    {
+    {     
         uint32_t* ptr = (uint32_t*)buff;
 
         if (*ptr++ == Version())
         {
             blob_size = *ptr++ * sizeof(uint32_t);
-            printf(" size %d\n", blob_size);
+            D(DEBUG_PRINTF, PRINTF(" size %d\n", blob_size);)
 
             if (blob_size < MAX_BLOB_SIZE)
             {
-                uint8_t* base = malloc(blob_size);
+                uint8_t* base = Get_New_Blob_Base();  //malloc(blob_size);
 
                 if (base)
                 {
-                    memset(base, 0, blob_size);
                     *(uint32_t*)base = blob_size;       // Copy blob_size into header.
                     base += sizeof(uint32_t);           // Move base past the size value.
 
@@ -152,34 +200,35 @@ PRIVATE void read_blob(void)
 
                         if (read_bytes(sizeof(uint32_t), (uint8_t*)&check))
                         {
-                            // printf("check %d, blob_check %d\n", check, blob_check);
+                            // PRINTF("check %d, blob_check %d\n", check, blob_check);
 
                             if (check == blob_check)
                             {
-                                // printf("read_blob: base %X %X\n", real_base, base);
+                                // PRINTF("read_blob: base %X %X\n", real_base, base);
                                 if (Unpack_Blob_Header(base, check))
                                 {
-                                    BlueTooth_Printf("BLOB loaded.\n");
+                                    BTPRINTF("BLOB loaded.\n");
                                     return;
                                 }
                             }
-                            else { BlueTooth_Printf("!!! Bad checksum: expected %X, got %X\n", blob_check, check); }
+                            else { BTPRINTF("!!! Bad checksum: expected %X, got %X\n", blob_check, check); }
                         }
                     }
                 }
             }
-            else { BlueTooth_Printf("!!! Bab blob size (%d) must be less than %d\n", blob_size, MAX_BLOB_SIZE); }
+            else { BTPRINTF("!!! Bab blob size (%d) must be less than %d\n", blob_size, MAX_BLOB_SIZE); }
         }
         else 
         { 
             char s1[10], s2[10];
-            BlueTooth_Printf("!!! Bad blob version: expected '%s', got '%s'\n", 
+            BTPRINTF("!!! Bad blob version: expected '%s', got '%s'\n", 
                                 version_to_str(s1, Version()), 
                                 version_to_str(s2, *(ptr-1))); 
         }
     }
-    BlueTooth_Printf("!!! BLOB load load fail.\n\n");
+    BTPRINTF("!!! BLOB load load fail.\n\n");
 }
+#endif // COMMENT
 
 
 PRIVATE int read_num(void)
@@ -200,7 +249,7 @@ PRIVATE int read_num(void)
                 continue;
             }
         }
-        else { printf("read_num: TIMEOUT\n"); }
+        else { D(DEBUG_PRINTF, PRINTF("read_num: TIMEOUT\n");) }
 
         reading = false;
     }
@@ -235,7 +284,7 @@ PRIVATE int read_snum(void)   // Read signed number.
             isfirst = false;
             continue;
         }
-        else { printf("read_snum: TIMEOUT\n"); }
+        else { D(DEBUG_PRINTF, PRINTF("read_snum: TIMEOUT\n");) }
 
         reading = false;
     }
@@ -266,7 +315,7 @@ PRIVATE int read_hnum(void)   // Read hex number.
 
             continue;
         }
-        // else { printf("read_hnum: TIMEOUT\n"); }
+        // else { PRINTF("read_hnum: TIMEOUT\n"); }
 
         reading = false;
     }
@@ -274,24 +323,21 @@ PRIVATE int read_hnum(void)   // Read hex number.
     return val;
 }
 
-#define MAX_BUFF_SIZE 1000
+#define MAX_BUFF_SIZE 1024
 
 PRIVATE void do_export()
 {
     if (Blob.Blob_Base)
     {
-        uint8_t*ptr = Blob.Blob_Base;
-        size_t size = Blob.Blob_Size;
+        static char buff[MAX_BUFF_SIZE];
+        uint8_t* ptr = Get_Blob_Base();
+        BLOB_PRE_HEADER* pre_header = (BLOB_PRE_HEADER*)ptr;
 
-        // BlueTooth_Printf("Size: %d\n", size);
-        char s1[10];
-        version_to_str(s1, Version());
+//        size_t size = Blob.Blob_Size;
+        size_t size = pre_header->Size * sizeof(uint32_t);
 
-        char buff[MAX_BUFF_SIZE];
         char* bufp = buff;
-        char* endp = buff + MAX_BUFF_SIZE - 8;
-
-        bufp += sprintf(bufp, "BLOB%s", s1);
+        char* endp = buff + sizeof(buff);
 
         while (size--) 
         {
@@ -299,137 +345,162 @@ PRIVATE void do_export()
 
             if (bufp > endp)
             {
+                BlueTooth_Send_String(buff);
+                bufp = buff; 
                 *bufp = 0;
+            }
+        }
+        BlueTooth_Send_String(buff);
+    }
+    else { BTPRINTF("<<NONE>>\n"); }
+}
+
+
+#ifdef COMMENT
+PRIVATE void do_export()
+{
+    if (Blob.Blob_Base)
+    {
+        static char buff[MAX_BUFF_SIZE];
+        uint8_t*ptr = Blob.Blob_Base;
+        size_t size = Blob.Blob_Size;
+
+        // BTPRINTF("Size: %d\n", size);
+        char strVersion[10];
+        version_to_str(strVersion, Version());
+
+        char* bufp = buff;
+        char* endp = buff + MAX_BUFF_SIZE - 8;
+
+        bufp += sprintf(bufp, "BLOB%s", strVersion);
+
+        while (size--) 
+        {
+            bufp += sprintf(bufp, "%2.2X", *ptr++);
+
+            if (bufp > endp)
+            {
                 BlueTooth_Send_String(buff);
                 bufp = buff; 
             }
         }
-        *bufp = 0;
         BlueTooth_Send_String(buff);
     }
-    else { BlueTooth_Printf("<<NONE>>\n"); }
+    else { BTPRINTF("<<NONE>>\n"); }
 }
+#endif // COMMENT
 
-
-PRIVATE void scan_for_sync(void)
+PRIVATE void scan_for_sync(int ch)
 {
-    int ch = parser_getchar();
+    MATCH_CODE code = Is_Match(ch);
+    int arg;
 
-    if (ch != PICO_ERROR_TIMEOUT)
+    if (code)
     {
-        MATCH_CODE code = Is_Match(ch);
-        int arg;
-
-        if (code)
+        switch (code)
         {
-            switch (code)
+            case MATCH_BLACK:           // BLAC: Set all leds to black.
             {
-                case MATCH_BLACK:           // BLAC: Set all leds to black.
-                {
-                    Blob_Stop();
-                    LEDS_All_Black();
-                    BlueTooth_Printf("BLAC\n");
-                    break;
-                }
-                case MATCH_UPDATE:          // UPDA: Updatre and leds that need updating.
-                {
-                    LEDS_Do_Update();
-                    printf("UPDA\n");
-                    break;
-                }
-                case MATCH_SET_BLOB:            // BLOB: Load a new binary object containing program.
-                {
-                    read_blob();
-                    break;
-                }
-                case MATCH_TRIGGER:
-                {
-                    arg = read_num();
-                    Blob_Trigger(arg);
-                    BlueTooth_Printf("TRIG %d\n", arg);
-                    break; 
-                }
-                case MATCH_BRIGHTNESS:
-                {
-                    arg = read_num();
-                    printf("BRIG %d    \r", arg);
-                    fflush(stdout);
-
-                    if (arg >= 0 && arg <= MAX_BRIGHTNESS_NUM)
-                    {
-                        double newval = arg / (double)MAX_BRIGHTNESS_NUM;
-
-                        if (LED_Brightness != newval)
-                        {
-                            LED_Brightness = newval;
-                            LED_Needs_Update(ALL_PHYS);
-                            LEDS_Do_Update();
-                        }
-                    }
-                    break;
-                }
-                case MATCH_PHYS:          // Define the number of LEDs in system.
-                {
-                    int phynum = read_snum();
-                    arg = read_num();
-
-                    PHY_Set_led_count(phynum, arg);
-                    BlueTooth_Printf("PHYS %d has %d LEDs.\n", phynum, arg);
-                    break;
-                }
-                case MATCH_SPHY:          // Set the current led array to use.
-                {
-                    int phynum = read_snum();
-
-                    LEDS_Set_Phynum(phynum);
-                    BlueTooth_Printf("SPHY %d\n", phynum);
-                    break;
-                }
-                case MATCH_SHOW:
-                {
-                    arg = read_num();
-                    D(DEBUG_PARSER, printf("DO SHOW SCENE %d\n", arg);)
-					Set_Scene(arg);
-                    LEDS_Do_Update();
-                    break;
-                }
-                case MATCH_QUEUE:
-                {
-                    arg = read_num();
-                    printf("QUEU %d\n", arg);         // SAME as trig (for now).
-                    Blob_Queue_Next(arg);
-                    break; 
-                }
-                case MATCH_SCENE:   
-                {
-                    printf("SCEN\n");
-                    read_scene();
-                    break; 
-                }
-                case MATCH_DUMP:
-                {
-                    arg = read_num();
-                    int start = read_hnum();  // Try to read another arg.
-                    // printf("Dump %d, start %X\n", arg, start);
-                    extern void do_dump(int arg, int arg2);
-                    do_dump(arg, start);
-                    break; 
-                }
-                case MATCH_DEBUG:
-                {
-                    arg = read_num();
-                    printf("Set Debug Flag %d(0x%X)\n", arg, arg);
-                    Debug_Mask = arg;
-                    break;
-                }
-                case MATCH_GET_BLOB:
-                {
-                    do_export();
-                    break;
-                }
+                Blob_Stop();
+                LEDS_All_Black();
+                BTPRINTF("BLAC\n");
+                break;
             }
-            Matchers_Reset();
+            case MATCH_UPDATE:          // UPDA: Updatre and leds that need updating.
+            {
+                LEDS_Do_Update();
+                PRINTF("UPDA\n");
+                break;
+            }
+            case MATCH_SET_BLOB:            // BLOB: Load a new binary object containing program.
+            {
+                PRINTF("READ\n");
+//                BTPRINTF("READ\n");
+                read_blob();
+                break;
+            }
+            case MATCH_GET_BLOB:
+            {
+                do_export();
+                break;
+            }
+            case MATCH_TRIGGER:
+            {
+                arg = read_num();
+                Blob_Trigger(arg);
+                BTPRINTF("TRIG %d\n", arg);
+                break; 
+            }
+            case MATCH_BRIGHTNESS:
+            {
+                arg = read_num();
+                D(DEBUG_PRINTF, { PRINTF("BRIG %d \r", arg); fflush(stdout); })
+
+                if (arg >= 0 && arg <= MAX_BRIGHTNESS_NUM)
+                {
+                    double newval = arg / (double)MAX_BRIGHTNESS_NUM;
+
+                    if (LED_Brightness != newval)
+                    {
+                        LED_Brightness = newval;
+                        LED_Needs_Update(ALL_PHYS);
+                        LEDS_Do_Update();
+                    }
+                }
+                break;
+            }
+            case MATCH_SPHY:          // Set the current led array to use.
+            {
+                int phynum = read_snum();
+
+                LEDS_Set_Phynum(phynum);
+                BTPRINTF("SPHY %d\n", phynum);
+                break;
+            }
+            case MATCH_SHOW:
+            {
+                arg = read_num();
+                D(DEBUG_PARSER, PRINTF("DO SHOW SCENE %d\n", arg);)
+                Set_Scene(arg);
+                LEDS_Do_Update();
+                break;
+            }
+            // case MATCH_QUEUE:
+            // {
+            //     arg = read_num();
+            //     PRINTF("QUEU %d\n", arg);         // SAME as trig (for now).
+            //     Blob_Queue_Next(arg);
+            //     break; 
+            // }
+            // case MATCH_SCENE:   
+            // {
+            //     PRINTF("SCEN\n");
+            //     read_scene();
+            //     break; 
+            // }
+            case MATCH_DUMP:
+            {
+                arg = read_num();
+                int start = read_hnum();  // Try to read another arg.
+                // PRINTF("Dump %d, start %X\n", arg, start);
+                extern void do_dump(int arg, int arg2);
+                do_dump(arg, start);
+                break; 
+            }
+            case MATCH_DEBUG:
+            {
+                arg = read_num();
+                PRINTF("Set Debug Flag %d(0x%X)\n", arg, arg);
+                Debug_Mask = arg;
+                break;
+            }
+            case MATCH_NONE:
+            default:
+            {
+                break;
+            }
         }
+        Matchers_Reset();
     }
 }
 
@@ -440,8 +511,38 @@ PUBLIC void Start_Parser()
 
     while (true) 
     { 
-        scan_for_sync(); 
-        sleep_ms(1); 
+        int ch = parser_getchar();
+
+        if (ch != PICO_ERROR_TIMEOUT)
+        {
+#ifdef COMMENT
+            if (ch == 'a')
+            {
+                BTPRINTF("ABC %d\n", 123);                
+            }
+            else if (ch == 'b')
+            {
+                int i;
+                for (i=0; i< 1000; ++i)
+                    BTPRINTF("ABC %d\n", 123);                
+            }
+            else if (ch == 'c')
+            {
+                BTPRINTF("ABCDEFGHIJKLMNOPQRSTUVWXYZ");                
+            }
+            else if (ch == 'd')
+            {
+                BlueTooth_Send_String("ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ");                
+            }
+            else
+            {
+                BTPRINTF("BAD.\n");                
+            }
+        }
+#endif
+            scan_for_sync(ch); 
+            sleep_ms(1); 
+        }
     }
 }
 

@@ -7,16 +7,18 @@
 #include "Common.h"
 #include "ws2812.h"
 
-#include <stdio.h>
-
-#include <hardware/dma.h>
 #include <pico/sem.h>
+#include <hardware/dma.h>
 #include <hardware/pio.h>
+
+#include <stdio.h>
 
 #include "ws2812.pio.h"
 #include "led.h"
 
 #define IS_RGBW false
+
+PRIVATE volatile uint32_t Primed_Mask = 0;
 
 PRIVATE volatile absolute_time_t last_dma_completed_time = 0;
 #define DMA_SEND_TIME 1000000
@@ -35,6 +37,7 @@ typedef struct
 
 
 PRIVATE WS2812_PHY WS2812_Phy[MAX_PHY] = {0};
+PRIVATE volatile uint32_t dma_running_mask = 0; 
 
 
 PRIVATE void __isr dma_complete_handler() 
@@ -44,6 +47,7 @@ PRIVATE void __isr dma_complete_handler()
     last_dma_completed_time = get_absolute_time() + DMA_DELAY_TIME;
 
     dma_hw->ints0 = interrupts;        // clear IRQ
+    dma_running_mask &= ~interrupts;
 }
 
 
@@ -72,53 +76,49 @@ PRIVATE void DMA_Init(WS2812_PHY* phy)
 }
 
 
-PUBLIC void WS2812_Set_Num_LEDS(int phyidx, size_t num_leds)
+PUBLIC void WS2812_Set_Num_LEDS(int phy_idx, size_t num_leds)
 {
-    if (phyidx >= 0 && phyidx < MAX_PHY)
+    if (phy_idx >= 0 && phy_idx < MAX_PHY)
     {
-        WS2812_PHY* phy = WS2812_Phy + phyidx;
+        WS2812_PHY* phy = WS2812_Phy + phy_idx;
 
         phy->num_leds = num_leds;
         dma_channel_set_trans_count(phy->DMA_channel, num_leds, false);
     }
 }
 
-PRIVATE volatile uint32_t Primed = 0;
 
-PUBLIC void WS2812_Prime_Send(uint32_t phynum, uint32_t* buff)
+PUBLIC void WS2812_Prime_Send(uint32_t phy_mask, uint32_t* buff)
 {
-    if (phynum)
+    while (phy_mask)
     {
-        while (phynum)
+        WS2812_PHY* phy = WS2812_Phy;
+        uint32_t mask = 1;
+        int i = 0;
+
+        while (phy_mask && i < MAX_PHY)
         {
-            WS2812_PHY* phy = WS2812_Phy;
-            uint32_t mask = 1;
-            int i = 0;
-
-            while (phynum && i < MAX_PHY)
+            if (phy_mask & mask)
             {
-                if (phynum & mask)
+                uint chan = phy->DMA_channel;
+
+                if (phy->num_leds)
                 {
-                    uint chan = phy->DMA_channel;
-
-                    if (phy->num_leds)
+                    if (!dma_channel_is_busy(chan))
                     {
-                        if (!dma_channel_is_busy(chan))
-                        {
-                            phynum &= ~mask;
-                            Primed |= mask;
-                            dma_channel_set_read_addr(chan, buff, false);
-                        }
+                        phy_mask &= ~mask;
+                        Primed_Mask |= mask;
+                        dma_channel_set_read_addr(chan, buff, false);
                     }
-                    else { phynum &= ~mask; }  // Ignore zero leds.
                 }
+                else { phy_mask &= ~mask; }  // Ignore zero leds.
+            }
 
-                ++i;  mask <<= 1; ++phy;
-            }
-            if (phynum)
-            {
-                printf("WS2812_Prime_Send: try again %d\n", phynum);
-            }
+            ++i;  mask <<= 1; ++phy;
+        }
+        if (phy_mask)
+        {
+            PRINTF("WS2812_Prime_Send: try again %X\n", phy_mask);
         }
     }
 }
@@ -126,31 +126,44 @@ PUBLIC void WS2812_Prime_Send(uint32_t phynum, uint32_t* buff)
 
 PUBLIC void WS2812_Do_Send(void)
 {
-    if (Primed)
+    if (dma_running_mask)
     {
-//        printf("WS2812_Do_Send: %X\n", Primed);
+        PRINTF("WS2812_Do_Send: Wait running.\n");
+        while (dma_running_mask)
+        {
+            // Busy wait.
+        }
+        PRINTF("WS2812_Do_Send: Done Wait running.\n");
+    }
+
+    if (Primed_Mask)
+    {
+//        PRINTF("WS2812_Do_Send: %X\n", Primed);
 
         if (last_dma_completed_time)
         {
             if (get_absolute_time() < last_dma_completed_time)
             {
-                printf("WS2812_Do_Send: Do Wait\n");
+                PRINTF("WS2812_Do_Send: Do Wait\n");
                 while (get_absolute_time() < last_dma_completed_time)
                 {
                     // Busy wait.
                 }
-                printf("WS2812_Do_Send: Done Wait\n");
+                PRINTF("WS2812_Do_Send: Done Wait\n");
             }
             last_dma_completed_time = 0;
         }
 
-        dma_start_channel_mask(Primed);     // Start everybody.
+        dma_running_mask = Primed_Mask;
 
-        Primed = 0;
+        dma_start_channel_mask(Primed_Mask);     // Start everybody.
+
+        Primed_Mask = 0;
 
         last_dma_completed_time = get_absolute_time() + DMA_SEND_TIME;
     }
 }
+
 
 PUBLIC void WS2812_Init(void)
 {
