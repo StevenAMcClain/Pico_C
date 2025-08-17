@@ -18,11 +18,8 @@ typedef enum match_code
     MATCH_DUMP,         // Dump debug info.
     MATCH_DEBUG,        // Set debug mask.
     MATCH_GET_BLOB,     // Export current blob.
-    MATCH_ERASE,        // Erase flash page.
     MATCH_SAVE,         // Save RAM blob to flash.
     MATCH_LOAD,         // Load flash blob to RAM.
-    MATCH_TEST,         // Verify checksum on loaded blob.
-    MATCH_TEST2,        // Verify checksum on flash page 1.
 
     MATCH_LAST     // Must be last.
 

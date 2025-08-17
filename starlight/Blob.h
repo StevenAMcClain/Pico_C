@@ -4,7 +4,7 @@
 
 #define BLOB_VERSION "0.2d"
 
-typedef uint32_t TRIG_ID;
+//typedef uint32_t TRIG_ID;
 typedef int32_t PROG_ID;
 typedef uint32_t SCENE_ID;
 
@@ -12,22 +12,54 @@ typedef uint32_t PROG;
 typedef uint32_t SCENE;
 
 
-typedef struct BLOB_Pre_Header
+typedef struct BLOB_Raw
 {
-    uint32_t Cookie;                // Must be 'BLOB'
-    uint32_t Version;               // Version number for blob.
-    uint32_t Size;                  // Number of bytes in body.
-    uint32_t Checksum;              // Checksum for body only.
+    uint32_t Cookie;           // Must be 'BLOB'
+    uint32_t Version;          // Version number for blob.
+    uint32_t Size;             // Number of bytes in body.
+    uint32_t Checksum;         // Checksum for body only.
 
-} BLOB_PRE_HEADER;
+	uint32_t blob_name;	        // Stringdx for blob name.
+
+	uint32_t phystr_start;	    // Physical string definitions.
+	uint32_t phystr_size;	    // Size of the phystring table.
+
+	uint32_t strindx_start;	    // Start of the string table.
+	uint32_t strindx_size;	    // Size of the string table.
+
+	uint32_t vartab_start;	    // Start of the variable table.
+	uint32_t vartab_size;	    // Size of the variable table.
+
+	uint32_t symtab_start;	    // Start of the program symbol table
+	uint32_t symtab_size;	    // Size of the program sysmbol table.
+
+	uint32_t vstr_index;	    // Virual LED string array index starts here (relative to start).
+	uint32_t vstr_count;	    // Number of Virual LED string arrays defined.
+
+	uint32_t vstr_array;	    // Virual LED string record start here.
+	uint32_t vstr_size;   	    // Size of the Virual LED string array.
+
+    uint32_t scen_index;	    // Scene index starts here (relative to start).
+    uint32_t scen_count;        // Number of scenes defined.
+
+    uint32_t scen_array;        // Scene array starts here (relative to start).
+    uint32_t scen_size;		    // Size of scene array.
+
+    uint32_t trig_start;	    // Trigger array starts here (relative to start).
+    uint32_t trig_size;		    // Number of triggers defined.
+
+    uint32_t prog_start;	    // Program array starts here (relative to start).
+    uint32_t prog_size;		    // Size of program array.
+
+} BLOB_RAW;
 
 
 typedef struct Blob
 {
-    uint8_t *name;
+    uint8_t *name;          // Points to blob name string.
+    BLOB_RAW* Blob_BASE;    // Points to raw blob.
 
-    uint8_t* Blob_Base;		// Pointer to base of Blob.
-    uint32_t Blob_Size;		// Number of bytes in Blob.
+    uint8_t* Blob_Bin;		// Pointer to start of blob binary data.
 
     uint8_t* StrindX;       // Point to base of string table.
     uint32_t StrindX_Size;
@@ -56,30 +88,30 @@ typedef struct Blob
 } BLOB;
 
 extern BLOB Blob;
-extern const int Tick_Speed;                        // Clock for blob player.
+//extern const int Tick_Speed;                        // Clock for blob player.
 extern bool Blob_Is_Loaded;
-
-extern void Blob_Init(void);                        // Prepare BLOB for use.  Call once at startup.
-
-extern uint8_t* Get_New_Blob_Base(void);            // Switch to other base and return pointer to BLOB base.
-extern uint8_t* Get_Blob_Base(void);                // Returns pointer to current BLOB base.
-
-extern void Blob_NumLeds(int n);                    // Set number of LEDS.   Call when Num_Leds changes.
-extern bool Unpack_Blob_Header(uint8_t* /* blob_base */);    // Call to load a new blob_base.
-extern void Blob_Unload(void);                      // Release blob_base memory.
-
-extern void Blob_Trigger(TRIG_ID n);                // Immediately Start playing a BLOB program.  (Cancel any running or queue'd)
-extern void Blob_Queue_Next(TRIG_ID n);             // Start playing a BLOB program (after current completes).
-extern void Blob_Stop(void);                        // Stop current program and clear queue.
 
 extern uint32_t Version();
 extern char* version_to_str(char* buff, uint32_t val);
 
-// extern uint32_t Blobhead();
-// extern uint32_t Version();
+extern void Blob_Init(void);                        // Prepare BLOB for use.  Call once at startup.
 
-// extern uint32_t str_to_uint32(char* str);
-// extern char* uint32_to_str(char* buff, uint32_t val);
+extern uint8_t* Blob_Base_Get_New(void);            // Prepare new base for load return pointer to BLOB base.
+extern void Blob_Base_Switch(void);          // Switch to new base
+extern BLOB_RAW* Blob_Base_Current(void);                // Returns pointer to current BLOB base.
+
+extern bool Unpack_Blob_Header(uint8_t* /* blob_base */);    // Call to load a new blob_base.
+extern void Blob_Unload(void);                      // Release blob_base memory.
+
+//extern void Blob_Trigger(TRIG_ID n);                // Immediately Start playing a BLOB program.  (Cancel any running or queue'd)
+//extern void Blob_Queue_Next(TRIG_ID n);             // Start playing a BLOB program (after current completes).
+//extern void Blob_Stop(void);                        // Stop current program and clear queue.
+
+//extern void Blob_NumLeds(int n);                    // Set number of LEDS.   Call when Num_Leds changes.
+//extern uint32_t Blobhead();
+//extern uint32_t Version();
+//extern uint32_t str_to_uint32(char* str);
+//extern char* uint32_to_str(char* buff, uint32_t val);
 
 
 // Endfile: Blob.h

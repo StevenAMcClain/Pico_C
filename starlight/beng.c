@@ -1,12 +1,13 @@
 // File: Blob.c
 
 #include "common.h"
-#include "blob.h"
+#include "beng.h"
 
 //#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "blob.h"
 #include "btstdio.h"
 #include "debug.h"
 #include "led.h"
@@ -17,63 +18,61 @@
 #include "stack.h"
 
 
-PUBLIC bool Blob_Is_Loaded = false;
-PUBLIC BLOB Blob = {0};
+// PUBLIC bool Blob_Is_Loaded = false;
+// PUBLIC BLOB Blob = {0};
 
-PRIVATE uint8_t Blob_Buff[2][MAX_BLOB_SIZE] = {0};
-PRIVATE int Current_Blob_Buffer = 0;
+// uint8_t Blob_Buff[2][MAX_BLOB_SIZE] = {0};
+// int Current_Blob_Buffer = 0;
 
+// PUBLIC uint32_t Version()
+// {
+//     uint8_t* ver = (uint8_t*)BLOB_VERSION;
+//     return ver[3] << 24 | ver[2] << 16 | ver[1] << 8 | ver[0];
+// }
 
-PUBLIC uint32_t Version()
-{
-    uint8_t* ver = (uint8_t*)BLOB_VERSION;
-    return ver[3] << 24 | ver[2] << 16 | ver[1] << 8 | ver[0];
-}
+// PUBLIC char* version_to_str(char* buff, uint32_t val)
+// {
+//     buff[0] = val & 0xFF;
+//     buff[1] = (val >> 8) & 0xFF;
+//     buff[2] = (val >> 16) & 0xFF;
+//     buff[3] = (val >> 24) & 0xFF;
+//     buff[4] = 0;
 
-PUBLIC char* version_to_str(char* buff, uint32_t val)
-{
-    buff[0] = val & 0xFF;
-    buff[1] = (val >> 8) & 0xFF;
-    buff[2] = (val >> 16) & 0xFF;
-    buff[3] = (val >> 24) & 0xFF;
-    buff[4] = 0;
-
-    return buff;
-}
-
-
-PUBLIC uint8_t* Blob_Base_Get_New()
-{
-    int i = (Current_Blob_Buffer == 0) ? 1 : 0;
-    uint8_t* base = &Blob_Buff[i][0];
-    memset(base, 0, MAX_BLOB_SIZE);
-    return base;
-}
+//     return buff;
+// }
 
 
-PUBLIC void Blob_Base_Switch()
-{
-    int i = (Current_Blob_Buffer == 0) ? 1 : 0;
-    Current_Blob_Buffer = i;
-}
+// PUBLIC uint8_t* Blob_Base_Get_New()
+// {
+//     int i = (Current_Blob_Buffer == 0) ? 1 : 0;
+//     uint8_t* base = &Blob_Buff[i][0];
+//     memset(base, 0, MAX_BLOB_SIZE);
+//     return base;
+// }
+
+// PUBLIC void Blob_Base_Switch()
+// {
+//     int i = (Current_Blob_Buffer == 0) ? 1 : 0;
+//     Current_Blob_Buffer = i;
+// }
 
 
-PUBLIC BLOB_RAW* Blob_Base_Current()
-{
-    return (BLOB_RAW*)&Blob_Buff[Current_Blob_Buffer][0];
-}
+// PUBLIC BLOB_RAW* Blob_Base_Current()
+// {
+//     return (BLOB_RAW*)&Blob_Buff[Current_Blob_Buffer][0];
+// }
 
 
-//PUBLIC volatile uint64_t Blob_Time = 0;
-//PRIVATE struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
-//PRIVATE bool tick_is_running = false;
+PUBLIC volatile uint64_t Blob_Time = 0;
+PRIVATE struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
+PRIVATE bool tick_is_running = false;
 
 
-//PUBLIC const int Tick_Speed = 
+PUBLIC const int Tick_Speed = 
 //#ifdef DEBUG
 //1000000;
 //#else
-//1000;
+1000;
 //#endif
 
 
@@ -81,7 +80,6 @@ PUBLIC BLOB_RAW* Blob_Base_Current()
 // PRIVATE LED LED_Morph_Data[MAX_NUM_LEDS];
 // #define All_Program_Stop(msg, n) { PRINTF(msg, n); Blob_Stop(); }
 
-#ifdef COMMENT
 typedef enum Command
 {
     COMMAND_END       = 0,    // end                      -- end of program, stop running.
@@ -567,17 +565,16 @@ PRIVATE void stop_prog_tick()
     }
 }
 
-#endif  // COMMENT
-
-
+#ifdef COMMENT
 PUBLIC void Blob_Unload(void)
 //
 // Release blob_base memory.
 {
 	if (Blob.Blob_BASE)
 	{
-//		Blob_Stop();
-//      stop_prog_tick();
+		Blob_Stop();
+
+        stop_prog_tick();
 
 		void* base = Blob.Blob_BASE;
 
@@ -586,7 +583,6 @@ PUBLIC void Blob_Unload(void)
 		D(DEBUG_BLOB, PRINTF("Blob_Unload: %X\n", base);)
 	}
 }
-
 
 PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 //
@@ -642,7 +638,8 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
             }
         }
 
-        // Blob_State.State = STATE_IDLE;
+
+        Blob_State.State = STATE_IDLE;
 
         Blob_Is_Loaded = true;
 
@@ -653,27 +650,29 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 	}
     return false;
 }
+#endif   // Comment
+
 
 //#define XITI_TIMES_SIZE(n) (sizeof(uint32_t) * (n) * LED_SIZE)
 
-#ifdef COMMENT
+
 PRIVATE bool Blob_Time_Tick(struct repeating_timer* ptr)
 {
 	++Blob_Time;   // uint64_t
 }
-#endif
 
-PUBLIC void Blob_Init(void)
+
+PUBLIC void Beng_Init(void)
 //
 // Prepare BLOB for use.  Call once at startup.
 {
-//	static struct repeating_timer blob_timer_1;		// Timer to call Blob_Time.
+	static struct repeating_timer blob_timer_1;		// Timer to call Blob_Time.
 	
-//    Blob_State.program_stack = Stack_Initialize(&Blob_State.program_stack_buffer, PROG_STACK_SIZE); 
+    Blob_State.program_stack = Stack_Initialize(&Blob_State.program_stack_buffer, PROG_STACK_SIZE); 
 
-//	add_repeating_timer_us(Tick_Speed, Blob_Time_Tick, NULL, &blob_timer_1);
+	add_repeating_timer_us(Tick_Speed, Blob_Time_Tick, NULL, &blob_timer_1);
 
-//    start_prog_tick();
+    start_prog_tick();
 
     extern bool bpage_Load_Blob(int bpage);
     bpage_Load_Blob(0);

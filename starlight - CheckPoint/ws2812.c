@@ -175,20 +175,12 @@ PUBLIC void WS2812_Init(void)
 
     while (i < MAX_PHY)
     {
-        PIO pio = phy->pio = (i < 4) ? pio0 : pio1;
+        PIO p = phy->pio = (i < 4) ? pio0 : pio1;
         int sm = phy->state_machine = i % 4;
 
-        bool is_enabled = (pio->ctrl & (1u << sm)) != 0;
+        ws2812_program_init(p, sm, offset, i + WS2812_PIN, 800000, IS_RGBW);
+        DMA_Init(phy);
 
-        if (is_enabled)
-        {
-            printf("WS2812_Init: already enabled pio %d, sm %d\n", pio, sm);
-        }
-        else
-        {
-            ws2812_program_init(pio, sm, offset, i + WS2812_PIN, 800000, IS_RGBW);
-            DMA_Init(phy);
-        }
         ++phy; ++i;
     }
 

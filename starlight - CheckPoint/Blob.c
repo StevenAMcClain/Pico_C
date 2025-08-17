@@ -20,9 +20,8 @@
 PUBLIC bool Blob_Is_Loaded = false;
 PUBLIC BLOB Blob = {0};
 
-PRIVATE uint8_t Blob_Buff[2][MAX_BLOB_SIZE] = {0};
-PRIVATE int Current_Blob_Buffer = 0;
-
+uint8_t Blob_Buff[2][MAX_BLOB_SIZE] = {0};
+int Current_Blob_Buffer = 0;
 
 PUBLIC uint32_t Version()
 {
@@ -42,38 +41,32 @@ PUBLIC char* version_to_str(char* buff, uint32_t val)
 }
 
 
-PUBLIC uint8_t* Blob_Base_Get_New()
+PUBLIC uint8_t* Get_New_Blob_Base()
 {
     int i = (Current_Blob_Buffer == 0) ? 1 : 0;
     uint8_t* base = &Blob_Buff[i][0];
     memset(base, 0, MAX_BLOB_SIZE);
+    Current_Blob_Buffer = i;
     return base;
 }
 
 
-PUBLIC void Blob_Base_Switch()
+PUBLIC uint8_t* Get_Blob_Base()
 {
-    int i = (Current_Blob_Buffer == 0) ? 1 : 0;
-    Current_Blob_Buffer = i;
+    return &Blob_Buff[Current_Blob_Buffer][0];
 }
 
 
-PUBLIC BLOB_RAW* Blob_Base_Current()
-{
-    return (BLOB_RAW*)&Blob_Buff[Current_Blob_Buffer][0];
-}
+PUBLIC volatile uint64_t Blob_Time = 0;
+PRIVATE struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
+PRIVATE bool tick_is_running = false;
 
 
-//PUBLIC volatile uint64_t Blob_Time = 0;
-//PRIVATE struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
-//PRIVATE bool tick_is_running = false;
-
-
-//PUBLIC const int Tick_Speed = 
+PUBLIC const int Tick_Speed = 
 //#ifdef DEBUG
 //1000000;
 //#else
-//1000;
+1000;
 //#endif
 
 
@@ -81,7 +74,6 @@ PUBLIC BLOB_RAW* Blob_Base_Current()
 // PRIVATE LED LED_Morph_Data[MAX_NUM_LEDS];
 // #define All_Program_Stop(msg, n) { PRINTF(msg, n); Blob_Stop(); }
 
-#ifdef COMMENT
 typedef enum Command
 {
     COMMAND_END       = 0,    // end                      -- end of program, stop running.
@@ -567,25 +559,58 @@ PRIVATE void stop_prog_tick()
     }
 }
 
-#endif  // COMMENT
-
-
 PUBLIC void Blob_Unload(void)
 //
 // Release blob_base memory.
 {
-	if (Blob.Blob_BASE)
+	if (Blob.Blob_Base)
 	{
-//		Blob_Stop();
-//      stop_prog_tick();
+        stop_prog_tick();
 
-		void* base = Blob.Blob_BASE;
+		Blob_Stop();
 
-        Blob.Blob_BASE = NULL;
+		uint8_t* base = Blob.Blob_Base - sizeof(uint32_t);
 
 		D(DEBUG_BLOB, PRINTF("Blob_Unload: %X\n", base);)
 	}
 }
+
+
+typedef struct
+{
+	uint32_t blob_name;	        // Physical string definitions.
+
+	uint32_t phystr_start;	    // Physical string definitions.
+	uint32_t phystr_size;	    // Size of the phystring table.
+
+	uint32_t strindx_start;	    // Start of the string table.
+	uint32_t strindx_size;	    // Size of the string table.
+
+	uint32_t vartab_start;	    // Start of the variable table.
+	uint32_t vartab_size;	    // Size of the variable table.
+
+	uint32_t symtab_start;	    // Start of the program symbol table
+	uint32_t symtab_size;	    // Size of the program sysmbol table.
+
+	uint32_t vstr_index;	    // Virual LED string array index starts here (relative to start).
+	uint32_t vstr_count;	    // Number of Virual LED string arrays defined.
+
+	uint32_t vstr_array;	    // Virual LED string record start here.
+	uint32_t vstr_size;   	    // Size of the Virual LED string array.
+
+    uint32_t scen_index;	    // Scene index starts here (relative to start).
+    uint32_t scen_count;        // Number of scenes defined.
+
+    uint32_t scen_array;        // Scene array starts here (relative to start).
+    uint32_t scen_size;		    // Size of scene array.
+
+    uint32_t trig_start;	    // Trigger array starts here (relative to start).
+    uint32_t trig_size;		    // Number of triggers defined.
+
+    uint32_t prog_start;	    // Program array starts here (relative to start).
+    uint32_t prog_size;		    // Size of program array.
+
+} BLOB_HEAD;
 
 
 PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
@@ -596,45 +621,20 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 	{
 		Blob_Unload();
 
-	    BLOB_RAW* blob_raw = (BLOB_RAW*)blob_base;
+	    BLOB_HEAD* bhptr = (BLOB_HEAD*)blob_base;
     
 		D(DEBUG_BLOB, PRINTF("trig_size=%d, prog_size=%d, scen_count=%d, scen_size=%d\n",
-				(blob_raw->trig_size / 2) - 1, blob_raw->prog_size, blob_raw->scen_count, blob_raw->scen_size);)
+				(bhptr->trig_size / 2) - 1, bhptr->prog_size, bhptr->scen_count, bhptr->scen_size);)
 
-		Blob.Blob_BASE = blob_raw;
+		Blob.Blob_Base = blob_base;
+		Blob.Blob_Size = *(uint32_t*)(blob_base - sizeof(uint32_t));
 
-	    uint32_t* bptr = (uint32_t*)(blob_base + (4 * sizeof(uint32_t)));
+	    uint32_t* bptr = (uint32_t*)blob_base;
 
-        Blob.StrindX = (uint8_t*)(bptr + blob_raw->strindx_start);     // Point to base of string table.
-
-        Blob.name = Blob.StrindX + blob_raw->blob_name - 1;
-
-        Blob.SymTab = bptr + blob_raw->symtab_start;       // Pointer to start of symbol table.
-
-        Blob.VStr_Index = bptr + blob_raw->vstr_index;     // Pointer to base of virtual string index.
-        Blob.VStr_Array = bptr + blob_raw->vstr_array;     // Pointer to base of virtual string array.
-
-        Blob.Scene_Index = (SCENE_ID*)(bptr + blob_raw->scen_index);	// Scene index start here.
-        Blob.Scene_Array = (SCENE*)   (bptr + blob_raw->scen_array);	// Scene array start here.
-
-        Blob.Trigger_Base = (PROG_ID*)(bptr + blob_raw->trig_start);   // Start of the trigger table.
-        Blob.Program_Base = (PROG*)   (bptr + blob_raw->prog_start);	// Blob Programs start here.
-
-        Blob.StrindX_Size = blob_raw->strindx_size;
-        Blob.SymTab_Size = blob_raw->symtab_size / 2;
-
-        Blob.VStr_Index_Size = blob_raw->vstr_count;
-        Blob.VStr_Array_Size = blob_raw->vstr_size;
-            
-        Blob.Num_Scenes = blob_raw->scen_count / 2;    // Number of scenes defined.
-        Blob.Scene_Size = blob_raw->scen_size;	        // Sizeof the scene array.
-        Blob.Num_Trig = blob_raw->trig_size / 2;   	// Number of trigger records.
-        Blob.Num_Prog = blob_raw->prog_size;		    // Number of PROG records.
-
-        if (blob_raw->phystr_size)
+        if (bhptr->phystr_size)
         {
-            uint32_t* phystr = (bptr + blob_raw->phystr_start + 1);     // Point to base of phy string table.
-            size_t num_phys = blob_raw->phystr_size - 1;            // Get phystring size.
+            uint32_t* phystr = (bptr + bhptr->phystr_start);     // Point to base of phy string table.
+            size_t num_phys = *phystr++;            // Get phystring size.
             int phyidx = 0;
             while (num_phys--)
             {
@@ -642,7 +642,33 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
             }
         }
 
-        // Blob_State.State = STATE_IDLE;
+        Blob.StrindX = (uint8_t*)(bptr + bhptr->strindx_start);     // Point to base of string table.
+
+        Blob.name = Blob.StrindX + bhptr->blob_name - 1;
+
+        Blob.SymTab = bptr + bhptr->symtab_start;       // Pointer to start of symbol table.
+
+        Blob.VStr_Index = bptr + bhptr->vstr_index;     // Pointer to base of virtual string index.
+        Blob.VStr_Array = bptr + bhptr->vstr_array;     // Pointer to base of virtual string array.
+
+        Blob.Scene_Index = (SCENE_ID*)(bptr + bhptr->scen_index);	// Scene index start here.
+        Blob.Scene_Array = (SCENE*)   (bptr + bhptr->scen_array);	// Scene array start here.
+
+        Blob.Trigger_Base = (PROG_ID*)(bptr + bhptr->trig_start);   // Start of the trigger table.
+        Blob.Program_Base = (PROG*)   (bptr + bhptr->prog_start);	// Blob Programs start here.
+
+        Blob.StrindX_Size = bhptr->strindx_size;
+        Blob.SymTab_Size = bhptr->symtab_size / 2;
+
+        Blob.VStr_Index_Size = bhptr->vstr_count;
+        Blob.VStr_Array_Size = bhptr->vstr_size;
+            
+        Blob.Num_Scenes = bhptr->scen_count / 2;    // Number of scenes defined.
+        Blob.Scene_Size = bhptr->scen_size;	        // Sizeof the scene array.
+        Blob.Num_Trig = bhptr->trig_size / 2;   	// Number of trigger records.
+        Blob.Num_Prog = bhptr->prog_size;		    // Number of PROG records.
+
+		Blob_State.State = STATE_IDLE;
 
         Blob_Is_Loaded = true;
 
@@ -656,27 +682,24 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 
 //#define XITI_TIMES_SIZE(n) (sizeof(uint32_t) * (n) * LED_SIZE)
 
-#ifdef COMMENT
+
 PRIVATE bool Blob_Time_Tick(struct repeating_timer* ptr)
 {
 	++Blob_Time;   // uint64_t
 }
-#endif
+
 
 PUBLIC void Blob_Init(void)
 //
 // Prepare BLOB for use.  Call once at startup.
 {
-//	static struct repeating_timer blob_timer_1;		// Timer to call Blob_Time.
+	static struct repeating_timer blob_timer_1;		// Timer to call Blob_Time.
 	
-//    Blob_State.program_stack = Stack_Initialize(&Blob_State.program_stack_buffer, PROG_STACK_SIZE); 
+    Blob_State.program_stack = Stack_Initialize(&Blob_State.program_stack_buffer, PROG_STACK_SIZE); 
 
-//	add_repeating_timer_us(Tick_Speed, Blob_Time_Tick, NULL, &blob_timer_1);
+	add_repeating_timer_us(Tick_Speed, Blob_Time_Tick, NULL, &blob_timer_1);
 
-//    start_prog_tick();
-
-    extern bool bpage_Load_Blob(int bpage);
-    bpage_Load_Blob(0);
+    start_prog_tick();
 }
 
 

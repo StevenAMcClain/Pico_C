@@ -60,9 +60,9 @@ PRIVATE void dump_checksum(void)
 {
     if (Blob_Is_Loaded)
     {
-        BLOB_RAW* blob_raw = Blob_Base_Current();
+        BLOB_PRE_HEADER* prehead = (BLOB_PRE_HEADER*)Get_Blob_Base();
 
-        BTPRINTF("Blob '%s', check %d\n", Blob.name, blob_raw->Checksum);
+        BTPRINTF("Blob '%s', check %d\n", Blob.name, prehead->Checksum);
     }
     else { BTPRINTF("NOBLOB\n"); }
 }
@@ -88,9 +88,9 @@ PRIVATE void dump_info(void)
 
     if (Blob_Is_Loaded)
     {
-        BLOB_RAW* blob_raw = Blob_Base_Current();
+        BLOB_PRE_HEADER* prehead = (BLOB_PRE_HEADER*)Get_Blob_Base();
 
-        n = snprintf(bptr, chars_left, "Blob: '%s', Check: %d\n", Blob.name, blob_raw->Checksum);
+        n = snprintf(bptr, chars_left, "Blob: '%s', Check: %d\n", Blob.name, prehead->Checksum);
     }
     else { n = snprintf(bptr, chars_left, "NOBLOB\n"); }
 
@@ -144,7 +144,7 @@ PRIVATE void dump_blob_stats(void)
     if (Blob_Is_Loaded)
     {
         BTPRINTF(STATS_STRING,
-                		 Blob.Blob_BASE->Size, Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size,
+                		 Blob.Blob_Size, Blob.Num_Trig, Blob.Num_Prog, Blob.Num_Scenes, Blob.Scene_Size,
                          Blob.StrindX_Size, Blob.SymTab_Size, Blob.VStr_Index_Size, Blob.VStr_Array_Size,
                          read_bytes_retry_counter);
     }

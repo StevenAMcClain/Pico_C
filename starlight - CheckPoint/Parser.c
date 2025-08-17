@@ -9,21 +9,18 @@
 #include <string.h>
  
 #include "blob.h"
-#include "flashblob.h"
 #include "btstdio.h"
 #include "debug.h"
 #include "led.h"
 #include "matcher.h"
 #include "scene.h"
 
-#define BLOB_COOKIE 0x424F4C42
-#define BLOB_COOKIE_SIZE 4
-#define BLOB_PRE_HEADER_SIZE 12      // Number of bytes to read before reading header.
-
 
 #define CHAR_TIMEOUT 50000
 
 #define MAX_BRIGHTNESS_NUM 1000     // 100.0 %
+
+#define BLOB_PRE_HEADER_SIZE 12      // Number of bytes to read before reading header.
 
 uint64_t read_bytes_retry_counter = 0;     // Number of retries during read_bytes... ever!
 
@@ -114,96 +111,6 @@ PRIVATE uint32_t Checksum(uint8_t* buff, size_t size)
 }
 
 
-PUBLIC bool Blob_Verify_Checksum(uint8_t* base)
-{
-    BLOB_RAW* blob_raw = (BLOB_RAW*)base;
-
-    if (blob_raw->Cookie == BLOB_COOKIE)
-    {
-        uint32_t blob_size = blob_raw->Size * sizeof(uint32_t);
-        uint32_t check = Checksum(base + 16, blob_size);
-
-        printf("Blob_Verify_Checksum: expect %u got %u\n", blob_raw->Checksum, check);
-
-        return blob_raw->Checksum == check;
-    }
-    return false;
-}
-
-
-PUBLIC bool Blob_Verify_Checksum_Loaded(void)
-{
-    return Blob_Verify_Checksum((uint8_t*)Blob_Base_Current());
-}
-
-
-PUBLIC bool bpage_Verify_Checksum(int bpage)
-{
-    return Blob_Verify_Checksum((uint8_t*)bpage_to_address(bpage));
-}
-
-
-
-PRIVATE void read_blob(void)
-{
-    uint8_t* base = Blob_Base_Get_New();
-
-    if (base)
-    {
-        D(DEBUG_PARSER, PRINTF("\nread_blob: ");)
- 
-        BLOB_RAW* blob_raw = (BLOB_RAW*)base;
-  
-        blob_raw->Cookie = BLOB_COOKIE;
- 
-        uint8_t* buff = base + BLOB_COOKIE_SIZE;
-
-        if (read_bytes(BLOB_PRE_HEADER_SIZE, buff))
-        {     
-            if (blob_raw->Version == Version())
-            {
-                uint32_t blob_size = blob_raw->Size * sizeof(uint32_t);
-
-                D(DEBUG_PRINTF, PRINTF(" size %d\n", blob_size);)
-
-                if (blob_size < (MAX_BLOB_SIZE - BLOB_PRE_HEADER_SIZE - 4))
-                {
-                    buff += BLOB_PRE_HEADER_SIZE;
-
-                    if (read_bytes(blob_size, buff))
-                    {
-                        uint32_t blob_check = Checksum(buff, blob_size);
-
-                        if (blob_raw->Checksum == blob_check)
-                        {
-                            Blob_Base_Switch();
-
-                            // PRINTF("read_blob: base %X %X\n", real_base, base);
-                            if (Unpack_Blob_Header(base))
-                            {
-                                BTPRINTF("BLOB loaded.\n");
-                                return;
-                            }
-                        }
-                        else { BTPRINTF("!!! Bad checksum: expected %X, got %X\n", blob_check, blob_raw->Checksum); }
-                    }
-               }
-                else { BTPRINTF("!!! Bab blob size (%d) must be less than %d\n", blob_size, MAX_BLOB_SIZE); }
-            }
-            else 
-            { 
-                char s1[10], s2[10];
-                BTPRINTF("!!! Bad blob version: expected '%s', got '%s'\n", 
-                                    version_to_str(s1, Version()), 
-                                    version_to_str(s2, blob_raw->Version)); 
-            }
-        }
-    }
-    BTPRINTF("!!! BLOB load load fail.\n\n");
-}
-
-
-#ifdef COMMENT
 PRIVATE void read_blob(void)
 {
     uint8_t* base = Get_New_Blob_Base();
@@ -258,6 +165,9 @@ PRIVATE void read_blob(void)
     }
     BTPRINTF("!!! BLOB load load fail.\n\n");
 }
+
+
+#ifdef COMMENT
 PRIVATE void read_blob(void)
 {
     uint8_t buff[BLOB_PRE_HEADER_SIZE] = {0};
@@ -413,54 +323,34 @@ PRIVATE int read_hnum(void)   // Read hex number.
     return val;
 }
 
-#define MAX_BUFF_SIZE 512
-#define PREAMBLE_STR "BLOB"BLOB_VERSION
-#define PREAMBLE_SIZE 8
+#define MAX_BUFF_SIZE 1024
 
 PRIVATE void do_export()
 {
-    if (Blob.Blob_BASE)
+    if (Blob.Blob_Base)
     {
-        // static uint8_t buff[MAX_BUFF_SIZE];
-        BLOB_RAW* blob_raw = Blob_Base_Current();
-        uint8_t* ptr = (uint8_t*)ptr;
+        static char buff[MAX_BUFF_SIZE];
+        uint8_t* ptr = Get_Blob_Base();
+        BLOB_PRE_HEADER* pre_header = (BLOB_PRE_HEADER*)ptr;
 
-        // size_t size = (BLOB_COOKIE_SIZE + blob_raw->Size) * sizeof(uint32_t) - PREAMBLE_SIZE;
-        size_t size = (BLOB_COOKIE_SIZE + blob_raw->Size) * sizeof(uint32_t);
+//        size_t size = Blob.Blob_Size;
+        size_t size = pre_header->Size * sizeof(uint32_t);
 
-        while (size)
+        char* bufp = buff;
+        char* endp = buff + sizeof(buff);
+
+        while (size--) 
         {
-            if (size < MAX_BUFF_SIZE)
+            bufp += sprintf(bufp, "%2.2X", *ptr++);
+
+            if (bufp > endp)
             {
-                BlueTooth_Send_Buffer(ptr, size);
-                size = 0;
-            }
-            else
-            {
-                BlueTooth_Send_Buffer(ptr, MAX_BUFF_SIZE);
-                ptr += MAX_BUFF_SIZE;  size -= MAX_BUFF_SIZE;
+                BlueTooth_Send_String(buff);
+                bufp = buff; 
+                *bufp = 0;
             }
         }
-
-        // uint8_t* bufp = buff + PREAMBLE_SIZE;
-        // uint8_t* endp = buff + sizeof(buff) - 3;
-
-        // memcpy(buff, PREAMBLE_STR, PREAMBLE_SIZE);
-        // ptr += PREAMBLE_SIZE;
-
-        // memcpy(bufp)
-
-        // while (size--) 
-        // {
-        //     bufp += sprintf(bufp, "%2.2X", *ptr++);
-
-        //     if (bufp >= endp)
-        //     {
-        //         BlueTooth_Send_String(buff);
-        //         *(bufp = buff) = 0; 
-        //     }
-        // }
-        // BlueTooth_Send_String(buff);
+        BlueTooth_Send_String(buff);
     }
     else { BTPRINTF("<<NONE>>\n"); }
 }
@@ -500,16 +390,6 @@ PRIVATE void do_export()
 }
 #endif // COMMENT
 
-PUBLIC bool bpage_Load_Blob(int bpage)
-{
-    uint8_t* base = (uint8_t*)Blob_Base_Get_New();
-
-    bpage_read_blob(bpage, base);
-
-    return Blob_Verify_Checksum_Loaded() && Unpack_Blob_Header(base);
-}
-
-
 PRIVATE void scan_for_sync(int ch)
 {
     MATCH_CODE code = Is_Match(ch);
@@ -521,7 +401,7 @@ PRIVATE void scan_for_sync(int ch)
         {
             case MATCH_BLACK:           // BLAC: Set all leds to black.
             {
-//                Blob_Stop_All();   // Stop all Blob engines.
+                Blob_Stop();
                 LEDS_All_Black();
                 BTPRINTF("BLAC\n");
                 break;
@@ -547,7 +427,7 @@ PRIVATE void scan_for_sync(int ch)
             case MATCH_TRIGGER:
             {
                 arg = read_num();
-//                Blob_Trigger(arg);
+                Blob_Trigger(arg);
                 BTPRINTF("TRIG %d\n", arg);
                 break; 
             }
@@ -612,34 +492,6 @@ PRIVATE void scan_for_sync(int ch)
                 arg = read_num();
                 PRINTF("Set Debug Flag %d(0x%X)\n", arg, arg);
                 Debug_Mask = arg;
-                break;
-            }
-            case MATCH_SAVE:
-            {
-                bpage_write_blob(0, (uint8_t*)Blob_Base_Current());
-                break;
-            }
-            case MATCH_LOAD:
-            {
-                if (bpage_Load_Blob(0))
-                {
-                    BTPRINTF("BLOB loaded.\n");
-                }
-                break;
-            }
-            case MATCH_ERASE:
-            {
-                bpage_erase_page(0);
-                break;
-            }
-            case MATCH_TEST:
-            {
-                (void)Blob_Verify_Checksum_Loaded();
-                break;
-            }
-            case MATCH_TEST2:
-            {
-                (void)bpage_Verify_Checksum(0);
                 break;
             }
             case MATCH_NONE:

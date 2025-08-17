@@ -30,7 +30,6 @@ PRIVATE size_t Leds_Allocated = 0;
 PRIVATE LEDS_PHY LEDS_Phy[MAX_PHY] = {0};
 // PRIVATE bool is_updating = false;
 
-#define PHY_IDX_VALID(idx) ((idx) >= 0 && (idx) < MAX_PHY)
 
 /// @brief 
 /// @return 
@@ -63,7 +62,7 @@ PUBLIC LED* LEDS_Buff_Allocate(size_t size)
 
 PUBLIC size_t PHY_Get_LED_Count(int phy_idx)
 {
-	if (PHY_IDX_VALID(phy_idx))
+	if (phy_idx >= 0 && phy_idx < MAX_PHY)
     {
         LEDS_PHY* phy = LEDS_Phy + phy_idx;
         return phy->led_count;
@@ -76,7 +75,7 @@ PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
 //
 // Set the number of leds on a string.  (re)Allocates buffers.
 {
-    if (PHY_IDX_VALID(phy_idx) && led_count > 0)
+    if (phy_idx < MAX_PHY && led_count > 0)
     {
         LEDS_PHY* phy = LEDS_Phy + phy_idx;
 
@@ -129,10 +128,10 @@ PUBLIC void LEDS_Do_Update(void)
     //     is_updating = true;
 
         LEDS_PHY* phy = LEDS_Phy;
-        int idx = 1;
+        int i = 1;
         uint32_t mask = 1;
 
-        while (needs_update && idx <= MAX_PHY)
+        while (needs_update && i <= MAX_PHY)
         {
             if (mask & needs_update)
             {
@@ -140,7 +139,7 @@ PUBLIC void LEDS_Do_Update(void)
                 WS2812_Prime_Send(mask, (uint32_t*)phy->scaled_led_data);
                 needs_update &= ~mask;
             }
-            ++phy; ++idx; mask <<= 1;
+            ++phy; ++i; mask <<= 1;
         }
         WS2812_Do_Send();   // Trigger DMA to start.... actuall send the data.
     // }
@@ -184,7 +183,7 @@ PUBLIC LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp)
 {
 	LED* result = NIL;
 
-	if (PHY_IDX_VALID(phy_idx))
+	if (phy_idx >= 0 && phy_idx < MAX_PHY)
     {
         LEDS_PHY* phy = LEDS_Phy + phy_idx;
 
@@ -204,10 +203,10 @@ PUBLIC size_t Num_LEDS(int phy_mask)
 		phy_mask = Current_Phy_Mask;
 
 	LEDS_PHY* phy = LEDS_Phy;
-	int idx = 0;
+	int i = 0;
     uint32_t mask = 1;
 
-	while (phy_mask && idx++ < MAX_PHY)
+	while (phy_mask && i++ < MAX_PHY)
 	{
         if (mask & phy_mask)
         {
@@ -264,16 +263,16 @@ PUBLIC void LED_Set_LED(size_t led_idx, LED* source_ledp)
     int phynum = Current_Phy_Mask;
 
     uint32_t mask = 1;
-    int idx = 0;
+    int i = 0;
 
-    while (phynum && idx < MAX_PHY)
+    while (phynum && i < MAX_PHY)
     {
         if (phynum & mask)
         {
-            do_LED_Set_LED(idx, led_idx, source_ledp);
+            do_LED_Set_LED(i, led_idx, source_ledp);
             phynum &= ~mask;
         }
-        ++idx;   mask <<= 1;
+        ++i;   mask <<= 1;
     }
 }
 
@@ -293,10 +292,10 @@ PUBLIC void LED_All_LED(int phynum, LED led)
 		phynum = Current_Phy_Mask;
 
 	LEDS_PHY* phy = LEDS_Phy;
-	int idx = 0;
+	int i = 0;
     uint32_t mask = 1;
 
-	while (phynum && idx++ < MAX_PHY)
+	while (phynum && i++ < MAX_PHY)
 	{
         if (mask & phynum)
         {

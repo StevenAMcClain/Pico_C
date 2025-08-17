@@ -11,7 +11,6 @@ extern char BlueTooth_GetChar();
 extern int BlueTooth_TryGetChar();    // Try to getchar. Returns char or PICO_ERROR_TIMEOUT.
 extern bool BlueTooth_Check_Receive(void);
 
-extern void BlueTooth_Send_Buffer(uint8_t* buff, size_t n);
 extern void BlueTooth_Send_String(char* str);
 extern void BlueTooth_Printf(const char *fmt, ...);
 // extern void BlueTooth_Printf_faster(const char *fmt, ...);

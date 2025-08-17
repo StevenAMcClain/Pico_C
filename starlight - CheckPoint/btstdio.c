@@ -79,9 +79,6 @@ PRIVATE queue_t BlueTooth_Receive_Queue;
 
 PRIVATE bool is_connected = false;
 
-volatile bool PowerOn_Failed = false;
-
-
 /* @section SPP Service Setup 
  *s
  * @text To provide an SPP service, the L2CAP, RFCOMM, and SDP protocol layers 
@@ -318,11 +315,6 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                     ObLED_Off();
                     break;
                 }
-                case BTSTACK_EVENT_POWERON_FAILED:
-                {
-                    PowerOn_Failed = true;
-                    break;
-                }
 				case BTSTACK_EVENT_NR_CONNECTIONS_CHANGED:					// (0x61)
 				case BTSTACK_EVENT_SCAN_MODE_CHANGED:						// (0x66)
 				case BTSTACK_EVENT_STATE:									// (0x60)
@@ -376,20 +368,13 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
 }
 
 
-PUBLIC void BlueTooth_Send_Buffer(uint8_t* buff, size_t n)
+PUBLIC void BlueTooth_Send_String(char* str)
 {
-    lineBuffer = buff;
-    lineBufferSize = n;
+    lineBuffer = str;
+    lineBufferSize = strlen(str);
     rfcomm_request_can_send_now_event(rfcomm_channel_id);
     while (lineBufferSize) { continue; }
 }
-
-
-PUBLIC void BlueTooth_Send_String(char* str)
-{
-    BlueTooth_Send_Buffer((uint8_t* )str, strlen(str));
-}
-
 
 // ----------------------------------------------------------------------------------------
 
@@ -418,14 +403,7 @@ PUBLIC void BlueTooth_Server(void)   // This is the main for the second core.
     
     hci_power_control(HCI_POWER_ON);    // turn on!
 
-    if (PowerOn_Failed)
-    {
-        printf("GOT HERE: PowerOn_Failed %d\n", PowerOn_Failed);
-    }
-    else
-    {
-        btstack_run_loop_execute();
-    }
+    btstack_run_loop_execute();
 }
 
 
