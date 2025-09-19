@@ -264,7 +264,7 @@ PRIVATE int read_hnum(void) // Read hex number.
 }
 
 
-#define MAX_EXPORT_BUFF_SIZE 1024
+#define MAX_EXPORT_BUFF_SIZE 512   //1024
 #define PREAMBLE_STR "BLOB" BLOB_VERSION
 #define PREAMBLE_SIZE 8
 
