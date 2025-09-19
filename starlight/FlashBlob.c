@@ -16,12 +16,6 @@ typedef uint32_t FLASH_BASE;                   // Type for flash operations.
 #define FLASH_BASE_ADDRESS 0x10000000          // Flash base address.
 #define FLASH_SAVE_BASE 0x100000               // Flash save area base offset from flash base.
 
-#define FLASH_WRITE_SIZE 256                   // Minimum amount of data you can write at once.
-#define FLASH_CHUNK_SIZE 4096                  // Minimum amount of data you can erase at once.
-#define NUM_FLASH_CHUNK 256
-
-#define MAX_BPAGE 16    // Valid bpages are 0 - 15.
-
 #define MAX_BPAGE_SIZE (MAX_BLOB_SIZE / sizeof(FLASH_BASE))
 
 
@@ -50,38 +44,42 @@ PRIVATE void do_erase(size_t offset)
 }
 
 
-PRIVATE uint32_t bpage_to_offset(int bpage)
+PRIVATE inline uint32_t bpage_to_offset(int bpage)
 {
     return bpage * MAX_BLOB_SIZE;
 }
 
 
-PUBLIC uint32_t* bpage_to_address(int bpage)
+PUBLIC inline uint32_t* BPage_To_Address(int bpage)
 {
     return (uint32_t*)(FLASH_BASE_ADDRESS + FLASH_SAVE_BASE + bpage_to_offset(bpage));
 }
 
 
-PUBLIC bool bpage_is_blank(int bpage)
+PUBLIC bool BPage_Is_Blank(int bpage)
 //
 // Check is a flash page is actually blank.
 // Return: true if page is blank.
 {
-    uint32_t* ptr = bpage_to_address(bpage);
-    size_t count = MAX_BPAGE_SIZE / sizeof(*ptr);
-
-    while (count--)
+   	if (BPAGE_VALID(bpage))
     {
-        if (*ptr++ != 0xFFFFFFFF)
+        uint32_t* ptr = BPage_To_Address(bpage);
+        size_t count = MAX_BPAGE_SIZE / sizeof(*ptr);
+
+        while (count--)
         {
-            return false;
+            if (*ptr++ != 0xFFFFFFFF)
+            {
+                return false;
+            }
         }
+        return true;
     }
-    return true;
+    return false;
 }
 
 
-PUBLIC uint16_t bpage_blank_pages(void)
+PUBLIC uint16_t BPage_Blank_Pages(void)
 //
 // Scan through all pages and check for blanks.
 // Return mask with 1 set for each blank page.
@@ -92,7 +90,7 @@ PUBLIC uint16_t bpage_blank_pages(void)
 
     while (count--)
     {
-        if (bpage_is_blank(count))
+        if (BPage_Is_Blank(count))
         {
             result |= bmask;
         }
@@ -103,24 +101,29 @@ PUBLIC uint16_t bpage_blank_pages(void)
 }
 
 
-PUBLIC void bpage_erase_page(int bpage)
+PUBLIC bool BPage_Erase_Page(int bpage)
 {
-    uint32_t offset = bpage_to_offset(bpage);
-    int count = MAX_BLOB_SIZE / FLASH_CHUNK_SIZE;
-
-    while (count--)
+   	if (BPAGE_VALID(bpage))
     {
-        do_erase(offset);
-        offset += FLASH_CHUNK_SIZE;
+        uint32_t offset = bpage_to_offset(bpage);
+        int count = MAX_BLOB_SIZE / FLASH_CHUNK_SIZE;
+
+        while (count--)
+        {
+            do_erase(offset);
+            offset += FLASH_CHUNK_SIZE;
+        }
+        return true;
     }
+    return false;
 }
 
 
-PUBLIC void bpage_erase_all_pages(void)
+PUBLIC void BPage_Erase_All_Pages(void)
 //
 // Erase each non-blank flash page.
 {
-    uint16_t blanks = bpage_blank_pages();
+    uint16_t blanks = BPage_Blank_Pages();
     uint16_t mask = 1 << 15;
     int count = MAX_BPAGE;
 
@@ -128,39 +131,60 @@ PUBLIC void bpage_erase_all_pages(void)
     {
         if ( !(blanks & mask) )
         {
-            bpage_erase_page(count);
+            BPage_Erase_Page(count);
         }
         mask <<= 1;
     }
 }
 
 
-PUBLIC void bpage_write_blob(int bpage, uint8_t* buff)
+PUBLIC bool BPage_Write_Blob(int bpage, uint8_t* buff)
 {
-    size_t size = MAX_BLOB_SIZE;
-    int rc = PICO_OK;
-    int offset = FLASH_SAVE_BASE + bpage_to_offset(bpage);
-
-    while (rc == PICO_OK && size)
+   	if (BPAGE_VALID(bpage))
     {
-        uint32_t* params[] = { (void*)offset, (void*)buff};
+        size_t size = MAX_BLOB_SIZE;
+        int rc = PICO_OK;
+        int offset = FLASH_SAVE_BASE + bpage_to_offset(bpage);
 
-        rc = flash_safe_execute(call_flash_range_program, params, UINT32_MAX);
+        while (rc == PICO_OK && size)
+        {
+            uint32_t* params[] = { (void*)offset, (void*)buff};
 
-        buff += FLASH_PAGE_SIZE;  offset += FLASH_PAGE_SIZE;
+            rc = flash_safe_execute(call_flash_range_program, params, UINT32_MAX);
 
-        if (size > FLASH_PAGE_SIZE) size -= FLASH_PAGE_SIZE; else size = 0;
+            buff += FLASH_PAGE_SIZE;  offset += FLASH_PAGE_SIZE;
+
+            if (size > FLASH_PAGE_SIZE) size -= FLASH_PAGE_SIZE; else size = 0;
+        }
+
+        PRINTF("Flash Written: rc %d\n", rc);
+        return true;
     }
-
-    PRINTF("Flash Written: rc %d\n", rc);
+    return false;
 }
 
 
-PUBLIC void bpage_read_blob(int bpage, uint8_t* buff)
+PUBLIC bool BPage_Verify_Checksum(int bpage)
 {
-    uint32_t* ptr = bpage_to_address(bpage);
-    memcpy(buff, ptr, MAX_BLOB_SIZE);
+   	if (BPAGE_VALID(bpage))
+    {
+        return Blob_Verify_Checksum((uint8_t*)BPage_To_Address(bpage));
+    }
+    return false;
 }
+
+
+PUBLIC bool BPage_Read_Blob(int bpage, uint8_t* buff)
+{
+   	if (BPAGE_VALID(bpage))
+    {
+        uint32_t* ptr = BPage_To_Address(bpage);
+        memcpy(buff, ptr, MAX_BLOB_SIZE);
+        return true;
+    }
+    return false;
+}
+
 
 
 // End File: FlashBlob.c

@@ -37,29 +37,26 @@
  */
 
 #include "common.h"
-#include "debug.h"
-
 #include "btstdio.h"
 
+#include <btstack.h>
 #include <inttypes.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <pico/stdlib.h>
-//#include <pico/multicore.h>
-#include <pico/util/queue.h>
-
 #include <pico/cyw43_arch.h>
-
-#include <btstack.h>
-// #include <btstack_run_loop_embedded.h>
-// #include <pico/btstack_run_loop_async_context.h>
-
+#include <pico/stdlib.h>
+#include <pico/util/queue.h>
 
 #include "debug.h"
 #include "obled.h"
+
+
+//#include <pico/multicore.h>
+// #include <btstack_run_loop_embedded.h>
+// #include <pico/btstack_run_loop_async_context.h>
 
 
 #define BLUETOOTH_PORTNAME "Starlight"
@@ -77,10 +74,12 @@ PRIVATE volatile uint16_t lineBufferSize = 0;
 
 PRIVATE queue_t BlueTooth_Receive_Queue;
 
-PRIVATE bool is_connected = false;
+PUBLIC volatile bool BlueTooth_Connected = false;
 
 volatile bool PowerOn_Failed = false;
 
+PRIVATE async_context_t *context = 0;
+PRIVATE async_when_pending_worker_t worker;
 
 /* @section SPP Service Setup 
  *s
@@ -291,21 +290,19 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                         rfcomm_channel_id = rfcomm_event_channel_opened_get_rfcomm_cid(packet);
                         mtu = rfcomm_event_channel_opened_get_max_frame_size(packet);
                         D(DEBUG_BLUETOOTH, PRINTF("RFCOMM channel open succeeded. New RFCOMM Channel ID %u, max frame size %u\n", rfcomm_channel_id, mtu);)
-                        is_connected = true;
+                        BlueTooth_Connected = true;
                         ObLED_On();
                     }
                     break;
                 }
                 case RFCOMM_EVENT_CAN_SEND_NOW:
                 {
-                    PRINTF("RFCOMM can send now: '%s', size %d\n", lineBuffer, lineBufferSize);
-                    // volatile int zzz = 1000000;
-                    // while (zzz--);
-                    
                     if (lineBufferSize > 0 && lineBuffer)
                     {
+                        PRINTF("RFCOMM can send now: size %d\n", lineBufferSize);
 //                        rfcomm_send(rfcomm_channel_id, (uint8_t*)lineBuffer, (uint16_t)strlen((const char*)lineBuffer));  
                         rfcomm_send(rfcomm_channel_id, (uint8_t*)lineBuffer, lineBufferSize);  
+                        PRINTF("RFCOMM did send: size %d\n", lineBufferSize);
                     }
                     lineBuffer = 0;   lineBufferSize = 0;
                     break;
@@ -314,7 +311,7 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                 {
                     PRINTF("RFCOMM channel closed\n");
                     rfcomm_channel_id = 0;
-                    is_connected = false;
+                    BlueTooth_Connected = false;
                     ObLED_Off();
                     break;
                 }
@@ -375,19 +372,39 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
     }
 }
 
-
-PUBLIC void BlueTooth_Send_Buffer(uint8_t* buff, size_t n)
+PRIVATE void worker_function(async_context_t *context, struct async_when_pending_worker *worker)
 {
-    lineBuffer = buff;
-    lineBufferSize = n;
     rfcomm_request_can_send_now_event(rfcomm_channel_id);
-    while (lineBufferSize) { continue; }
+}
+
+PRIVATE void worker_setup(void)
+{
+    context = cyw43_arch_async_context();
+    worker.do_work = worker_function;
+    async_context_add_when_pending_worker(context, &worker);
+}
+
+PRIVATE void worker_trigger(void)
+{
+    async_context_set_work_pending(context, &worker);
 }
 
 
-PUBLIC void BlueTooth_Send_String(char* str)
+PUBLIC void BlueTooth_Send_Buffer(uint8_t* buff, size_t n)
 {
-    BlueTooth_Send_Buffer((uint8_t* )str, strlen(str));
+    if (n)   // Is there something to send?
+    {
+        if (!lineBufferSize)    // Are we already sending?
+        {
+            lineBuffer = buff;
+            lineBufferSize = n;
+
+            worker_trigger();
+        }
+        else { printf("BlueTooth_Send_Buffer: Already sending!\n"); }
+
+        while (BlueTooth_Connected && lineBufferSize) { continue; }      // Wait for it to finish sending.
+    }
 }
 
 
@@ -401,22 +418,16 @@ PUBLIC void BlueTooth_Server(void)   // This is the main for the second core.
 
     // Initialise the Wi-Fi chip
     if (cyw43_arch_init()) { PRINTF("Bluetooth init failed\n"); return; }
-    
-    // run_loop_init(RUN_LOOP_EMBEDDED
-    // btstack_run_loop_init(btstack_run_loop_embedded_get_instance());
 
-    // async_context_t *context = cyw43_arch_init_default_async_context();
-    // cyw43_arch_set_async_context(context);
-
-    // btstack_run_loop_init(btstack_run_loop_async_context_get_instance(context));
+    worker_setup();
 
     spp_service_setup();
 
     gap_discoverable_control(1);
     gap_ssp_set_io_capability(SSP_IO_CAPABILITY_DISPLAY_YES_NO);
     gap_set_local_name(BLUETOOTH_PORTNAME" 00:00:00:00:00:00");
-    
-    hci_power_control(HCI_POWER_ON);    // turn on!
+
+     hci_power_control(HCI_POWER_ON);    // turn on!
 
     if (PowerOn_Failed)
     {
@@ -425,6 +436,7 @@ PUBLIC void BlueTooth_Server(void)   // This is the main for the second core.
     else
     {
         btstack_run_loop_execute();
+        printf("GOT HERE: btstack_run_loop_execute returned!\n");
     }
 }
 
@@ -446,7 +458,7 @@ PUBLIC char BlueTooth_GetChar()
 
 PUBLIC bool BlueTooth_Check_Receive(void)
 {
-    if (is_connected)
+    if (BlueTooth_Connected)
     {
         int val;
         return queue_try_peek(&BlueTooth_Receive_Queue, &val);

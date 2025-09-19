@@ -77,7 +77,7 @@ PRIVATE volatile uint16_t lineBufferSize = 0;
 
 PRIVATE queue_t BlueTooth_Receive_Queue;
 
-PRIVATE bool is_connected = false;
+PRIVATE bool BlueTooth_Connected = false;
 
 /* @section SPP Service Setup 
  *s
@@ -288,7 +288,7 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                         rfcomm_channel_id = rfcomm_event_channel_opened_get_rfcomm_cid(packet);
                         mtu = rfcomm_event_channel_opened_get_max_frame_size(packet);
                         D(DEBUG_BLUETOOTH, PRINTF("RFCOMM channel open succeeded. New RFCOMM Channel ID %u, max frame size %u\n", rfcomm_channel_id, mtu);)
-                        is_connected = true;
+                        BlueTooth_Connected = true;
                         ObLED_On();
                     }
                     break;
@@ -311,7 +311,7 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                 {
                     PRINTF("RFCOMM channel closed\n");
                     rfcomm_channel_id = 0;
-                    is_connected = false;
+                    BlueTooth_Connected = false;
                     ObLED_Off();
                     break;
                 }
@@ -424,7 +424,7 @@ PUBLIC char BlueTooth_GetChar()
 
 PUBLIC bool BlueTooth_Check_Receive(void)
 {
-    if (is_connected)
+    if (BlueTooth_Connected)
     {
         int val;
         return queue_try_peek(&BlueTooth_Receive_Queue, &val);

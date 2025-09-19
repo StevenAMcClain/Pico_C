@@ -1,4 +1,7 @@
-// File: Stack.h
+// File: stack.h
+
+#ifndef STACK_H
+#define STACK_H
 
 #include "pico/mutex.h"
 
@@ -23,5 +26,6 @@ extern void     Stack_Clear(STACK* q);                  // Clear all items from 
 extern void     Stack_Push(STACK* q, uint32_t val);     // Add to end of queue.
 extern uint32_t Stack_Pop(STACK* q);                    // Get next item from queue.
 
+#endif  // STACK_H
 
-// EndFile: Stack.h
+// EndFile: stack.h

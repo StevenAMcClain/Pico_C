@@ -1,64 +1,340 @@
 
-Protocol for StarLight system.
+Protocol notes for StarLight system.
+
+Blob page zero is loaded from flash on startup.
+
+))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 
 These are commands that can be send over the bluetooth connection.
 
-LARR:  // Set the current LED array.
-BLAC:  // Immediate all black scene.
+RESE:  	// Stop all engines, Black Leds, Reset back to no blob.
+BLAC:   // Immediate all black scene on all phy leds.
 
-RESE:  	// Reset back to no blob.
+SENG:   // Set active engine number.
+SPHY:   // Set the current physical LED array(s).
+
 BLOB:  	// Load program blob.
+XBLB:   // Export current blob.
+
 SCEN:	// Instant scene set.
-
 SHOW:	// Instant scene set using scene from loaded blob.
+UPDA:   // Update rendered scenes.
 
-TRIG:  // Immediatly trigger a program from the BLOB.
-INTR:  // Interrupt current command and continue after.
-QUEU:  // Add a command to execute after current command.
+TRIG:   // Immediatly trigger a program from the BLOB.
+INTR:   // Interrupt current command and continue after.
+QUEU:   // Add a command to execute after current command.
 
-VERS:  // Display blob version.
-XBLB:  // Export current blob.
+SETV
+GETV
 
-DUMP:  // Dump various tables.
+SAVE (page):   // Save current blob and config to flash.  (page) is flash page number 0-15.
+LOAD (page):   // Load blob from flash.  (page) is flash page number 0-15.
+ERAS (page):   // Erase flash page.  (page) is flash page number 0-15.
 
-SAVE:  // Save current blob and config to flash.
-LOAD:  // Load blob from flash.
+DUMP:   // Dump various tables.
+
+BRIG:  // Set brightness.
+
 
 ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 
 //-----------------------------------------
-BLAC:  // Immediate all black scene.
-       // Stops running program and clears queue.
+//
+RESE:  Stop all engines, 
+	   Black Leds, 
+	   Reset back to no blob.
+       Stops running program and clears queue.
 
 //-----------------------------------------
-BLOB:   Load program blob.
+//
+BLAC:  Immediate all black scene.
+       Stops running program and clears queue.
 
+//-----------------------------------------
+//
+SENG (n):  Set active engine number.
+           Select engine to send triggers to.
+           Valid numbers are 0 to 7.
+
+//-----------------------------------------
+//
+SPHY (m):   Set the current physical LED array(s).
+            m is mask with one bit for each phy.
+            Seperate phymask for each engine.
+
+//-----------------------------------------
+//
+BLOB:   Load program blob.
+		Blob bytes follow (see Blob Format)
+
+//-----------------------------------------
+//
+XBLB:   Export current blob.
+		Blob bytes are sent out on Bluetooth.
+
+//-----------------------------------------
+//
+SHOW:	(sp)    Instant scene set using scene from loaded blob.
+
+//-----------------------------------------
+//
+SCEN:	// Instant scene set.
+		See: Scene Format
+
+//-----------------------------------------
+//
+TRIG:  decimal number ( < 4200000000)    // Immediatly trigger a program from the BLOB.
+       followed by a space.
+
+INTR: (cp)			# Interrupt current command and continue after.
+QUEU: (cp)			# Add a command to execute after current command.
+
+//-----------------------------------------
+//
+SETV
+GETV
+
+//-----------------------------------------
+//
+SAVE (page):   // Save current blob and config to flash.  (page) is flash page number 0-15.
+LOAD (page):   // Load blob from flash.  (page) is flash page number 0-15.
+ERAS (page):   // Erase flash page.  (page) is flash page number 0-15.
+
+//-----------------------------------------
+//
+DUMP:  // Dump various tables.
+  1 - Version
+  2 - Device UUID.
+  3 - Phy Strings.
+  4 - Blob Checksum.
+  5 - Blob Stats
+  6 - Scene Index.
+  7 - Triggers.
+  8 - Dump bytes. (start)
+  9 - Dump ints. (start)
+  10 - Engines state.
+  100 - Connect info.
+
+
+-----------------------------------------------------------
+SCENE FORMAT
+-----------------------------------------------------------
+
+		size:    uint32_t       // Number of bytes for scene
+		scen:	  [ 
+			    flags: uint8_t      // Flags and/or multiplier
+			                        // 0xFF - End
+			                        // 0xFE - All
+			                        // 0xFD - Last
+			                        // 0xFC - Skip
+			                        // 0-FB - Repeat
+ 		   	    green: uint8_t		// Level for green
+			    red:   uint8_t		// Level for red
+			    blue:  uint8_t		// Level for blue
+			  ] * <=num LEDS
+			  end_flags             // scen separator (simple end, all, or last.)
+
+
+-----------------------------------------------------------
+BLOB COMMANDS
+-----------------------------------------------------------
+//  These are commands that can appear in a blob script.
+//
+Commands:
+
+	UPDA
+	YIEL				# Wait until next tick.
+	WAIT (time)			# Wait for a number of milli-seconds.
+	JUMP (cp)			# Jump to a command
+	CALL (cp)			# Call a command
+	REPE (in) (cp)      # Call command a number of times.
+
+	SPHY (phynum)       # Set current led array.
+	SCEN[phynum] (sp)	# Set a scene (immediate update).
+	REND[phynum] (sp)   # Delayed update
+
+	SHIF[phynum] (+/-in)		# Shift led pattern forward or backaward.  (black shifts in).
+	ROTA[phynum] (+/-in)		# Rotate led pattern forward or backward.  (ends wrap around).
+
+	MORP[phynum] (time) (sp)	# Morph current scene into new scene.
+
+	TRIG [(engm)] (trig)		# Cause engines in mask to trigger 
+	INTR [(engm)] (trig)		# Interrupt engines with trigger 
+	QUEU [(engm)] (trig)		# Queue trigger to after current completes.
+
+	END 				# End of commmand script.
+
+----
+	VAR <var> <type>	# Set a variable type.
+
+	SET <var> <val>     # Set a variable to a value.  (if val is missing then accumulator is used)
+	GET <var>			# Get value (into accumulator)
+	MOV <var> <var>     # Move variable value to another variable.
+
+	ADD <val>			# Add a value to accumulator.
+	SUB <val>			# Subtract a value from accumulator.
+	MUL <val>			# Multiply accumulator by a value.
+	DIV <val>			# Divide accumulator by a value.
+	MOD <val>			# Divide a value to accumulator.
+
+	INC 				# Increment accumulator (add one).
+	DEC 				# Decrement accumulator (subtract one).
+
+	AND <val>			# Bitswise AND a value with accumulator.
+	OR <val>			# Bitswise OR a value with accumulator.
+	XOR <val>			# Bitswise XOR a value with accumulator.
+	NOT					# Bitswise complent value in accumulator.
+
+	PUSH <var>			# Push variable onto stack (if var is omitted then accumulator is used)
+	POP <var>			# Push stack into variable (if var is omitted then accumulator is used)
+
+	TST <val>			# Subtract a value from accumulator (set flags and discard result).
+	BEQ (cp)			# Branch if accumulator is zero.
+	BNE (cp)			# Branch if accumulator is not zero.
+	BRA (cp)			# Branch always.
+
+----
+Internal Vars:
+DEBG  - Debug mask.  (one bit for each debug category).
+ENGM  - Engine mask. (one bit for each of eight engines).
+PHYM  - Phy string mask for rendering.
+BRIG  - Overall brightness.
+TIK0  - Engine zero tick time.
+TIK1  - Engine one tick time.
+TIK2  - Engine two tick time.
+TIK3  - Engine three tick time.
+TIK4  - Engine four tick time.
+TIK5  - Engine five tick time.
+TIK6  - Engine six tick time.
+TIK7  - Engine seven tick time.
+----
+Local Vars:   (Separate for each engine)
+ACCU  - Always local var 0.
+
+----
+Global Vars:   (Visible to all engines).
+
+---
+cp = command pointer.  An index from the start of the command block.
+sp = scene pointer.    An index from the start
+arr = array specifier.   The name of a logical or physical led array.
+       (P1 -> P8, L1 -> Ln)
+phynum = physical array specifier.   The name of a physical led array.
+	Bit mask (one bit for each phy).  (0=current).
+
+var = variable number (0=accumulator, 1 to 10 are local, 
+                       100-110 are global, 
+                       1000 to 10xx are internal)
+
+type = INT, UINT, FLOAT, DOUBLE.
+
+trig = trigger number.   
+
+engm = engine mask (one bit for each engine).
+
+in = integer from 0->xxxx
++/-in = integer from (-xxxx) -> xxxx
+
+'-' by itself is (-1)
+
+time = floating point in seconds.  (converts to int number of milliseconds)
+
+xxx:
+	scen 1
+	wait 10
+	scen 2
+	wait 10
+	jump xxx
+
+
+-----------------------------------------------------------
+BLOB CONFIGURATION COMMANDS
+-----------------------------------------------------------
+//-----------------------------------------
+// Define the number of LEDs on a physical string.
+//
+:phys  {numleds}....
+	numleds = number of leds on this string {decimal number}
+	num leds is specified for each physical string.
+	you do not need to (and should not) specified mirror strings.
+	total number of leds must not exceed 10,000
+	this will reset whole phy setup and will clear all mirrors.
+
+:mirr {phy_idx} {mirror_mask}
+	Causes a specific phy strings as specified by mirror_mask to use same memory as specific string {phy_idx}
+	You must define a phys string before using the :mirr command.
+	eg:   :mirr 0 0xee    # string 0 is duplicated to strings 1..6
+
+:vstr <name>
+	<p>:<n>  p = phy string index, n = led index on phy
+	<n>      n = led index on last phy
+	<n>..<m> All leds between n and m inclusive.
+	<n>..    All leds from n onward.
+
+:vstr one
+   1:1 2 3 4 5 6 7 8
+
+:vstr two
+   1 2 3 4 5 6 7 8
+
+:vstr three
+   1:1 2:1 3:1
+   1:2 2:2 3:2
+   1:3 2:3 3:3
+   1:4 2:4 3:4
+
+:vari <name> <val>
+    Creates a local variable and optionaly sets its value.
+    Local variable are local to each engine.
+    val to initialize variable to.
+    val has decimal point (create a float var).
+    val has '+' or '-' to create a signed var.
+    otherwise var is unsigned int.
+
+:glob <name> <val>
+	Create a global variable.
+	Globals are shared with all engines.
+
+-----------------------------------------------------------
+BLOB HEADER FORMAT
+-----------------------------------------------------------
   - Program(0) is automatically started after blob is loaded.
 
 		blob_vers:  uint32_t			// Version number '1.0a'.
 		blob_size:  uint32_t			// size of whole blob in bytes.
 
-		trig_start: uint32_t			// Trigger array starts here (relative to start).
-		trig_size:  uint32_t			// Number of triggers defined.
+		blob_name:	uint32_t			// Strindex for blob name.
+
+		phystr_start: uint32_t			// Physical string definitions.
+		phystr_size:  uint32_t			// Sizeof phystr table.
+
+		strindx_start: uint32_t			// Start of the string table.
+		strindx_size: uint32_t			// Size of the string table.
+
+		vartab_start: uint32_t			// Start of variable table.
+		vartab_size:  uint32_t			// Sizeof variable table.
+
+		symtab_start: uint32_t			// Start of program symbol table.
+		symtab_size:  uint32_t			// Sizeof program symbol table.
 
 		vstr_index: uint32_t			// Virual LED string array index starts here (relative to start).
 		vstr_count: uint32_t			// Number of Virual LED string arrays defined.
 		vstr_array: uint32_t			// Virual LED string record start here.
 		vstr_size:  uint32_t			// Size of the Virual LED string array.
 
-		prog_start: uint32_t			// Program array starts here (relative to start).
-		prog_size:  uint32_t			// Size of program array.
-
 		scen_index: uint32_t			// Scene index starts here (relative to start).
 		scen_count: uint32_t            // Number of scenes defined.
 		scen_array: uint32_t            // Scene array starts here (relative to start).
 		scen_size:  uint32_t			// Size of scene array.
 
+		trig_start: uint32_t			// Trigger array starts here (relative to start).
+		trig_size:  uint32_t			// Number of triggers defined.
+
 		prog_symtab_start			    // Start of the program symbol table
 		prog_symtab_size			    // Size of the program sysmbol table.
 
-		strindx_start				    // Start of the string table.
-		strindx_size				    // Size of the string table.
+		prog_start: uint32_t			// Program array starts here (relative to start).
+		prog_size:  uint32_t			// Size of program array.
 
 
 		trig:	[  // Maps program start points to triggers.
@@ -86,135 +362,13 @@ BLOB:   Load program blob.
 
 		        ] * scen_count
 
-		scen_array:	[
-		   		  [ 
-				    flags: uint8_t      // Flags and/or multiplier
-				                        // 0xFF - End
-				                        // 0xFE - All
-				                        // 0xFD - Last
-				                        // 0xFC - Skip
-				                        // 0-FB - Repeat
- 		   		    green: uint8_t		// Level for green
-				    red:   uint8_t		// Level for red
-				    blue:  uint8_t		// Level for blue
-				  ] * <=num LEDS
-				  end_flags             // scen separator (simple end, all, or last.)
-				] * scen_count
+		scen_array:	[ See: Scene Format ]
 
 		prog_symtab: [
 		                sym_name: uint32_t  // Strindx start of sym name.
-		                prog_idx: uint32_t // Program start point [index into prog array].
+		                prog_idx: uint32_t  // Program start point [index into prog array].
 		             ]
 
 		stringx: [ null terminated strings packed end to end. ]
 
-
-//-----------------------------------------
-TRIG:  decimal number ( < 4200000000)    // Immediatly trigger a program from the BLOB.
-       followed by a space.
-
-INTR: (cp)			# Interrupt current command and continue after.
-QUEU: (cp)			# Add a command to execute after current command.
-
-//-----------------------------------------
-SHOW:	(sp)    // Instant scene set using scene from loaded blob.
-
-SCEN:	// Instant scene set.
-
-		size:    uint32_t       // Number of bytes for scene
-		scen:	  [ 
-			    flags: uint8_t      // Flags and/or multiplier
-			                        // 0xFF - End
-			                        // 0xFE - All
-			                        // 0xFD - Last
-			                        // 0xFC - Skip
-			                        // 0-FB - Repeat
- 		   	    green: uint8_t		// Level for green
-			    red:   uint8_t		// Level for red
-			    blue:  uint8_t		// Level for blue
-			  ] * <=num LEDS
-			  end_flags             // scen separator (simple end, all, or last.)
-
-
-//-----------------------------------------
-// Define the number of LEDs on a physical string.
-//
-:phys  {numleds}....
-	numleds = number of leds on this string {decimal number}
-	num leds is specified for each physical string.
-	you do not need to (and should not) specified mirror strings.
-	total number of leds must not exceed 10,000
-	this will reset whole phy setup and will clear all mirrors.
-
-:mirr {phy_idx} {mirror_mask}
-	Causes a specific phy strings as specified by mirror_mask to use same memory as specific string {phy_idx}
-	You must define a phys string before using the :mirr command.
-	eg:   :mirr 0 0xee    # string 0 is duplicated to strings 1..6
-
-//-----------------------------------------
-// Set the current LED array.
-//
-SPHY:   {phynum} or {lognum}
-	phynum = physical string mask.  (0=current)
-
-// =========================================================================================================
-//  These are commands that can appear in a blob script.
-//
-Commands:
-	YIEL				# Wait until next tick.
-	CALL (cp)			# Call a command
-	JUMP (cp)			# Jump to a command
-	REPE (in) (cp)          	# Call command a number of times.
-	WAIT (time)			# Wait for a number of seconds.
-
-	SPHY (phynum)              	# Set current led array.
-	SCEN[phynum] (sp)		# Set a scene
-	MORP[phynum] (time) (sp)	# Morph current scene into new scene.
-	SHIF[phynum] (+/-in)		# Shift led pattern forward or backaward.  (black shifts in).
-	ROTA[phynum] (+/-in)		# Rotate led pattern forward or backward.  (ends wrap around).
-
-	TRIG (in) (cp)		# Bind a trigger to command
-	PHYS (in) ...			# Set the number of LEDs wired up to a physical string.
-	END 				# End of commmand script.
-
-
-cp = command pointer.  An index from the start of the command block.
-sp = scene pointer.    An index from the start
-arr = array specifier.   The name of a logical or physical led array.
-       (P1 -> P8, L1 -> Ln)
-phynum = physical array specifier.   The name of a physical led array.
-	Bit mask (one bit for each phy).  (0=current).
-
-
-in = integer from 0->xxxx
-+/-in = integer from (-xxxx) -> xxxx
-
-'-' by itself is (-1)
-
-time = floating point in seconds.  (converts to int number of milliseconds)
-
-xxx:
-	scen 1
-	wait 10
-	scen 2
-	wait 10
-	jump xxx
-
-// =========================================================================================================
-
-:vstr <name>
-	<p>:<n>  p = phy string, n = index on phy
-	<n>      n = index on last phy
-
-:vstr one
-   1:1 2 3 4 5 6 7 8
-
-:vstr two
-   1 2 3 4 5 6 7 8
-
-:vstr three
-   1:1 2:1 3:1
-   1:2 2:2 3:2
-   1:3 2:3 3:3
-   1:4 2:4 3:4
 

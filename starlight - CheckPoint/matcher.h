@@ -17,7 +17,7 @@ typedef enum match_code
     MATCH_INTERRUPT,    // Halt running program, run new program, then resume halted program.
     MATCH_DUMP,         // Dump debug info.
     MATCH_DEBUG,        // Set debug mask.
-    MATCH_GET_BLOB,     // Export current blob.
+    MATCH_EXPORT_BLOB,     // Export current blob.
     MATCH_SAVE,         // Save RAM blob to flash.
     MATCH_LOAD,         // Load flash blob to RAM.
 

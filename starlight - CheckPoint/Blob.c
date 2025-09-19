@@ -122,7 +122,7 @@ typedef struct Prog_Stack
 
 } PROG_STACK;
 
-typedef struct Blob_State
+typedef struct Beng_State
 {
 	STATE State;				// Start in IDLE state.
     bool is_idle;               // True if in idle state.
@@ -139,10 +139,10 @@ typedef struct Blob_State
 	PROG_STACK program_stack_buffer;
     STACK* program_stack;	// Pending program stack. 
     
-} BLOB_STATE;
+} BENG_STATE;
 
 
-PRIVATE BLOB_STATE Blob_State = {0};
+PRIVATE BENG_STATE Beng_State = {0};
 
 
 PRIVATE PROG* Prog_Ptr(PROG_ID id)
@@ -197,17 +197,17 @@ PRIVATE void Push_Context(void)
 //
 // Saves current Blob_State.
 {
-	STACK* stk = Blob_State.program_stack;
+	STACK* stk = Beng_State.program_stack;
 
-	Stack_Push(stk,           Blob_State.State);		// Current state (processing command).
-	Stack_Push(stk, (uint32_t)Blob_State.prog);			// Next command to run.
-	Stack_Push(stk,           Blob_State.wait_counter);	// Ticks left to wait until next step.
-	Stack_Push(stk,           Blob_State.repeat);		// Number of times left to repeat.
-	Stack_Push(stk, (uint32_t)Blob_State.repeat_start);	// First command in program sequence.
+	Stack_Push(stk,           Beng_State.State);		// Current state (processing command).
+	Stack_Push(stk, (uint32_t)Beng_State.prog);			// Next command to run.
+	Stack_Push(stk,           Beng_State.wait_counter);	// Ticks left to wait until next step.
+	Stack_Push(stk,           Beng_State.repeat);		// Number of times left to repeat.
+	Stack_Push(stk, (uint32_t)Beng_State.repeat_start);	// First command in program sequence.
 	// XITI* Xiti;										// Transition currently playing.
 //	Stack_Push(q, (uint32_t)Blob_State.Xiti_Times);		// Store for transition step time counts.
 
-	Blob_State.repeat = 0;
+	Beng_State.repeat = 0;
 //	Blob_State.Xiti_Times = 0;
 }
 
@@ -216,15 +216,15 @@ PRIVATE void Pop_Context(void)
 //
 // Restores Blob_State.
 {
-	STACK* stk = Blob_State.program_stack;
+	STACK* stk = Beng_State.program_stack;
 
 //	Blob_State.Xiti_Times   = (uint32_t*)Stack_Pop(q);		// Store for transition step time counts.
 	// XITI* Xiti;											// Transition currently playing.
-	Blob_State.repeat_start = (PROG*)Stack_Pop(stk);			// First command in program sequence.
-	Blob_State.repeat       =        Stack_Pop(stk);			// Number of times left to repeat.
-	Blob_State.wait_counter =        Stack_Pop(stk);			// Ticks left to wait until next step.
-	Blob_State.prog         = (PROG*)Stack_Pop(stk);			// Next command to run.
-	Blob_State.State        =        Stack_Pop(stk);			// Current state (processing command).
+	Beng_State.repeat_start = (PROG*)Stack_Pop(stk);			// First command in program sequence.
+	Beng_State.repeat       =        Stack_Pop(stk);			// Number of times left to repeat.
+	Beng_State.wait_counter =        Stack_Pop(stk);			// Ticks left to wait until next step.
+	Beng_State.prog         = (PROG*)Stack_Pop(stk);			// Next command to run.
+	Beng_State.State        =        Stack_Pop(stk);			// Current state (processing command).
 }
 
 
@@ -256,7 +256,7 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 			{
 				case COMMAND_END:      // end of program, stop running.
 				{
-					Blob_State.State = STATE_IDLE;
+					Beng_State.State = STATE_IDLE;
 					cmdp = 0;
 					result = false;
 					break;
@@ -274,8 +274,8 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 				case COMMAND_WAIT:     // wait for (n) seconds.
 				{
 					uint32_t arg = (uint32_t)*cmdp++;
-					Blob_State.wait_counter = arg;
-					Blob_State.State = STATE_WAITING;
+					Beng_State.wait_counter = arg;
+					Beng_State.State = STATE_WAITING;
 					done = true;
 					break;
 				}
@@ -309,11 +309,11 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 					PROG arg = (PROG)*cmdp++;
 					D(DEBUG_BLOB, PRINTF("Call: pgm 0x%X\n", arg);)
 
-					Blob_State.prog = cmdp;   // Make sure State.prog is up to date.
+					Beng_State.prog = cmdp;   // Make sure State.prog is up to date.
 					Push_Context();
 
 					PROG* prog = Prog_Ptr(arg);
-					cmdp = Blob_State.prog = prog;      // Set new prog pointer.
+					cmdp = Beng_State.prog = prog;      // Set new prog pointer.
 					break;
 				}
 				case COMMAND_REPEAT:   // repeat a sequence (n) times.
@@ -321,13 +321,13 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 					uint32_t repeat = (uint32_t)*cmdp++;	// Number of times left to repeat.
 					PROG cmd_idx = (PROG)*cmdp++;	        // First command in program sequence.
 
-					Blob_State.prog = cmdp;
+					Beng_State.prog = cmdp;
 					Push_Context();
 
 					D(DEBUG_BLOB, PRINTF("Repeat: %d, pgm %d\n", repeat, cmd_idx);)
 
-					Blob_State.repeat = repeat;
-					cmdp = Blob_State.repeat_start = Blob_State.prog = Prog_Ptr(cmd_idx);;
+					Beng_State.repeat = repeat;
+					cmdp = Beng_State.repeat_start = Beng_State.prog = Prog_Ptr(cmd_idx);;
 					break;
 				}
 				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
@@ -377,14 +377,14 @@ PRIVATE void start_program(PROG_ID n)
 {
 	if (n == 0) 
     {
-        Blob_State.State = STATE_IDLE; 
-        Blob_State.prog = 0;
+        Beng_State.State = STATE_IDLE; 
+        Beng_State.prog = 0;
     }
 	else
 	{
 		D(DEBUG_BLOB, PRINTF("start_program: n %d\n", n);)
-		Blob_State.State = STATE_COMMAND;
-		Blob_State.prog = Prog_Ptr(n);
+		Beng_State.State = STATE_COMMAND;
+		Beng_State.prog = Prog_Ptr(n);
 	}
 }
 
@@ -395,62 +395,62 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 {
 	static int Tick_Count = 0;
 
-	D(DEBUG_BLOB2, if (Blob_State.State)  { PRINTF("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Blob_State.State); })
+	D(DEBUG_BLOB2, if (Beng_State.State)  { PRINTF("\n== Blob_Tick %d: State %d\n", ++Tick_Count, Beng_State.State); })
 
-	if (Blob_State.State != STATE_IDLE)
-        Blob_State.is_idle = false;
+	if (Beng_State.State != STATE_IDLE)
+        Beng_State.is_idle = false;
 
-	switch (Blob_State.State)
+	switch (Beng_State.State)
 	{
 		case STATE_IDLE: 
         {
-            Blob_State.is_idle = true;
+            Beng_State.is_idle = true;
             break; 
         }
 		case STATE_WAITING:
 		{
-			if (Blob_State.wait_counter) { --Blob_State.wait_counter; }
+			if (Beng_State.wait_counter) { --Beng_State.wait_counter; }
 
-			if (Blob_State.wait_counter)	// Waiting done?
+			if (Beng_State.wait_counter)	// Waiting done?
 			{
 				break;  // Nope, still waiting.
 			}
 			else
 			{
-				Blob_State.State = STATE_COMMAND;
+				Beng_State.State = STATE_COMMAND;
 				// Fall throught to next case ... STATE_COMMAND
 			}
 		}
 		case STATE_COMMAND:
 		{
-            bool cmd_is_running = Process_Command(&Blob_State.prog);
+            bool cmd_is_running = Process_Command(&Beng_State.prog);
 
 			if ( !cmd_is_running )
 			{ 							// Command sequence ended.
 				D(DEBUG_BLOB, PRINTF("-- Sequence End.\n\n");)
 
-				if (Blob_State.repeat)  // Repeating?
+				if (Beng_State.repeat)  // Repeating?
 				{
-					if (--Blob_State.repeat)
+					if (--Beng_State.repeat)
 					{
-						Blob_State.prog = Blob_State.repeat_start;
-						Blob_State.State = STATE_COMMAND;
+						Beng_State.prog = Beng_State.repeat_start;
+						Beng_State.State = STATE_COMMAND;
 					}
 					else  // Done repeat.
 					{
 						Pop_Context();
-                        D(DEBUG_BLOB, PRINTF("Done repeat. next %X\n", Blob_State.prog);)
+                        D(DEBUG_BLOB, PRINTF("Done repeat. next %X\n", Beng_State.prog);)
 					}
 				}
-				else if (Blob_State.program_stack->count)		// Anything on stack?
+				else if (Beng_State.program_stack->count)		// Anything on stack?
 				{
 					Pop_Context();
-                    D(DEBUG_BLOB, PRINTF("next command %X\n", Blob_State.prog);)
+                    D(DEBUG_BLOB, PRINTF("next command %X\n", Beng_State.prog);)
 				}
 				else
 				{
                     D(DEBUG_BLOB, PRINTF("To Idle\n");)
-					Blob_State.State = STATE_IDLE; 
+					Beng_State.State = STATE_IDLE; 
 				}
 			}
 			break;
@@ -458,12 +458,12 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 		case STATE_TRANSITION:
 		{
 			D(DEBUG_BLOB, PRINTF("Transition State:\n");)
-			Blob_State.State = STATE_COMMAND;
+			Beng_State.State = STATE_COMMAND;
 //			transition_step();
 			break;
 		}
 	}
-	D(DEBUG_BLOB2, if (Blob_State.State)  { PRINTF("== Blob_Tick: Done (%d).\n\n", Tick_Count); })
+	D(DEBUG_BLOB2, if (Beng_State.State)  { PRINTF("== Blob_Tick: Done (%d).\n\n", Tick_Count); })
 
 	return true;
 }
@@ -474,18 +474,18 @@ PUBLIC void Blob_Stop(void)
 //
 // Stop current program and clear stack.
 {
-	Blob_State.State = STATE_IDLE;
+	Beng_State.State = STATE_IDLE;
 
-    while (!Blob_State.is_idle)
+    while (!Beng_State.is_idle)
     {
         sleep_ms(1);
     }
 
-	Stack_Clear(Blob_State.program_stack); 
+	Stack_Clear(Beng_State.program_stack); 
 
-	Blob_State.repeat = 0;
-	Blob_State.wait_counter = 0;
-    Blob_State.prog = 0;
+	Beng_State.repeat = 0;
+	Beng_State.wait_counter = 0;
+    Beng_State.prog = 0;
 }
 
 
@@ -668,7 +668,7 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
         Blob.Num_Trig = bhptr->trig_size / 2;   	// Number of trigger records.
         Blob.Num_Prog = bhptr->prog_size;		    // Number of PROG records.
 
-		Blob_State.State = STATE_IDLE;
+		Beng_State.State = STATE_IDLE;
 
         Blob_Is_Loaded = true;
 
@@ -695,7 +695,7 @@ PUBLIC void Blob_Init(void)
 {
 	static struct repeating_timer blob_timer_1;		// Timer to call Blob_Time.
 	
-    Blob_State.program_stack = Stack_Initialize(&Blob_State.program_stack_buffer, PROG_STACK_SIZE); 
+    Beng_State.program_stack = Stack_Initialize(&Beng_State.program_stack_buffer, PROG_STACK_SIZE); 
 
 	add_repeating_timer_us(Tick_Speed, Blob_Time_Tick, NULL, &blob_timer_1);
 

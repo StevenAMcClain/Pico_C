@@ -9,7 +9,7 @@
 
 typedef struct Matcher
 {
-    const uint8_t* match_str;
+    const char* match_str;
     uint8_t const* match_ptr;
     const int match_code;
 
@@ -18,25 +18,35 @@ typedef struct Matcher
 
 PRIVATE struct Matcher Matches[MATCH_LAST] = 
 {
+    {"RESE", 0, MATCH_RESET}, 
+    {"BLAC", 0, MATCH_BLACK}, 
+
+    {"SENG", 0, MATCH_SENG}, 
+    {"SPHY", 0, MATCH_SPHY}, 
+
+    {"BLOB", 0, MATCH_SET_BLOB}, 
+    {"XBLB", 0, MATCH_EXPORT_BLOB},
+
+    {"SCEN", 0, MATCH_SCENE}, 
+    {"SHOW", 0, MATCH_SHOW}, 
+    {"UPDA", 0, MATCH_UPDATE}, 
+
+    {"TRIG", 0, MATCH_TRIGGER}, 
+    {"INTR", 0, MATCH_INTERRUPT},
+    {"QUEU", 0, MATCH_QUEUE}, 
+
+    {"SETV", 0, MATCH_SETV}, 
+    {"GETV", 0, MATCH_GETV}, 
+
+    {"LOAD", 0, MATCH_LOAD},
+    {"SAVE", 0, MATCH_SAVE},
+    {"ERAS", 0, MATCH_ERASE},
+
+    {"DUMP", 0, MATCH_DUMP},
+
     // {"PHYS", 0, MATCH_PHYS}, 
-    {(uint8_t*)"SPHY", 0, MATCH_SPHY}, 
-    {(uint8_t*)"SHOW", 0, MATCH_SHOW}, 
-    {(uint8_t*)"SCEN", 0, MATCH_SCENE}, 
-    {(uint8_t*)"BLAC", 0, MATCH_BLACK}, 
-    {(uint8_t*)"UPDA", 0, MATCH_UPDATE}, 
-    {(uint8_t*)"BLOB", 0, MATCH_SET_BLOB}, 
-    {(uint8_t*)"TRIG", 0, MATCH_TRIGGER}, 
-    {(uint8_t*)"QUEU", 0, MATCH_QUEUE}, 
-    {(uint8_t*)"BRIG", 0, MATCH_BRIGHTNESS}, 
-    {(uint8_t*)"INTR", 0, MATCH_INTERRUPT},
-    {(uint8_t*)"DUMP", 0, MATCH_DUMP},
-    {(uint8_t*)"DEBU", 0, MATCH_DEBUG},
-    {(uint8_t*)"GETB", 0, MATCH_GET_BLOB},
-    {(uint8_t*)"ERAS", 0, MATCH_ERASE},
-    {(uint8_t*)"SAVE", 0, MATCH_SAVE},
-    {(uint8_t*)"LOAD", 0, MATCH_LOAD},
-    {(uint8_t*)"TEST", 0, MATCH_TEST},
-    {(uint8_t*)"TES2", 0, MATCH_TEST2},
+    {"BRIG", 0, MATCH_BRIGHTNESS}, 
+    {"DEBU", 0, MATCH_DEBUG},
 };
 
 
@@ -49,24 +59,23 @@ PUBLIC void Matchers_Reset()
 }
  
 
-PUBLIC void Matchers_Init()
-{
-    Matchers_Reset();
-}
+// PUBLIC void Matchers_Init()
+// {
+//     Matchers_Reset();
+// }
 
 
 PUBLIC MATCH_CODE Is_Match(uint8_t ch)
 {
     MATCHER* m = Matches;
 
-    for (int i = 0; i < ARRAY_SIZE(Matches); ++i)
+    for (int i = 0; i < ARRAY_SIZE(Matches); ++i, ++m)
     {
-        if (ch == *m->match_ptr++)
+        if ((char)ch == *m->match_ptr++)
         {
             if (!*m->match_ptr) { return m->match_code; }
         }
         else { m->match_ptr = m->match_str; }
-        ++m;
     }
 
     return MATCH_NONE;

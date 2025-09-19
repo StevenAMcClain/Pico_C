@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "led.h"
+
+extern void mem_dump_ints(void* ptr, size_t n);
 
 
 PRIVATE void do_shift_phys(LED* base, size_t max_leds, LED* padding, int shift_count)
@@ -34,34 +35,84 @@ PRIVATE void do_shift_phys(LED* base, size_t max_leds, LED* padding, int shift_c
     }
 }
 
-extern void mem_dump_ints(void* ptr, size_t n);
 
-PUBLIC void Command_Shift_LEDS(bool do_shift, int shift_count)
-//
-// Shift (or rotate) led array.
+PRIVATE void do_rotate_phys(LED* base, size_t max_leds, LED* buff, int shift_count)
 {
-    if (do_shift)
+    LED* bptr = buff;
+
+    if (shift_count && abs(shift_count) <= MAX_LED_ROTATE)
     {
-        LED padding = {0};
-        size_t max_leds = 0;
-        LED* base = LED_Get_Phy(0, &max_leds);
-
-        if (base && max_leds)
+        LED* endp = base + max_leds - 1;
+       
+        if (shift_count > 0)
         {
-            PRINTF("Before: \n");
-            mem_dump_ints(base, max_leds);
-            do_shift_phys(base, max_leds, &padding, shift_count);
+            LED* dstp = endp;
+            LED* srcp = dstp - shift_count;
 
-            PRINTF("\nAfter: \n");
-            mem_dump_ints(base, max_leds);
-            PRINTF("\n");
+            while (srcp <= endp) { *bptr++ = *srcp++;  }
 
-            LED_Needs_Update(1);
+            srcp = dstp - shift_count;
+            while (srcp >= base) { *dstp-- = *srcp--;  }
+
+            bptr = buff;
+            while (dstp >= base) { *dstp-- = *bptr++; }
+        }
+        else
+        {
+            LED* srcp = base;       // shift_count is negative here.
+            LED* stopp = base - shift_count - 1;
+
+            while (srcp <= stopp) { *bptr++ = *srcp++;  }
+
+            LED* dstp = base;
+
+            srcp = dstp - shift_count;       // shift_count is negative here.
+            while (srcp <= endp) { *dstp++ = *srcp++;  }
+
+            bptr = buff;
+            while (dstp <= endp) { *dstp++ = *bptr++; }
         }
     }
-    else
+}
+
+
+PUBLIC void Command_Shift_LEDS(int phy_idx, bool do_shift, int shift_count, LED* buff)
+//
+// Shift (or rotate) led array on one phy.
+{
+    LED padding = {0};
+    size_t max_leds = 0;
+    LED* base = LED_Get_Phy(phy_idx, &max_leds);
+
+    if (base && max_leds)
     {
-        PRINTF("Rotate is not implemented!\n");
+        PRINTF("Before: \n");   mem_dump_ints(base, max_leds);
+
+        if (do_shift) { do_shift_phys(base, max_leds, &padding, shift_count); }
+        else          { do_rotate_phys(base, max_leds, buff, shift_count);    }
+
+        PRINTF("\nAfter: \n");  mem_dump_ints(base, max_leds);  PRINTF("\n");
+
+        LED_Needs_Update(1 << phy_idx);
+    }
+}
+
+
+PUBLIC void Command_Shift_LEDS_mask(int phy_mask, bool do_shift, int shift_count, LED* buff)
+//
+// Shift (or rotate) led array on many phys (one bit in mask per).
+{
+	int phy_idx = 0;
+    uint32_t mask = 1;
+
+	while (phy_mask && phy_idx < MAX_PHY)
+	{
+        if (mask & phy_mask)
+        {
+            Command_Shift_LEDS(phy_idx, do_shift, shift_count, buff);
+            phy_mask &= ~mask;
+        }
+        mask <<= 1;     ++phy_idx;
     }
 }
 

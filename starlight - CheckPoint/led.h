@@ -3,13 +3,15 @@
 #ifndef LEDS_H
 #define LEDS_H
 
+#include "common.h"
+
 #define MAX_PHY 8           // Maximum number of strings.
 #define MAX_NUM_LEDS 1000  // Fairly arbitrary maximum for one physical string of LEDS.
 
 #define ALL_PHYS (-1)       // Mask for all physical strings.
 #define CURRENT_PHY 0       // Code for use current string (or no string if current is also 0)
 
-extern volatile uint32_t Current_Phy_Mask;   // Current phynum (or logical).  0 for none.
+//extern volatile uint32_t Current_Phy_Mask;   // Current phynum (or logical).  0 for none.
 
 #define LED_VAL uint8_t     // Type for a single LED color value.
 #define LED_VAL_MAX 255     // Maximum value that can be stored in a LED_VAL
@@ -33,7 +35,7 @@ typedef union
 
 extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
 
-extern volatile uint32_t Current_Phy_Mask;  // Current phynum (or logical).  0 for none.
+//extern volatile uint32_t Current_Phy_Mask;  // Current phynum (or logical).  0 for none.
 
 extern size_t PHY_Get_LED_Count(int phy_idx);
 
@@ -44,7 +46,7 @@ extern void PHY_Set_led_count(int phy_idx, size_t led_count);
 //
 // Set the number of leds on a string.  Allocates LED buffers.
 
-extern void LEDS_Set_Phynum(int phy_mask);
+//extern void LEDS_Set_Phynum(int phy_mask);
 
 extern LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp);
 
@@ -62,7 +64,7 @@ extern void LED_Set_LED(size_t led_idx, LED* source_ledp);
 
 extern void LED_Set_RGB(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b);
 
-extern void LED_All_LED(int phynum, LED led);
+extern void LED_All_LED(int phy_mask, LED led);
 //
 // Sets all LEDs to the same color.
 

@@ -37,8 +37,8 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(starlight 
-    starlight.c btstdio.c Led.c ws2812.c blob.c beng.c matcher.c morph.c parser.c 
-    stack.c obled.c scene.c blob_dump.c shifter.c flashblob.c)
+    starlight.c btstdio.c Led.c ws2812.c blob.c beng.c bcmd.c bvar.c bvar_internal.c matcher.c morph.c 
+    parser.c stack.c obled.c scene.c blob_dump.c shifter.c flashblob.c)
 
 # Get all C and C++ files, when the glob value changes, cmake will run again and update the files
 # file(GLOB_RECURSE app_src CONFIGURE_DEPENDS "${SOURCE_FOLDER}/*.c" "${SOURCE_FOLDER}/*.cpp" )

@@ -1,7 +1,9 @@
 // File: Common.h
 
-#include "pico/stdlib.h"
+#ifndef COMMON_H
+#define COMMON_H
 
+#include "pico/stdlib.h"
 
 #define PRIVATE static
 #define PUBLIC
@@ -37,5 +39,7 @@ extern void ObLED_Off(void);
 
 //#define FIRST_CORE_MAIN Start_BlueTooth
 //#define SECOND_CORE_MAIN Start_Parser
+
+#endif   // COMMON_H
 
 // EndFile: Common.h

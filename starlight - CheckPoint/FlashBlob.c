@@ -66,18 +66,18 @@ PRIVATE uint32_t bpage_to_offset(int bpage)
 }
 
 
-PRIVATE uint32_t* bpage_to_address(int bpage)
+PRIVATE uint32_t* BPage_To_Address(int bpage)
 {
     return (uint32_t*)(FLASH_BASE_ADDRESS + FLASH_SAVE_BASE + bpage_to_offset(bpage));
 }
 
 
-PUBLIC bool bpage_is_blank(int bpage)
+PUBLIC bool BPage_Is_Blank(int bpage)
 //
 // Check is a flash page is actually blank.
 // Return: true if page is blank.
 {
-    uint32_t* ptr = bpage_to_address(bpage);
+    uint32_t* ptr = BPage_To_Address(bpage);
     size_t count = MAX_BPAGE_SIZE / sizeof(*ptr);
 
     while (count--)
@@ -91,7 +91,7 @@ PUBLIC bool bpage_is_blank(int bpage)
 }
 
 
-PUBLIC uint16_t bpage_blank_pages(void)
+PUBLIC uint16_t BPage_Blank_Pages(void)
 //
 // Scan through all pages and check for blanks.
 // Return mask with 1 set for each blank page.
@@ -102,7 +102,7 @@ PUBLIC uint16_t bpage_blank_pages(void)
 
     while (count--)
     {
-        if (bpage_is_blank(count))
+        if (BPage_Is_Blank(count))
         {
             result |= bmask;
         }
@@ -113,7 +113,7 @@ PUBLIC uint16_t bpage_blank_pages(void)
 }
 
 
-PUBLIC void bpage_erase_page(int bpage)
+PUBLIC void BPage_Erase_Page(int bpage)
 {
     uint32_t offset = bpage_to_offset(bpage);
     int count = MAX_BLOB_SIZE / FLASH_CHUNK_SIZE;
@@ -126,11 +126,11 @@ PUBLIC void bpage_erase_page(int bpage)
 }
 
 
-PUBLIC void bpage_erase_all_pages(void)
+PUBLIC void BPage_Erase_All_Pages(void)
 //
 // Erase each non-blank flash page.
 {
-    uint16_t blanks = bpage_blank_pages();
+    uint16_t blanks = BPage_Blank_Pages();
     uint16_t mask = 1 << 15;
     int count = 16;
 
@@ -138,7 +138,7 @@ PUBLIC void bpage_erase_all_pages(void)
     {
         if ( !(blanks & mask) )
         {
-            bpage_erase_page(count);
+            BPage_Erase_Page(count);
         }
         mask <<= 1;
     }

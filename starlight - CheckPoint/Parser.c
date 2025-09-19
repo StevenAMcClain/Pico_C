@@ -329,7 +329,7 @@ PRIVATE void do_export()
 {
     if (Blob.Blob_Base)
     {
-        static char buff[MAX_BUFF_SIZE];
+        static char buff[MAX_EXPORT_BUFF_SIZE];
         uint8_t* ptr = Get_Blob_Base();
         BLOB_PRE_HEADER* pre_header = (BLOB_PRE_HEADER*)ptr;
 
@@ -390,7 +390,7 @@ PRIVATE void do_export()
 }
 #endif // COMMENT
 
-PRIVATE void scan_for_sync(int ch)
+PRIVATE void parser(int ch)
 {
     MATCH_CODE code = Is_Match(ch);
     int arg;
@@ -419,7 +419,7 @@ PRIVATE void scan_for_sync(int ch)
                 read_blob();
                 break;
             }
-            case MATCH_GET_BLOB:
+            case MATCH_EXPORT_BLOB:
             {
                 do_export();
                 break;
@@ -540,7 +540,7 @@ PUBLIC void Start_Parser()
             }
         }
 #endif
-            scan_for_sync(ch); 
+            parser(ch); 
             sleep_ms(1); 
         }
     }

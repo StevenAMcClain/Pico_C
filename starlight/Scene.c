@@ -21,7 +21,7 @@ PRIVATE void Unpack_Scene(uint32_t val, uint8_t* buff)
 }
 
 
-PUBLIC void Render_Scene(uint32_t* start_ptr)
+PRIVATE void Render_Scene(int phy_mask, uint32_t* start_ptr)
 //
 // Render scene given pointer.
 {
@@ -29,7 +29,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 
 	uint32_t i = 0;
 
-    size_t num_leds = Num_LEDS(0);     // <<<<------------------------------ zero?
+    size_t num_leds = Num_LEDS(phy_mask);
 
 	while (i < num_leds)
 	{
@@ -55,7 +55,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 //			D(PRINTF("End Last");)
 			while (i < num_leds)
 			{
-				LED_Set_RGB(i, buff[1], buff[2], buff[3]);
+				LED_Set_RGB(phy_mask, i, buff[1], buff[2], buff[3]);
 				++i;
 //				D(PRINTF(".");)
 			}
@@ -73,7 +73,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 			int count = flags ? flags : 1;
 			while (count--)
 			{
-				LED_Set_RGB(i, buff[1], buff[2], buff[3]);
+				LED_Set_RGB(phy_mask, i, buff[1], buff[2], buff[3]);
 				++i;
 //				D(PRINTF(".");)
 			}
@@ -83,7 +83,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 }
 
 
-PUBLIC void Set_Scene(SCENE_ID id)
+PUBLIC void Set_Scene(int phy_idx, SCENE_ID id)
 //
 // Render scene given scene id.
 {
@@ -96,10 +96,30 @@ PUBLIC void Set_Scene(SCENE_ID id)
 
         if (start_idx)
         {
-    		Render_Scene(Blob.Scene_Array + start_idx - 1);
+    		Render_Scene(phy_idx, Blob.Scene_Array + start_idx - 1);
         }
 	}
 	else { D(DEBUG_SCENES, PRINTF("Set scene: bad id = %d\n", id);) }
+}
+
+
+PUBLIC void Set_Scene_mask(int phy_mask, SCENE_ID scene_id)
+//
+// Shift (or rotate) led array on one phy.
+{
+	int phy_idx = 0;
+    uint32_t mask = 1;
+
+	while (phy_mask && phy_idx++ < MAX_PHY)
+	{
+        if (mask & phy_mask)
+        {
+            Set_Scene(phy_idx, scene_id);
+            phy_mask &= ~mask;
+        }
+        mask <<= 1;
+    }
+
 }
 
 

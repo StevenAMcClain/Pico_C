@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-#include <hardware/flash.h>
+//#include <hardware/flash.h>
 //                                                 #include <pico/btstack_flash_bank.h>
 #include "blob.h"
 
@@ -16,6 +16,9 @@
 #include "led.h"
 
 
+extern uint8_t uuid[8];
+
+
 PRIVATE void dump_version(void)
 {
     char s1[10];
@@ -26,10 +29,8 @@ PRIVATE void dump_version(void)
 
 PRIVATE void dump_uuid(void)
 {
-    uint8_t buff[8];
-    flash_get_unique_id(buff);
     BTPRINTF("UUID:%02X%02X%02X%02X%02X%02X%02X%02X\n", 
-                    buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6], buff[7]);
+                    uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7]);
 }
 
 
@@ -80,8 +81,6 @@ PRIVATE void dump_info(void)
     char version_str[10];
     version_to_str(version_str, Version());
 
-    uint8_t uuid[8];
-    flash_get_unique_id(uuid);
     n = snprintf(bptr, chars_left, "UUID: %02X%02X%02X%02X%02X%02X%02X%02X\nVERS: %s\n", 
                     uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], version_str);
     bptr += n;   chars_left -=n;
@@ -121,15 +120,14 @@ PRIVATE void dump_info(void)
     else       { n = snprintf(bptr, chars_left, "\n"); }
     bptr += n;   chars_left -=n;
 
+    int Current_Phy_Mask = 3;     // Should be something else (or removed!)
+
     n = snprintf(bptr, chars_left, "PhyMask: %X, %X\nDebug: %X\n", 
                                    phy_mask, Current_Phy_Mask, Debug_Mask);
     // bptr += n;   chars_left -=n;
 
     BlueTooth_Send_String(buff);
    // printf("Dump: %s\n", buff);
-
-    // volatile int zz = 1000000;                                IS THIS NEEDED?
-    // while (zz--) {}
 }
 
 
@@ -185,6 +183,11 @@ PRIVATE void dump_blob_triggers(void)
 }
 
 
+PRIVATE void dump_engines_state(void)
+{
+    BTPRINTF("NOT DONE\n");
+}
+
 
 PUBLIC void mem_dump_p(void (*p)(char*, ...), void* ptr, size_t n)
 {
@@ -238,14 +241,14 @@ PUBLIC void mem_dump_ints(void* ptr, size_t n)
 	{
 		if (!count)
 		{
-			BTPRINTF("\n%8.8X: ", bptr);
+			PRINTF("\n%8.8X: ", bptr);
 			count = 4;
 		}
 		else --count;
 
-		BTPRINTF("%8.8X ", *bptr++);
+		PRINTF("%8.8X ", *bptr++);
 	}
-	BTPRINTF("\n");
+	PRINTF("\n");
 }
 
 
@@ -260,6 +263,7 @@ Dump:\n\
   7 - Triggers.\n\
   8 - Dump bytes. (start)\n\
   9 - Dump ints. (start)\n\
+  10 - Engine States\n\
   \n"
 
 
@@ -276,6 +280,7 @@ PUBLIC void do_dump(int arg, int arg2)
         case 7: { dump_blob_triggers(); break; }
         case 8: { mem_dump( (void*)arg2, 64); break; }
         case 9: { mem_dump_ints( (void*)arg2, 20); break; }
+        case 10: { dump_engines_state(); break; }
         case 100: { dump_info(); break; }
         case 0: default: { BTPRINTF(HELP_STRING); break; }
     }

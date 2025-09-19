@@ -1,117 +1,99 @@
-// File: Beng.h
+// File: beng.h
 
-// #define MAX_BLOB_SIZE (64 * 1024)    // max size for a blob (check implications for FLASH storage).
+#ifndef BENG_H
+#define BENG_H
 
-// #define BLOB_VERSION "0.2d"
+#include "blob.h"
+#include "bvar.h"
+#include "stack.h"
+#include "shifter.h"
 
-typedef uint32_t TRIG_ID;
-// typedef int32_t PROG_ID;
-// typedef uint32_t SCENE_ID;
+#define BAD_BENG_IDX (-1)
 
-// typedef uint32_t PROG;
-// typedef uint32_t SCENE;
+typedef enum
+{
+	STATE_IDLE,             // Nothing running.
+	STATE_WAITING,          // In wait.
+	STATE_COMMAND,          // Running commands.
+	STATE_TRANSITION,       // In transition.
 
-
-// typedef struct BLOB_Raw
-// {
-//     uint32_t Cookie;           // Must be 'BLOB'
-//     uint32_t Version;          // Version number for blob.
-//     uint32_t Size;             // Number of bytes in body.
-//     uint32_t Checksum;         // Checksum for body only.
-
-// 	uint32_t blob_name;	        // Stringdx for blob name.
-
-// 	uint32_t phystr_start;	    // Physical string definitions.
-// 	uint32_t phystr_size;	    // Size of the phystring table.
-
-// 	uint32_t strindx_start;	    // Start of the string table.
-// 	uint32_t strindx_size;	    // Size of the string table.
-
-// 	uint32_t vartab_start;	    // Start of the variable table.
-// 	uint32_t vartab_size;	    // Size of the variable table.
-
-// 	uint32_t symtab_start;	    // Start of the program symbol table
-// 	uint32_t symtab_size;	    // Size of the program sysmbol table.
-
-// 	uint32_t vstr_index;	    // Virual LED string array index starts here (relative to start).
-// 	uint32_t vstr_count;	    // Number of Virual LED string arrays defined.
-
-// 	uint32_t vstr_array;	    // Virual LED string record start here.
-// 	uint32_t vstr_size;   	    // Size of the Virual LED string array.
-
-//     uint32_t scen_index;	    // Scene index starts here (relative to start).
-//     uint32_t scen_count;        // Number of scenes defined.
-
-//     uint32_t scen_array;        // Scene array starts here (relative to start).
-//     uint32_t scen_size;		    // Size of scene array.
-
-//     uint32_t trig_start;	    // Trigger array starts here (relative to start).
-//     uint32_t trig_size;		    // Number of triggers defined.
-
-//     uint32_t prog_start;	    // Program array starts here (relative to start).
-//     uint32_t prog_size;		    // Size of program array.
-
-// } BLOB_RAW;
+} STATE;
 
 
-// typedef struct Blob
-// {
-//     uint8_t *name;          // Points to blob name string.
-//     BLOB_RAW* Blob_BASE;    // Points to raw blob.
+#define CONTEXT_ITEMS 5         // Number of uint32_t that are saved.
+#define CONTEXT_DEPTH 5         // Maximum number of saves.
 
-//     uint8_t* Blob_Bin;		// Pointer to start of blob binary data.
+#define PROG_STACK_SIZE (CONTEXT_ITEMS * CONTEXT_DEPTH)      // Maximum number of pending programs.
 
-//     uint8_t* StrindX;       // Point to base of string table.
-//     uint32_t StrindX_Size;
+#define MAX_BENG 7
+#define ENGINE_VALID(beng) ((beng) >= 0 && (beng) <= MAX_BENG)
 
-//     void* SymTab;           // Pointer to start of symbol table.
-//     uint32_t SymTab_Size;
+typedef struct Prog_Stack
+{
+    STACK stk;
+    uint32_t buff[PROG_STACK_SIZE];
 
-//     void* VStr_Index;       // Pointer to base of virtual string index.
-//     uint32_t VStr_Index_Size;
-
-//     void* VStr_Array;       // Pointer to base of virtual string array.
-//     uint32_t VStr_Array_Size;
-
-//     SCENE_ID* Scene_Index;	// Scene index start here.
-//     uint32_t Num_Scenes;	// Number of scenes defined.
-
-//     SCENE*    Scene_Array;	// Scene array start here.
-//     uint32_t Scene_Size;	// Sizeof the scene array.
-
-//     PROG_ID* Trigger_Base;  // Start of the trigger table.
-//     uint32_t Num_Trig;		// Number of trigger records.
-
-//     PROG*    Program_Base;	// Blob Programs start here.
-//     uint32_t Num_Prog;		// Number of PROG records.
-
-// } BLOB;
-
-// extern BLOB Blob;
-extern const int Tick_Speed;                        // Clock for blob player.
-// extern bool Blob_Is_Loaded;
-
-// extern uint32_t Version();
-// extern char* version_to_str(char* buff, uint32_t val);
-
-extern void Beng_Init(void);               // Prepare BLOB engines for use.  Call once at startup.
-
-// extern uint8_t* Blob_Base_Get_New(void);            // Prepare new base for load return pointer to BLOB base.
-// extern void Blob_Base_Switch(void);          // Switch to new base
-// extern BLOB_RAW* Blob_Base_Current(void);                // Returns pointer to current BLOB base.
-
-// extern bool Unpack_Blob_Header(uint8_t* /* blob_base */);    // Call to load a new blob_base.
-// extern void Blob_Unload(void);                      // Release blob_base memory.
-
-extern void Blob_Trigger(TRIG_ID n);                // Immediately Start playing a BLOB program.  (Cancel any running or queue'd)
-extern void Blob_Queue_Next(TRIG_ID n);             // Start playing a BLOB program (after current completes).
-extern void Blob_Stop(void);                        // Stop current program and clear queue.
-
-//extern void Blob_NumLeds(int n);                    // Set number of LEDS.   Call when Num_Leds changes.
-//extern uint32_t Blobhead();
-//extern uint32_t Version();
-//extern uint32_t str_to_uint32(char* str);
-//extern char* uint32_to_str(char* buff, uint32_t val);
+} PROG_STACK;
 
 
-// Endfile: Beng.h
+typedef struct Beng_State
+{
+    struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
+    bool tick_is_running;
+
+	int Tick_Count;             // Used by state machine tick.
+    int Tick_Speed;             // Clock for blob player.    
+
+    STATE State;				// Start in IDLE state.
+   // bool is_idle;               // True if in idle state.
+
+	uint32_t wait_counter;		// Ticks left to wait until next step.
+
+	uint32_t repeat;			// Number of times left to repeat.
+	PROG* repeat_start;			// First command in program sequence.
+	PROG* prog;				    // Points to next program command.
+
+	// XITI* Xiti;				// Transition currently playing.
+//	uint32_t* Xiti_Times;		// Store for transition step time counts.
+
+	PROG_STACK program_stack_buffer;
+    STACK* program_stack;	// Pending program stack. 
+    
+    LED led_rotate_buff[MAX_LED_ROTATE];
+
+    int phy_mask;               // Current phy mask for led writes.
+
+    BENG_VAR local_vars[MAX_BENG_LOCAL + 1];   // Accumulator is at idx 0.
+
+} BENG_STATE;
+
+extern volatile uint64_t Blob_Time;
+
+//extern BENG_STATE Beng_State;   // Do deprecate... eventually.
+
+//extern const int Tick_Speed;                    // Clock for blob player.
+
+extern void Beng_Init(void);                    // Prepare BLOB engines for use.  Call once at startup.
+
+extern void Beng_All_Stop(void);                // Stop all engines and clear all queues.
+
+extern BENG_STATE* Get_Beng_State(int beng_idx);
+
+extern BENG_VAR* BVar_Find_Local(BENG_STATE* /*bs*/, uint32_t /*idx*/);
+
+extern void Beng_Set_Phy_mask(int beng_mask, int phy_mask);
+
+extern void Push_Context(BENG_STATE* /*bs*/);   // Save state context.
+extern void Pop_Context(BENG_STATE* /*bs*/);    // Recover saved state context.
+
+extern void Blob_Run(int beng_idx, PROG_ID pnum);
+extern void Blob_Run_mask(int beng_mask, PROG_ID pnum);
+
+extern void Blob_Trigger(int /*beng_idx*/, TRIG_ID /*trig_id*/);    // Immediately Start playing a BLOB program.  (Cancel any running or queue'd).
+extern void Blob_Trigger_mask(int /*beng_mask*/, TRIG_ID /*trig_id*/);
+
+//extern void Blob_Queue_Next(int /*bsn*/, TRIG_ID /*n*/);         // Start playing a BLOB program (after current completes).
+
+#endif  // BENG_H
+
+// Endfile: beng.h
