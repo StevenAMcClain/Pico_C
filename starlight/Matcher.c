@@ -24,7 +24,7 @@ PRIVATE struct Matcher Matches[MATCH_LAST] =
     {"SENG", 0, MATCH_SENG}, 
     {"SPHY", 0, MATCH_SPHY}, 
 
-    {"BLOB", 0, MATCH_SET_BLOB}, 
+    {"BLOB", 0, MATCH_LOAD_BLOB}, 
     {"XBLB", 0, MATCH_EXPORT_BLOB},
 
     {"SCEN", 0, MATCH_SCENE}, 

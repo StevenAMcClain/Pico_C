@@ -18,16 +18,21 @@ PUBLIC const char* Command_Name(COMMAND cmd)
             "end",  // COMMAND_END      -- end of program, stop running.
             "upda", // COMMAND_UPDATE   -- update all leds that need updaing.
             "yiel", // COMMAND_YIELD    -- wait until next tick.
-            "wait", // COMMAND_WAIT     -- wait for (n) seconds.
+            "wait", // COMMAND_WAIT     -- wait for (n) milli-seconds.
+            "paus", // COMMAND_PAUS     -- pause for (n) engine ticks.
+
             "jump", // COMMAND_JUMP     -- jump to a new line in routine.
             "call", // COMMAND_CALL     -- call a sub routine.
             "repe", // COMMAND_REPEAT   -- repeat a sequence (n) times.
+
             "sphy", // COMMAND_SPHY     -- set current led string (1->8 is physical string), 0 is current, <1 all.
             "scen", // COMMAND_SCENE    -- paint scene (n).
             "rend", // COMMAND_RENDER   -- paint scene (n), no update.
+
             "shif", // COMMAND_SHIFT    -- shift led color values (values that are shifted off the end are lost).
             "rota", // COMMAND_ROTATE   -- rotate led value. (end wraps).
             "morp", // COMMAND_MORPH    -- morph current scene into new scene (n) over (t) seconds.
+
             "intr", // COMMAND_INTRRUPT -- interrupt current routine.
             "queu", // COMMAND_QUEUE    -- add routine to queue.
 
@@ -48,6 +53,11 @@ PUBLIC const char* Command_Name(COMMAND cmd)
             "or",   // COMMAND_OR       -- Bitwise OR a value with accumulator.
             "xor",  // COMMAND_XOR      -- Bitwise XOR a value with accumulator.
             "not",  // COMMAND_NOT      -- Bitwise complement value in accumulator.
+
+            "shl",  // COMMAND_SHL      -- Bitwise shift value in accumulator left.
+            "shr",  // COMMAND_SHR      -- Bitwise shift value in accumulator right.
+            "rol",  // COMMAND_ROL      -- Bitwise rotate value in accumulator left.
+            "ror",  // COMMAND_ROR      -- Bitwise rotate value in accumulator right.
 
             "push", // COMMAND_PUSH     -- Push variable onto stack (if var is omitted then accumulator is used)
             "pop",  // COMMAND_POP      -- Push stack into variable (if var is omitted then accumulator is used)
@@ -87,13 +97,11 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 
 		while (result && !done)
 		{
-			COMMAND base = *(COMMAND*)cmdp++;
+			PROG base = *(PROG*)cmdp++;
 
-            COMMAND cmd = base & COMMAND_MASK;
+            COMMAND cmd = (COMMAND)base & COMMAND_MASK;
 
-//            COMMAND_ARG1_IS_VARIABLE
-			D(DEBUG_BLOB2, PRINTF("PC [%d]: %d '%s'\n", 
-                    Prog_Id(cmdp), cmd, Command_Name(cmd));)
+			D(DEBUG_BLOB2, PRINTF("PC [%d]: %d '%s'\n", Prog_Id(cmdp), cmd, Command_Name(cmd));)
 
 			switch (cmd)
 			{
@@ -114,7 +122,7 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 					done = true;
 					break;
 				}
-				case COMMAND_WAIT:     // wait for (n) seconds.
+				case COMMAND_WAIT:     // wait for (n) milli-seconds.
 				{
                     uint32_t arg = 0;
 
@@ -122,7 +130,12 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 
                     if (base & COMMAND_ARG1_IS_VARIABLE)
                     {
+                        BENG_VAR* var = BVar_Find(bs, arg);
 
+                        if (var)
+                        {
+                            arg = BVar_Get_int(var);
+                        }
                     }
 
                     bs->wait_counter = arg;
@@ -130,6 +143,10 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 					done = true;
 					break;
 				}
+				case COMMAND_PAUS:     // wait for (n) engine ticks.
+                {
+                    break;
+                }
 				case COMMAND_SPHY:    // select current phy string.
 				{
 					int32_t arg = (int32_t)*cmdp++;
@@ -183,14 +200,16 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 				}
 				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
 				{
+                    LED led_rotate_buff[MAX_LED_ROTATE];
 					int32_t shift = (int32_t)*cmdp++;			// Number of places to shift.
-					Command_Shift_LEDS_mask(bs->phy_mask, true, shift, (LED*)&bs->led_rotate_buff);
+					Command_Shift_LEDS_mask(bs->phy_mask, true, shift, led_rotate_buff);
 					break;
 				}
 				case COMMAND_ROTATE:   // rotate led value. (end wraps).
 				{
+                    LED led_rotate_buff[MAX_LED_ROTATE];
 					int32_t shift = (int32_t)*cmdp++;			// Number of places to rotate.
-					Command_Shift_LEDS_mask(bs->phy_mask, false, shift, (LED*)&bs->led_rotate_buff);
+					Command_Shift_LEDS_mask(bs->phy_mask, false, shift, led_rotate_buff);
 					break;
 				}
 				case COMMAND_MORPH:    // morph current scene into new scene (n) over (t) seconds.

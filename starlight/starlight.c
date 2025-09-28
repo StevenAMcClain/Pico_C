@@ -39,10 +39,9 @@ PUBLIC void _Printf(const char *fmt, ...)
     }
 }
 
-//#define COUNT 100000000
 
-extern void mem_dump_p(int (*p)(const char * restrict, ...), void* ptr, size_t n);
-#define mem_dump_printf(ptr, size) mem_dump_p(PRINTF, ptr, size);
+// extern void mem_dump_p(int (*p)(const char * restrict, ...), void* ptr, size_t n);
+// #define mem_dump_printf(ptr, size) mem_dump_p(PRINTF, ptr, size);
 
 
 PRIVATE void Start_BlueTooth(void)

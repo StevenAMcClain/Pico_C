@@ -40,18 +40,46 @@ typedef enum
 #define BENG_VAR_TYPE_MASK 0xFFFF
 
 
+typedef struct Blob_Var
+{
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+
+} BLOB_VAR;
+
+#define BLOB_VAR_SIZE 4
+
+
+typedef union bvar
+{
+    void* ptr;
+    int i;
+    unsigned int ui;
+    float f;
+    double d;
+
+} BVAR;
+
+
+
 typedef struct Beng_Var
 {
     BENG_VAR_TYPE type;
-    
-    union
-    {
-        void* ptr;
-        int i;
-        unsigned int ui;
-        float f;
-        double d;
-    };
+
+    int id;
+    char* name;
+
+    BVAR value;
+    // union
+    // {
+    //     void* ptr;
+    //     int i;
+    //     unsigned int ui;
+    //     float f;
+    //     double d;
+    // } value;
 
     void (*Set)(struct Beng_Var* /*var*/);
     void (*Get)(struct Beng_Var* /*var*/);
@@ -63,6 +91,7 @@ extern BENG_VAR* BVar_Find_Global(uint32_t /*idx*/);
 extern BENG_VAR* BVar_Find_Internal(uint32_t /*idx*/);
 
 extern BENG_VAR* BVar_Find(void* /*bs*/, uint32_t /*idx*/);
+extern BENG_VAR* BVar_Find_Name(void* /*bs*/, char* /*varname*/);
 
 extern void BVar_Set(BENG_VAR* /*var*/);
 extern void BVar_Get(BENG_VAR* /*var*/);
@@ -78,6 +107,7 @@ extern void BVar_Set_uint(BENG_VAR* /*var*/, unsigned int /*val*/);
 extern void BVar_Set_float(BENG_VAR* /*var*/, float /*val*/);
 extern void BVar_Set_double(BENG_VAR* /*var*/, double /*val*/);
 extern void BVar_Set_pointer(BENG_VAR* /*var*/, void* /*val*/);
+
 
 #endif  // BVAR_H
 

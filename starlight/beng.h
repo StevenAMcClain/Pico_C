@@ -25,8 +25,8 @@ typedef enum
 
 #define PROG_STACK_SIZE (CONTEXT_ITEMS * CONTEXT_DEPTH)      // Maximum number of pending programs.
 
-#define MAX_BENG 7
-#define ENGINE_VALID(beng) ((beng) >= 0 && (beng) <= MAX_BENG)
+#define MAX_BENG 8
+#define ENGINE_VALID(beng) ((beng) >= 0 && (beng) < MAX_BENG)
 
 typedef struct Prog_Stack
 {
@@ -59,8 +59,6 @@ typedef struct Beng_State
 	PROG_STACK program_stack_buffer;
     STACK* program_stack;	// Pending program stack. 
     
-    LED led_rotate_buff[MAX_LED_ROTATE];
-
     int phy_mask;               // Current phy mask for led writes.
 
     BENG_VAR local_vars[MAX_BENG_LOCAL + 1];   // Accumulator is at idx 0.

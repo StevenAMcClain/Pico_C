@@ -18,8 +18,8 @@ PRIVATE BENG_VAR BEng_Global_Vars[MAX_BENG_GLOBAL];
 
 
 PUBLIC void BVar_Set(BENG_VAR* var)
- {
- }
+{
+}
 
 
 PUBLIC void BVar_Get(BENG_VAR* var)
@@ -53,6 +53,11 @@ PUBLIC BENG_VAR* BVar_Find(void* bs, uint32_t idx)
     return NULL;
 }
 
+PUBLIC BENG_VAR* BVar_Find_Name(void* bs, char* varname)
+{
+    return NIL;
+}
+
 
 PUBLIC int BVar_Get_int(BENG_VAR* var)
 {
@@ -64,20 +69,20 @@ PUBLIC int BVar_Get_int(BENG_VAR* var)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = *(int*)var->ptr; break; }
-            case BENG_VAR_TYPE_UINT: { result = (int)*(unsigned int*)var->ptr; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = (int)*(float*)var->ptr; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = (int)*(double*)var->ptr; break; }
+            case BENG_VAR_TYPE_INT: { result = *(int*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_UINT: { result = (int)*(unsigned int*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = (int)*(float*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = (int)*(double*)var->value.ptr; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = var->i; break; }
-            case BENG_VAR_TYPE_UINT: { result = (int)var->ui; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = (int)var->f; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = (int)var->d; break; }
+            case BENG_VAR_TYPE_INT: { result = var->value.i; break; }
+            case BENG_VAR_TYPE_UINT: { result = (int)var->value.ui; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = (int)var->value.f; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = (int)var->value.d; break; }
         }
     }
     return result;
@@ -94,20 +99,20 @@ PUBLIC unsigned int BVar_Get_uint(BENG_VAR* var)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = (unsigned int)*(int*)var->ptr; break; }
-            case BENG_VAR_TYPE_UINT: { result = *(unsigned int*)var->ptr; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = (unsigned int)*(float*)var->ptr; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = (unsigned int)*(double*)var->ptr; break; }
+            case BENG_VAR_TYPE_INT: { result = (unsigned int)*(int*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_UINT: { result = *(unsigned int*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = (unsigned int)*(float*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = (unsigned int)*(double*)var->value.ptr; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = (unsigned int)var->i; break; }
-            case BENG_VAR_TYPE_UINT: { result = var->ui; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = (unsigned int)var->f; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = (unsigned int)var->d; break; }
+            case BENG_VAR_TYPE_INT: { result = (unsigned int)var->value.i; break; }
+            case BENG_VAR_TYPE_UINT: { result = var->value.ui; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = (unsigned int)var->value.f; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = (unsigned int)var->value.d; break; }
         }
     }
     return result;
@@ -124,20 +129,20 @@ PUBLIC float BVar_Get_float(BENG_VAR* var)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = (float)*(int*)var->ptr; break; }
-            case BENG_VAR_TYPE_UINT: { result = (float)*(unsigned int*)var->ptr; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = *(float*)var->ptr; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = (float)*(double*)var->ptr; break; }
+            case BENG_VAR_TYPE_INT: { result = (float)*(int*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_UINT: { result = (float)*(unsigned int*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = *(float*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = (float)*(double*)var->value.ptr; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = (float)var->i; break; }
-            case BENG_VAR_TYPE_UINT: { result = (float)var->ui; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = var->f; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = (float)var->d; break; }
+            case BENG_VAR_TYPE_INT: { result = (float)var->value.i; break; }
+            case BENG_VAR_TYPE_UINT: { result = (float)var->value.ui; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = var->value.f; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = (float)var->value.d; break; }
         }
     }
     return result;
@@ -154,20 +159,20 @@ PUBLIC double BVar_Get_double(BENG_VAR* var)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = (double)*(int*)var->ptr; break; }
-            case BENG_VAR_TYPE_UINT: { result = (double)*(unsigned int*)var->ptr; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = (double)*(float*)var->ptr; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = *(double*)var->ptr; break; }
+            case BENG_VAR_TYPE_INT: { result = (double)*(int*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_UINT: { result = (double)*(unsigned int*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = (double)*(float*)var->value.ptr; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = *(double*)var->value.ptr; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = (double)var->i; break; }
-            case BENG_VAR_TYPE_UINT: { result = (double)var->ui; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = (double)var->f; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = var->d; break; }
+            case BENG_VAR_TYPE_INT: { result = (double)var->value.i; break; }
+            case BENG_VAR_TYPE_UINT: { result = (double)var->value.ui; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = (double)var->value.f; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = var->value.d; break; }
         }
     }
     return result;
@@ -182,16 +187,16 @@ PUBLIC void* BVar_Get_pointer(BENG_VAR* var)
 
     if (modifier & BENG_VAR_TYPE_POINTER)
     {
-        result = var->ptr; 
+        result = var->value.ptr; 
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { result = &var->i; break; }
-            case BENG_VAR_TYPE_UINT: { result = &var->ui; break; }
-            case BENG_VAR_TYPE_FLOAT: { result = &var->f; break; }
-            case BENG_VAR_TYPE_DOUBLE: { result = &var->d; break; }
+            case BENG_VAR_TYPE_INT: { result = &var->value.i; break; }
+            case BENG_VAR_TYPE_UINT: { result = &var->value.ui; break; }
+            case BENG_VAR_TYPE_FLOAT: { result = &var->value.f; break; }
+            case BENG_VAR_TYPE_DOUBLE: { result = &var->value.d; break; }
         }
     }
     return result;
@@ -207,20 +212,20 @@ PUBLIC void BVar_Set_int(BENG_VAR* var, int val)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { *(int*)var->ptr = val; break; }
-            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->ptr = (unsigned int)val; break; }
-            case BENG_VAR_TYPE_FLOAT: { *(float*)var->ptr = (float)val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->ptr = (double)val; break; }
+            case BENG_VAR_TYPE_INT: { *(int*)var->value.ptr = val; break; }
+            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->value.ptr = (unsigned int)val; break; }
+            case BENG_VAR_TYPE_FLOAT: { *(float*)var->value.ptr = (float)val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->value.ptr = (double)val; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { var->i = val; break; }
-            case BENG_VAR_TYPE_UINT: { var->ui = (unsigned int)val; break; }
-            case BENG_VAR_TYPE_FLOAT: { var->f = (float)val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { var->d = (double)val; break; }
+            case BENG_VAR_TYPE_INT: { var->value.i = val; break; }
+            case BENG_VAR_TYPE_UINT: { var->value.ui = (unsigned int)val; break; }
+            case BENG_VAR_TYPE_FLOAT: { var->value.f = (float)val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { var->value.d = (double)val; break; }
         }
     }
 }
@@ -235,20 +240,20 @@ PUBLIC void BVar_Set_uint(BENG_VAR* var, unsigned int val)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { *(int*)var->ptr = (int)val; break; }
-            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->ptr = val; break; }
-            case BENG_VAR_TYPE_FLOAT: { *(float*)var->ptr = (float)val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->ptr = (double)val; break; }
+            case BENG_VAR_TYPE_INT: { *(int*)var->value.ptr = (int)val; break; }
+            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->value.ptr = val; break; }
+            case BENG_VAR_TYPE_FLOAT: { *(float*)var->value.ptr = (float)val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->value.ptr = (double)val; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { var->i = (int)val; break; }
-            case BENG_VAR_TYPE_UINT: { var->ui = val; break; }
-            case BENG_VAR_TYPE_FLOAT: { var->f = (float)val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { var->d = (double)val; break; }
+            case BENG_VAR_TYPE_INT: { var->value.i = (int)val; break; }
+            case BENG_VAR_TYPE_UINT: { var->value.ui = val; break; }
+            case BENG_VAR_TYPE_FLOAT: { var->value.f = (float)val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { var->value.d = (double)val; break; }
         }
     }
 }
@@ -262,20 +267,20 @@ PUBLIC void BVar_Set_float(BENG_VAR* var, float val)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { *(int*)var->ptr = (int)val; break; }
-            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->ptr = (unsigned int)val; break; }
-            case BENG_VAR_TYPE_FLOAT: { *(float*)var->ptr = val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->ptr = (double)val; break; }
+            case BENG_VAR_TYPE_INT: { *(int*)var->value.ptr = (int)val; break; }
+            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->value.ptr = (unsigned int)val; break; }
+            case BENG_VAR_TYPE_FLOAT: { *(float*)var->value.ptr = val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->value.ptr = (double)val; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { var->i = (int)val; break; }
-            case BENG_VAR_TYPE_UINT: { var->ui = (unsigned int)val; break; }
-            case BENG_VAR_TYPE_FLOAT: { var->f = val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { var->d = (double)val; break; }
+            case BENG_VAR_TYPE_INT: { var->value.i = (int)val; break; }
+            case BENG_VAR_TYPE_UINT: { var->value.ui = (unsigned int)val; break; }
+            case BENG_VAR_TYPE_FLOAT: { var->value.f = val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { var->value.d = (double)val; break; }
         }
     }
 }
@@ -289,20 +294,20 @@ PUBLIC void BVar_Set_double(BENG_VAR* var, double val)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { *(int*)var->ptr = (int)val; break; }
-            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->ptr = (unsigned int)val; break; }
-            case BENG_VAR_TYPE_FLOAT: { *(float*)var->ptr = (float)val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->ptr = val; break; }
+            case BENG_VAR_TYPE_INT: { *(int*)var->value.ptr = (int)val; break; }
+            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->value.ptr = (unsigned int)val; break; }
+            case BENG_VAR_TYPE_FLOAT: { *(float*)var->value.ptr = (float)val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->value.ptr = val; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { var->i = (int)val; break; }
-            case BENG_VAR_TYPE_UINT: { var->ui = (unsigned int)val; break; }
-            case BENG_VAR_TYPE_FLOAT: { var->f = (float)val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { var->d = val; break; }
+            case BENG_VAR_TYPE_INT: { var->value.i = (int)val; break; }
+            case BENG_VAR_TYPE_UINT: { var->value.ui = (unsigned int)val; break; }
+            case BENG_VAR_TYPE_FLOAT: { var->value.f = (float)val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { var->value.d = val; break; }
         }
     }
 }
@@ -317,28 +322,23 @@ PUBLIC void BVar_Set_pointer(BENG_VAR* var, void* val)
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { *(int*)var->ptr = *(int*)val; break; }
-            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->ptr = *(unsigned int*)val; break; }
-            case BENG_VAR_TYPE_FLOAT: { *(float*)var->ptr = *(float*)val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->ptr = *(double*)val; break; }
+            case BENG_VAR_TYPE_INT: { *(int*)var->value.ptr = *(int*)val; break; }
+            case BENG_VAR_TYPE_UINT: { *(unsigned int*)var->value.ptr = *(unsigned int*)val; break; }
+            case BENG_VAR_TYPE_FLOAT: { *(float*)var->value.ptr = *(float*)val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { *(double*)var->value.ptr = *(double*)val; break; }
         }
     }
     else
     {
         switch (base)
         {
-            case BENG_VAR_TYPE_INT: { var->i = *(int*)val; break; }
-            case BENG_VAR_TYPE_UINT: { var->ui = *(unsigned int*)val; break; }
-            case BENG_VAR_TYPE_FLOAT: { var->f = *(float*)val; break; }
-            case BENG_VAR_TYPE_DOUBLE: { var->d = *(double*)val; break; }
+            case BENG_VAR_TYPE_INT: { var->value.i = *(int*)val; break; }
+            case BENG_VAR_TYPE_UINT: { var->value.ui = *(unsigned int*)val; break; }
+            case BENG_VAR_TYPE_FLOAT: { var->value.f = *(float*)val; break; }
+            case BENG_VAR_TYPE_DOUBLE: { var->value.d = *(double*)val; break; }
         }
     }
 }
-
-
-
-//PUBLIC BENG_VAR* BVar_Find_Local(BENG_STATE* state, uint32_t idx)
-//{}
 
 
 // EndFile: bvar.c

@@ -22,7 +22,7 @@ typedef struct
 
 } LEDS_PHY;
 
-PRIVATE LED Leds_Buff[MAX_NUM_LEDS];
+PRIVATE LED Leds_Buff[MAX_NUM_LEDS];   // All LED values in the entire system are stored here!
 PRIVATE size_t Leds_Allocated = 0;
 
 PRIVATE LEDS_PHY LEDS_Phy[MAX_PHY] = {0};
@@ -76,7 +76,7 @@ PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
     {
         LEDS_PHY* phy = LEDS_Phy + phy_idx;
 
-        LED* buff = LEDS_Buff_Allocate(2 * led_count);
+        LED* buff = LEDS_Buff_Allocate(2 * led_count);   // Allocate room for LED values and scaled LED values.
 
         if (buff)
         {
@@ -84,7 +84,11 @@ PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
             phy->scaled_led_data = buff + led_count;
             phy->led_count = led_count;
         }
-        else { phy->led_count = 0; }
+        else 
+        {
+            phy->led_data = phy->scaled_led_data = NIL;
+            phy->led_count = 0; 
+        }
 
         WS2812_Set_Num_LEDS(phy_idx, led_count);
     }

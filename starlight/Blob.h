@@ -3,6 +3,8 @@
 #ifndef BLOB_H
 #define BLOB_H
 
+#include "bvar.h"
+
 #define MAX_BLOB_SIZE (64 * 1024)    // max size for a blob (check implications for FLASH storage).
 
 #define BLOB_VERSION "0.2d"
@@ -83,7 +85,7 @@ typedef struct Blob
     SCENE_ID* Scene_Index;	// Scene index start here.
     uint32_t Num_Scenes;	// Number of scenes defined.
 
-    SCENE*    Scene_Array;	// Scene array start here.
+    SCENE*   Scene_Array;	// Scene array start here.
     uint32_t Scene_Size;	// Sizeof the scene array.
 
     PROG_ID* Trigger_Base;  // Start of the trigger table.
@@ -91,6 +93,9 @@ typedef struct Blob
 
     PROG*    Program_Base;	// Blob Programs start here.
     uint32_t Num_Prog;		// Number of PROG records.
+
+    BLOB_VAR* VarTab_Base;	// Variable table starts here.
+    uint32_t Num_VarRecs;	// Number of variable records.
 
 } BLOB;
 

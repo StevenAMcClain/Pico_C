@@ -19,7 +19,7 @@ PUBLIC volatile uint64_t Blob_Time = 0;
 // PRIVATE LED LED_Morph_Data[MAX_NUM_LEDS];
 // #define All_Program_Stop(msg, n) { PRINTF(msg, n); Blob_Stop(); }
 
-PUBLIC BENG_STATE Beng_State[MAX_BENG + 1] = {0};     // One of these for each engine!
+PUBLIC BENG_STATE Beng_State[MAX_BENG] = {0};     // One of these for each engine!
 
 
 PUBLIC BENG_STATE* Get_Beng_State(int beng_idx)
@@ -119,7 +119,7 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 {
     BENG_STATE* bs = (BENG_STATE*)ptr->user_data;
 
-	D(DEBUG_BLOB2, if (bs->State)  { PRINTF("\n== Blob_Tick %d: State %d\n", ++bs->Tick_Count, bs->State); })
+//	D(DEBUG_BLOB2, if (bs->State)  { PRINTF("\n== Blob_Tick %d: State %d\n", ++bs->Tick_Count, bs->State); })
 
 	switch (bs->State)
 	{
@@ -183,7 +183,7 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 			break;
 		}
 	}
-	D(DEBUG_BLOB2, if (bs->State)  { PRINTF("== Blob_Tick: Done (%d).\n\n", bs->Tick_Count); })
+	//D(DEBUG_BLOB2, if (bs->State)  { PRINTF("== Blob_Tick: Done (%d).\n\n", bs->Tick_Count); })
 
 	return true;
 }

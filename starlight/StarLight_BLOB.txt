@@ -92,7 +92,8 @@ QUEU: (cp)			# Add a command to execute after current command.
 //-----------------------------------------
 //
 SETV
-GETV
+
+GETV (var)
 
 //-----------------------------------------
 //

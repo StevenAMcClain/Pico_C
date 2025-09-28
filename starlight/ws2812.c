@@ -116,10 +116,8 @@ PUBLIC void WS2812_Prime_Send(uint32_t phy_mask, uint32_t* buff)
 
             ++i;  mask <<= 1; ++phy;
         }
-        if (phy_mask)
-        {
-            PRINTF("WS2812_Prime_Send: try again %X\n", phy_mask);
-        }
+
+   //     if (phy_mask) { PRINTF("WS2812_Prime_Send: try again %X\n", phy_mask); }
     }
 }
 
@@ -167,6 +165,7 @@ PUBLIC void WS2812_Do_Send(void)
 
 PUBLIC void WS2812_Init(void)
 {
+    uint pins[MAX_PHY] = {16, 17, 18, 19 /*, 18, 19, 20, 21*/};
     uint offset = pio_add_program(pio0, &ws2812_program);
     offset = pio_add_program(pio1, &ws2812_program);
 
@@ -180,15 +179,15 @@ PUBLIC void WS2812_Init(void)
 
         bool is_enabled = (pio->ctrl & (1u << sm)) != 0;
 
-        if (is_enabled)
-        {
-            printf("WS2812_Init: already enabled pio %d, sm %d\n", pio, sm);
-        }
-        else
-        {
-            ws2812_program_init(pio, sm, offset, i + WS2812_PIN, 800000, IS_RGBW);
-            DMA_Init(phy);
-        }
+        // if (i != 6)
+        // {
+            if (is_enabled) { printf("\n\n *** WS2812_Init: already enabled pio %d, sm %d\n\n\n", pio, sm); }
+            else
+            {
+                ws2812_program_init(pio, sm, offset, pins[i]/*i + WS2812_PIN*/, 800000, IS_RGBW);
+                DMA_Init(phy);
+            }
+        // }
         ++phy; ++i;
     }
 

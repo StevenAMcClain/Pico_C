@@ -10,7 +10,7 @@ typedef enum match_code
     MATCH_SENG,         // Set the current engine to use.
     MATCH_SPHY,         // Set the current led array to use.
 
-    MATCH_SET_BLOB,     // Loads a new blob.
+    MATCH_LOAD_BLOB,     // Loads a new blob.
     MATCH_EXPORT_BLOB,     // Export current blob.
 
     MATCH_SCENE,        // Set leds to scene.

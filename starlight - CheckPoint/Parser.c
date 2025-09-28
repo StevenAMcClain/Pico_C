@@ -412,7 +412,7 @@ PRIVATE void parser(int ch)
                 PRINTF("UPDA\n");
                 break;
             }
-            case MATCH_SET_BLOB:            // BLOB: Load a new binary object containing program.
+            case MATCH_LOAD_BLOB:            // BLOB: Load a new binary object containing program.
             {
                 PRINTF("READ\n");
 //                BTPRINTF("READ\n");

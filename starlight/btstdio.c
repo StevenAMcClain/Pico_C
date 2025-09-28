@@ -1,41 +1,3 @@
-/*
- * Heavily modified and in no way backward compatible! - Steven A. McClain (2024)
- *
- * Copyright (C) 2014 BlueKitchen GmbH
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the copyright holders nor the names of
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- * 4. Any redistribution, use, or modification is done solely for
- *    personal benefit and not for any commercial purpose or for
- *    monetary gain.
- *
- * THIS SOFTWARE IS PROVIDED BY BLUEKITCHEN GMBH AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL BLUEKITCHEN
- * GMBH OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
- * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * Please inquire about commercial licensing options at 
- * contact@bluekitchen-gmbh.com
- */
-
 #include "common.h"
 #include "btstdio.h"
 
@@ -52,11 +14,6 @@
 
 #include "debug.h"
 #include "obled.h"
-
-
-//#include <pico/multicore.h>
-// #include <btstack_run_loop_embedded.h>
-// #include <pico/btstack_run_loop_async_context.h>
 
 
 #define BLUETOOTH_PORTNAME "Starlight"
@@ -299,10 +256,10 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
                 {
                     if (lineBufferSize > 0 && lineBuffer)
                     {
-                        PRINTF("RFCOMM can send now: size %d\n", lineBufferSize);
+//                        PRINTF("RFCOMM can send now: size %d\n", lineBufferSize);
 //                        rfcomm_send(rfcomm_channel_id, (uint8_t*)lineBuffer, (uint16_t)strlen((const char*)lineBuffer));  
                         rfcomm_send(rfcomm_channel_id, (uint8_t*)lineBuffer, lineBufferSize);  
-                        PRINTF("RFCOMM did send: size %d\n", lineBufferSize);
+//                        PRINTF("RFCOMM did send: size %d\n", lineBufferSize);
                     }
                     lineBuffer = 0;   lineBufferSize = 0;
                     break;
@@ -355,7 +312,7 @@ PRIVATE void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *pack
         }
         case RFCOMM_DATA_PACKET:
         {
-            D(DEBUG_BLUETOOTH, PRINTF("RFCOMM_DATA_PACKET: size %d\n", size);)
+//            D(DEBUG_BLUETOOTH, PRINTF("RFCOMM_DATA_PACKET: size %d\n", size);)
             ObLED_Off();
             for (i = 0; i < size; i++)
             {
@@ -441,6 +398,11 @@ PUBLIC void BlueTooth_Server(void)   // This is the main for the second core.
 }
 
 
+PUBLIC bool BlueTooth_TryGetPeek(uint8_t* val)
+{
+    return queue_try_peek(&BlueTooth_Receive_Queue, val);
+}
+
 PUBLIC int BlueTooth_TryGetChar()
 {
     char val;
@@ -467,7 +429,7 @@ PUBLIC bool BlueTooth_Check_Receive(void)
 }
 
 
-#define MAX_BT_PRINTF_BUFF 200
+#define MAX_BT_PRINTF_BUFF 1000
 
 #include <stdarg.h>
 PUBLIC void BlueTooth_Printf(const char *fmt, ...) 

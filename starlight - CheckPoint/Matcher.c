@@ -24,7 +24,7 @@ PRIVATE struct Matcher Matches[MATCH_LAST] =
     {(uint8_t*)"SCEN", 0, MATCH_SCENE}, 
     {(uint8_t*)"BLAC", 0, MATCH_BLACK}, 
     {(uint8_t*)"UPDA", 0, MATCH_UPDATE}, 
-    {(uint8_t*)"BLOB", 0, MATCH_SET_BLOB}, 
+    {(uint8_t*)"BLOB", 0, MATCH_LOAD_BLOB}, 
     {(uint8_t*)"TRIG", 0, MATCH_TRIGGER}, 
     {(uint8_t*)"QUEU", 0, MATCH_QUEUE}, 
     {(uint8_t*)"BRIG", 0, MATCH_BRIGHTNESS}, 

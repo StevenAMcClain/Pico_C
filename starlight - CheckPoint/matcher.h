@@ -10,7 +10,7 @@ typedef enum match_code
     MATCH_SCENE,        // Set leds to scene.
     MATCH_BLACK,        // All leds black (stop running blob and clears queue)
     MATCH_UPDATE,       // Update leds that need updaing.
-    MATCH_SET_BLOB,     // Loads a new blob.
+    MATCH_LOAD_BLOB,     // Loads a new blob.
     MATCH_TRIGGER,      // Trigger a program to start running immediately.
     MATCH_QUEUE,        // Queue a program to start running after current program completes.
     MATCH_BRIGHTNESS,   // Set led brighness (0.0 -> 1.0)

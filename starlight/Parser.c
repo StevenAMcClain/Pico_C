@@ -17,6 +17,8 @@
 #include "matcher.h"
 #include "scene.h"
 
+#define MAX_VARNAME_SIZE 40
+
 #define CHAR_TIMEOUT 50000
 
 #define MAX_BRIGHTNESS_NUM 1000 // 100.0 %
@@ -159,8 +161,61 @@ PRIVATE bool read_blob(void)
 }
 
 
+PRIVATE void skip_white(void)
+{
+    while (true)
+    {
+        uint8_t val;
+
+        if (BlueTooth_TryGetPeek(&val) && isblank(val))
+        {
+            (void)parser_getchar();   // Consume whitespace.
+
+        }
+        else break;
+    }
+}
+
+
+PRIVATE int read_var_name(char* buff, size_t buff_size)
+{
+    skip_white();
+
+    int count = 0;
+
+    bool reading = true;
+    bool is_first = true;
+
+    if (buff_size) --buff_size;   // always leave room for final null.
+
+    while (reading && count < buff_size)
+    {
+        int ch = parser_getchar();
+
+        if (ch != PICO_ERROR_TIMEOUT)
+        {
+            if ( (is_first && isalpha(ch)) || (!is_first && isalnum(ch)) )
+            {
+                is_first = false;
+                *buff++ = ch;
+                *buff = 0;
+                ++count;
+                continue;
+            }
+        }
+        else { D(DEBUG_PRINTF, PRINTF("read_num: TIMEOUT\n");) }
+
+        reading = false;
+    }
+
+    return count;
+}
+
+
 PRIVATE int read_num(void)
 {
+    skip_white();
+
     int val = 0;
 
     bool reading = true;
@@ -177,10 +232,7 @@ PRIVATE int read_num(void)
                 continue;
             }
         }
-        else
-        {
-            D(DEBUG_PRINTF, PRINTF("read_num: TIMEOUT\n");)
-        }
+        else { D(DEBUG_PRINTF, PRINTF("read_num: TIMEOUT\n");) }
 
         reading = false;
     }
@@ -190,6 +242,8 @@ PRIVATE int read_num(void)
 
 PRIVATE int read_snum(void) // Read signed number.
 {
+    skip_white();
+
     bool isfirst = true;
     bool isneg = false;
     int val = 0;
@@ -210,18 +264,12 @@ PRIVATE int read_snum(void) // Read signed number.
             {
                 val = (val * 10) + (ch - '0');
             }
-            else
-            {
-                break;
-            }
+            else { break; }
 
             isfirst = false;
             continue;
         }
-        else
-        {
-            D(DEBUG_PRINTF, PRINTF("read_snum: TIMEOUT\n");)
-        }
+        else { D(DEBUG_PRINTF, PRINTF("read_snum: TIMEOUT\n");) }
 
         reading = false;
     }
@@ -232,6 +280,8 @@ PRIVATE int read_snum(void) // Read signed number.
 
 PRIVATE int read_hnum(void) // Read hex number.
 {
+    skip_white();
+
     int val = 0;
 
     bool reading = true;
@@ -248,10 +298,7 @@ PRIVATE int read_hnum(void) // Read hex number.
                 ch = (ch >= 'a' && ch <= 'f') ? ch - 'a' + 10 : ch - '0';
                 val = (val << 4) + ch;
             }
-            else
-            {
-                break;
-            }
+            else { break; }
 
             continue;
         }
@@ -293,10 +340,7 @@ PRIVATE void do_export()
             }
         }
     }
-    else
-    {
-        BTPRINTF("<<NONE>>\n");
-    }
+    else { BTPRINTF("<<NONE>>\n"); }
 }
 
 
@@ -397,83 +441,7 @@ PRIVATE void parser(int ch)
             BTPRINTF("BLAC\n");
             break;
         }
-        case MATCH_UPDATE: // UPDA: Update and leds that need updating.
-        {
-            LEDS_Do_Update();
-            PRINTF("UPDA\n");
-            break;
-        }
-        case MATCH_SET_BLOB: // BLOB: Load a new binary object containing program.
-        {
-            PRINTF("BLOB\n");
-
-            if (read_blob())
-            {
-                //=== Start...
-                Blob_Run_mask(engine_mask, 1);
-            }
-            break;
-        }
-        case MATCH_EXPORT_BLOB:
-        {
-            do_export();
-            break;
-        }
-        case MATCH_SAVE:
-        {
-            BPage_Save_Blob(read_num());
-            break;
-        }
-        case MATCH_LOAD:
-        {
-            if (BPage_Load_Blob(read_num()))
-            {
-                //=== Start...
-                Blob_Run_mask(engine_mask, 1);
-            }
-            break;
-        }
-        case MATCH_ERASE:
-        {
-            int bpage = read_num();
-
-            if (BPAGE_VALID(bpage))
-            {
-                BTPRINTF("Page %d erased.\n", arg);
-                BPage_Erase_Page(bpage);
-            }
-            else
-            {
-                BTPRINTF("ERAS: Bad page number must be (0->15)\n");
-            }
-            break;
-        }
-        case MATCH_TRIGGER:
-        {
-            arg = read_num();
-            BTPRINTF("TRIG %d\n", arg);
-            Blob_Trigger_mask(engine_mask, arg);
-            BTPRINTF("TRIG %d\n", arg);
-            break;
-        }
-        case MATCH_BRIGHTNESS:
-        {
-            arg = read_num();
-            D(DEBUG_PRINTF, { PRINTF("BRIG %d \r", arg); fflush(stdout); })
-
-            if (arg >= 0 && arg <= MAX_BRIGHTNESS_NUM)
-            {
-                double newval = arg / (double)MAX_BRIGHTNESS_NUM;
-
-                if (LED_Brightness != newval)
-                {
-                    LED_Brightness = newval;
-                    LED_Needs_Update(ALL_PHYS);
-                    LEDS_Do_Update();
-                }
-            }
-            break;
-        }
+//------
         case MATCH_SENG: // Set the active engine mask.
         {
             arg = read_snum();
@@ -497,6 +465,30 @@ PRIVATE void parser(int ch)
             BTPRINTF("SPHY %d\n", phy_mask);
             break;
         }
+//------
+        case MATCH_LOAD_BLOB: // BLOB: Load a new binary object containing program.
+        {
+            PRINTF("BLOB\n");
+
+            if (read_blob())
+            {
+                //=== Start...
+                Blob_Run_mask(engine_mask, 1);
+            }
+            break;
+        }
+        case MATCH_EXPORT_BLOB:
+        {
+            do_export();
+            break;
+        }
+//------
+        case MATCH_SCENE:
+        {
+            D(DEBUG_PARSER, PRINTF("parser: MATCH_SCENE is not implemented\n");)
+        //     read_scene();
+            break;
+        }
         case MATCH_SHOW:
         {
             arg = read_num();
@@ -505,19 +497,82 @@ PRIVATE void parser(int ch)
             LEDS_Do_Update();
             break;
         }
-        // case MATCH_QUEUE:
-        // {
+        case MATCH_UPDATE: // UPDA: Update and leds that need updating.
+        {
+            LEDS_Do_Update();
+            PRINTF("UPDA\n");
+            break;
+        }
+//------
+        case MATCH_TRIGGER:
+        {
+            arg = read_num();
+            BTPRINTF("TRIG %d\n", arg);
+            Blob_Trigger_mask(engine_mask, arg);
+            BTPRINTF("TRIG %d\n", arg);
+            break;
+        }
+        case MATCH_INTERRUPT:
+        {
+            D(DEBUG_PARSER, PRINTF("parser: MATCH_INTERRUPT is not implemented\n");)
+            break;
+        }
+        case MATCH_QUEUE:
+        {
+            D(DEBUG_PARSER, PRINTF("parser: MATCH_QUEUE is not implemented\n");)
         //     arg = read_num();
         //     PRINTF("QUEU %d\n", arg);         // SAME as trig (for now).
         //     Blob_Queue_Next(arg);
-        //     break;
-        // }
-        // case MATCH_SCENE:
-        // {
-        //     PRINTF("SCEN\n");
-        //     read_scene();
-        //     break;
-        // }
+            break;
+        }
+//------
+        case MATCH_SETV:
+        {
+            D(DEBUG_PARSER, PRINTF("parser: MATCH_SETV is not implemented\n");)
+            break;
+        }
+        case MATCH_GETV:
+        {
+            char var_name[MAX_VARNAME_SIZE];
+            int chars_read = read_var_name(var_name, MAX_VARNAME_SIZE);
+
+            if (chars_read)
+            {
+                BENG_VAR* var = BVar_Find_Name(NULL, var_name);
+                D(DEBUG_PARSER, PRINTF("parser: MATCH_GETV '%s' [%LX]\n", var_name, var);)
+            }
+            break;
+        }
+//------
+        case MATCH_LOAD:
+        {
+            if (BPage_Load_Blob(read_num()))
+            {
+                Blob_Run_mask(engine_mask, 1);    //=== Start...
+            }
+            break;
+        }
+        case MATCH_SAVE:
+        {
+            BPage_Save_Blob(read_num());
+            break;
+        }
+        case MATCH_ERASE:
+        {
+            int bpage = read_num();
+
+            if (BPAGE_VALID(bpage))
+            {
+                BTPRINTF("Page %d erased.\n", arg);
+                BPage_Erase_Page(bpage);
+            }
+            else
+            {
+                BTPRINTF("ERAS: Bad page number must be (0->15)\n");
+            }
+            break;
+        }
+//------
         case MATCH_DUMP:
         {
             arg = read_num();
@@ -527,6 +582,25 @@ PRIVATE void parser(int ch)
             do_dump(arg, start);
             break;
         }
+//------
+        case MATCH_BRIGHTNESS:
+        {
+            arg = read_num();
+            D(DEBUG_PRINTF, { PRINTF("BRIG %d \r", arg); fflush(stdout); })
+
+            if (arg >= 0 && arg <= MAX_BRIGHTNESS_NUM)
+            {
+                double newval = arg / (double)MAX_BRIGHTNESS_NUM;
+
+                if (LED_Brightness != newval)
+                {
+                    LED_Brightness = newval;
+                    LED_Needs_Update(ALL_PHYS);
+                    LEDS_Do_Update();
+                }
+            }
+            break;
+        }
         case MATCH_DEBUG:
         {
             arg = read_num();
@@ -534,12 +608,14 @@ PRIVATE void parser(int ch)
             Debug_Mask = arg;
             break;
         }
+//------
         case MATCH_NONE:
         default:
         {
             break;
         }
         }
+
         Matchers_Reset();
     }
 }

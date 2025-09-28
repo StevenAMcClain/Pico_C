@@ -178,6 +178,15 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
         Blob.Trigger_Base = (PROG_ID*)(bptr + blob_raw->trig_start);   // Start of the trigger table.
         Blob.Program_Base = (PROG*)   (bptr + blob_raw->prog_start);	// Blob Programs start here.
 
+        Blob.VarTab_Base = (BLOB_VAR*)(bptr + blob_raw->vartab_start - 1);	// Vartable start here.
+        Blob.Num_VarRecs = blob_raw->vartab_size / BLOB_VAR_SIZE;
+
+    BLOB_VAR* VarTab_Base;	// Blob variable table starts here.
+    uint32_t Num_Vars;		// Number of variable records.
+
+
+
+
         Blob.StrindX_Size = blob_raw->strindx_size;
         Blob.SymTab_Size = blob_raw->symtab_size / 2;
 
@@ -194,6 +203,7 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
             uint32_t* phystr = (bptr + blob_raw->phystr_start + 1);     // Point to base of phy string table.
             size_t num_phys = blob_raw->phystr_size - 1;            // Get phystring size.
             int phyidx = 0;
+            
             while (num_phys--)
             {
                 PHY_Set_led_count(phyidx++, *phystr++);

@@ -14,6 +14,7 @@
 #include "btstdio.h"
 #include "debug.h"
 #include "led.h"
+#include "flashblob.h"
 
 
 extern uint8_t uuid[8];
@@ -113,6 +114,8 @@ PRIVATE void dump_info(void)
             first = false;
             phy_mask |= mask;
         }
+        else {  PRINTF("Phy: %d has zero leds!", phy_idx); }
+
         ++phy_idx;   mask <<= 1;
     }
 
@@ -189,6 +192,75 @@ PRIVATE void dump_engines_state(void)
 }
 
 
+PRIVATE void dump_blank_flash(void)
+{
+    uint16_t blanks = BPage_Blank_Pages();
+    BTPRINTF("Blanks = %04.4X\n", blanks);
+}
+
+
+PRIVATE void dump_variable_table(void)
+{
+    if (Blob_Is_Loaded)
+    {
+        BLOB_VAR* varp = Blob.VarTab_Base;
+        uint32_t n = Blob.Num_VarRecs;
+        uint8_t* strs = Blob.StrindX;
+        bool first = true;
+
+        BTPRINTF("Variables:\n");
+
+        while (n--)
+        {
+            if (varp->b >= 100)
+            {
+                if (first)
+                {
+                    BTPRINTF("  Global:\n");
+                    first = false;
+                }
+                BTPRINTF("%d) '%s' %d %d\n", varp->b, strs + varp->a, varp->c, varp->d);
+            }
+            ++varp;
+        }
+
+        first = true;
+        varp = Blob.VarTab_Base;
+        n = Blob.Num_VarRecs;
+
+        while (n--)
+        {
+            if (varp->b < 100)
+            {
+                if (first)
+                {
+                    BTPRINTF("  Local:\n");
+                    first = false;
+                }
+                BTPRINTF("%d) '%s' %d %d\n", varp->b, strs + varp->a, varp->c, varp->d);
+            }
+            ++varp;
+        }
+
+//        uint32_t* varp = Blob.;
+
+        // for (int i=0; i < (Blob.Num_Trig / 2) - 1; ++i, trigp += 2)
+        // {
+        //     BTPRINTF("  %d - id= %d, prog= %d\n", i, trigp[0], trigp[1]);
+        // }
+    }
+    else { BTPRINTF("NOBLOB\n"); }
+
+//     if (blob)
+//     {
+//         uint32_t* ptr = blob->
+
+//         BTPRINTF("VarTab: Start %d, Size %d.\n", vtab, vtab_size);
+//     }
+//     else { BTPRINTF("No Blob Loaded.\n"); }
+}
+
+
 PUBLIC void mem_dump_p(void (*p)(char*, ...), void* ptr, size_t n)
 {
 	uint8_t* bptr = ptr;
@@ -251,6 +323,24 @@ PUBLIC void mem_dump_ints(void* ptr, size_t n)
 	PRINTF("\n");
 }
 
+// PUBLIC void dump_heap_stats(void)
+// {
+//     PRINTF("Stack limit         : %p\r\n",&__StackLimit);
+//     PRINTF("Stack One Top       : %p\r\n",&__StackOneTop);
+//     PRINTF("Stack Top           : %p\r\n",&__StackTop);
+//     PRINTF("Stack One Bottom    : %p\r\n",&__StackOneBottom);
+//     PRINTF("Stack Bottom        : %p\r\n",&__StackBottom);
+//     PRINTF("Heap top            : %p\r\n",(&__StackLimit - (10 * 1024)));
+//     PRINTF("Heap limit          : %p\r\n",&__HeapLimit);
+//     PRINTF("Heap size           : %u\r\n", ((&__StackLimit - (10 * 1024)) - &__HeapLimit));
+
+//#include "pico/malloc.h"
+    // struct heap_stats stats;
+    // heap_get_stats(&stats);
+    // printf("Total allocated bytes: %u\n", stats.total_allocated_bytes);
+    // printf("Total free bytes: %u\n", stats.total_free_bytes);
+// }
+
 
 #define HELP_STRING "\
 Dump:\n\
@@ -263,7 +353,9 @@ Dump:\n\
   7 - Triggers.\n\
   8 - Dump bytes. (start)\n\
   9 - Dump ints. (start)\n\
-  10 - Engine States\n\
+  10 - Engine States.\n\
+  11 - Blank Flash pages.\n\
+  12 - Dump Variables.\n\
   \n"
 
 
@@ -281,6 +373,8 @@ PUBLIC void do_dump(int arg, int arg2)
         case 8: { mem_dump( (void*)arg2, 64); break; }
         case 9: { mem_dump_ints( (void*)arg2, 20); break; }
         case 10: { dump_engines_state(); break; }
+        case 11: { dump_blank_flash(); break; }
+        case 12: { dump_variable_table(); break; }
         case 100: { dump_info(); break; }
         case 0: default: { BTPRINTF(HELP_STRING); break; }
     }

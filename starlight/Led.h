@@ -3,8 +3,11 @@
 #ifndef LEDS_H
 #define LEDS_H
 
-#define MAX_PHY 8           // Maximum number of strings.
-#define MAX_NUM_LEDS 1000   // Fairly arbitrary maximum for one physical string of LEDS.
+#define MAX_PHY 4           // Maximum number of strings.
+//#define MAX_PHY 6           // Maximum number of strings.
+//#define MAX_PHY 8           // Maximum number of strings.
+//#define MAX_NUM_LEDS 1000   // Fairly arbitrary maximum for total number of LEDS supported.
+#define MAX_NUM_LEDS 20000   // Fairly arbitrary maximum for total number of LEDS supported.
 
 #define ALL_PHYS (-1)       // Mask for all physical strings.
 #define CURRENT_PHY 0       // Code for use current string (or no string if current is also 0)
