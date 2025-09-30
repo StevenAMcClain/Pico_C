@@ -1,16 +1,16 @@
 #include "common.h"
 #include "btstdio.h"
 
+#include <pico/cyw43_arch.h>
+#include <pico/stdlib.h>
+#include <pico/util/queue.h>
+
 #include <btstack.h>
 #include <inttypes.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <pico/cyw43_arch.h>
-#include <pico/stdlib.h>
-#include <pico/util/queue.h>
 
 #include "debug.h"
 #include "obled.h"

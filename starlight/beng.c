@@ -9,15 +9,15 @@
 #include "bcmd.h"
 #include "debug.h"
 
+#define TRACE_BENG_TICK
+
+#ifdef TRACE_BENG_TICK
+#include "trace.h"
+#endif
 
 #define TICK_TIME 1000  // us or 1ms.    Blob_Time units.
 
 PUBLIC volatile uint64_t Blob_Time = 0;
-
-// #define RUNNING_QUEUE_SIZE 10   // Maximum number of pending programs.
-
-// PRIVATE LED LED_Morph_Data[MAX_NUM_LEDS];
-// #define All_Program_Stop(msg, n) { PRINTF(msg, n); Blob_Stop(); }
 
 PUBLIC BENG_STATE Beng_State[MAX_BENG] = {0};     // One of these for each engine!
 
@@ -44,9 +44,10 @@ PRIVATE int Get_Beng_State_Idx(BENG_STATE* bs)
 }
 
 
-PUBLIC BENG_VAR* BVar_Find_Local(BENG_STATE* bs, uint32_t idx)
+PUBLIC BENG_VAR* BVar_Find_Local_By_Index(BENG_STATE* bs, uint32_t idx)
 {
-    return (idx < MAX_BENG_LOCAL) ? bs->local_vars + idx : NULL;
+    idx &= BENG_VAR_IDX_MASK;
+    return (bs && idx < MAX_BENG_LOCAL) ? bs->local_vars + idx : NIL;
 }
 
 
@@ -110,21 +111,26 @@ PUBLIC void Pop_Context(BENG_STATE* bs)
 
 #define DEBUG_BLOB2 (DEBUG_BLOB | DEBUG_BUSY)
 
-
 ///--- Tick ---
 //
-PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
+// PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
+PRIVATE int64_t Blob_Program_Tick(alarm_id_t id, void *user_data)
 //
 // Tick for player state machine.    Called Tick_Speed times per second. 
 {
-    BENG_STATE* bs = (BENG_STATE*)ptr->user_data;
+    int64_t result = 0;    // Default to not rescheduling.
+    BENG_STATE* bs = (BENG_STATE*)user_data;
 
+#ifdef TRACE_BENG_TICK
+    Trace_Start();
+#endif
 //	D(DEBUG_BLOB2, if (bs->State)  { PRINTF("\n== Blob_Tick %d: State %d\n", ++bs->Tick_Count, bs->State); })
 
 	switch (bs->State)
 	{
 		case STATE_IDLE: 
         {
+            bs->tick_is_running = false;
             break; 
         }
 		case STATE_WAITING:
@@ -185,7 +191,13 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
 	}
 	//D(DEBUG_BLOB2, if (bs->State)  { PRINTF("== Blob_Tick: Done (%d).\n\n", bs->Tick_Count); })
 
-	return true;
+    result = (bs->tick_is_running) ? -bs->Tick_Speed : 0;
+
+#ifdef TRACE_BENG_TICK
+    Trace_End();
+#endif
+
+	return result;
 }
 
 //--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -193,8 +205,8 @@ PRIVATE void start_prog_tick(BENG_STATE* bs)
 {
     if (!bs->tick_is_running)
     {
-    	add_repeating_timer_us(bs->Tick_Speed, Blob_Program_Tick, bs, &bs->blob_timer_prog_tick);
         bs->tick_is_running = true;
+        add_alarm_in_us(bs->Tick_Speed, Blob_Program_Tick, bs, true);
         PRINTF("start_prog_tick\n");
     }
 }
@@ -202,12 +214,13 @@ PRIVATE void start_prog_tick(BENG_STATE* bs)
 
 PRIVATE void stop_prog_tick(BENG_STATE* bs)
 {
-    if (bs->tick_is_running)
-    {
-        cancel_repeating_timer(&bs->blob_timer_prog_tick);
-        bs->tick_is_running = false;
-        PRINTF("stop_prog_tick\n");
-     }
+    bs->tick_is_running = false;
+//    if (bs->tick_is_running)
+//    {
+//        cancel_repeating_timer(&bs->blob_timer_prog_tick);
+//        bs->tick_is_running = false;
+//        PRINTF("stop_prog_tick\n");
+//     }
 }
 
 
@@ -331,7 +344,7 @@ PRIVATE bool Blob_Time_Tick(struct repeating_timer* ptr)
 
 PRIVATE void Beng_State_Init(BENG_STATE* bs)
 {
-    bs->Tick_Speed = 1000;
+    bs->Tick_Speed = 50000;
     bs->program_stack = Stack_Initialize(&bs->program_stack_buffer, PROG_STACK_SIZE);
 //    start_prog_tick(bs);
 }
@@ -351,7 +364,7 @@ PUBLIC void Beng_Init(void)
     {
         Beng_State_Init(bs++);
     }
-    PRINTF("Beng_Init\n");
+//    PRINTF("Beng_Init\n");
 }
 
 

@@ -8,6 +8,8 @@
 #include "stack.h"
 #include "shifter.h"
 
+#define MAX_BENG 8
+
 #define BAD_BENG_IDX (-1)
 
 typedef enum
@@ -25,7 +27,6 @@ typedef enum
 
 #define PROG_STACK_SIZE (CONTEXT_ITEMS * CONTEXT_DEPTH)      // Maximum number of pending programs.
 
-#define MAX_BENG 8
 #define ENGINE_VALID(beng) ((beng) >= 0 && (beng) < MAX_BENG)
 
 typedef struct Prog_Stack
@@ -38,15 +39,14 @@ typedef struct Prog_Stack
 
 typedef struct Beng_State
 {
-    struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
-    bool tick_is_running;
+    volatile bool tick_is_running;
+//    struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
 
 	int Tick_Count;             // Used by state machine tick.
     int Tick_Speed;             // Clock for blob player.    
 
-    STATE State;				// Start in IDLE state.
-   // bool is_idle;               // True if in idle state.
-
+    volatile STATE State;		// state for engine.
+  
 	uint32_t wait_counter;		// Ticks left to wait until next step.
 
 	uint32_t repeat;			// Number of times left to repeat.
@@ -77,7 +77,7 @@ extern void Beng_All_Stop(void);                // Stop all engines and clear al
 
 extern BENG_STATE* Get_Beng_State(int beng_idx);
 
-extern BENG_VAR* BVar_Find_Local(BENG_STATE* /*bs*/, uint32_t /*idx*/);
+extern BENG_VAR* BVar_Find_Local_By_Index(BENG_STATE* /*bs*/, uint32_t /*idx*/);
 
 extern void Beng_Set_Phy_mask(int beng_mask, int phy_mask);
 

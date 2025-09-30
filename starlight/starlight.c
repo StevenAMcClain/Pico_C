@@ -4,29 +4,23 @@
 
 #include <hardware/flash.h>
 
-#include "pico/stdlib.h"
+#include <pico/flash.h>
 #include <pico/multicore.h>
-   
-#include "pico/flash.h"
+#include <pico/stdlib.h>
 
 #include <stdio.h>
 
 #include "blob.h"
 #include "beng.h"
 #include "debug.h"
+#include "flashblob.h"
 #include "led.h"
 #include "parser.h"
-#include "flashblob.h"
+#include "trace.h"
 
 
-PUBLIC uint8_t uuid[8] = {0};
-
-//#include <hardware/pio.h>  //TEST
-//extern void mem_dump(void* ptr, size_t n);
-
-// PUBLIC uint32_t Debug_Mask = DEBUG_PRINTF | DEBUG_BLUETOOTH;  //DEBUG_ALL;
 PUBLIC uint32_t Debug_Mask = DEBUG_ALL;
-//PUBLIC uint32_t Debug_Mask = 0;  //DEBUG_ALL;
+
 
 PUBLIC void _Printf(const char *fmt, ...) 
 {
@@ -40,8 +34,22 @@ PUBLIC void _Printf(const char *fmt, ...)
 }
 
 
-// extern void mem_dump_p(int (*p)(const char * restrict, ...), void* ptr, size_t n);
-// #define mem_dump_printf(ptr, size) mem_dump_p(PRINTF, ptr, size);
+PUBLIC char* Get_UUID(void)
+{
+    static bool uuid_valid = false;
+    static char uuid_string[] = "0000000000000000";
+
+    if (!uuid_valid)
+    {
+        static uint8_t uuid[8] = {0};
+
+        flash_get_unique_id(uuid);
+        snprintf(uuid_string, sizeof(uuid_string), "%02X%02X%02X%02X%02X%02X%02X%02X",
+                            uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7]);
+        uuid_valid = true;
+    }
+    return uuid_string;
+}
 
 
 PRIVATE void Start_BlueTooth(void)
@@ -56,25 +64,21 @@ PUBLIC void main(void)
 {
     stdio_init_all();           // Prepare stdio for use.
 
-    flash_get_unique_id(uuid);
+    Trace_Init();
+    char* uuid = Get_UUID();
 
-    PRINTF("\r\n\nStarlight %s %s %s: UUID:%02X%02X%02X%02X%02X%02X%02X%02X: startup.\n", 
-                            __VERSION__ , __TIME__, __DATE__, 
-                            uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7]);
+    PRINTF("\r\n\nStarlight %s %s %s: UUID:%s: startup.\n", 
+                            __VERSION__ , __TIME__, __DATE__, uuid);
 
     LED_Init();                 // Prepare LED strings PIO driver for use.
-    Blob_Init();                // Get blob manager ready to run.
     Beng_Init();                // Get blob engine ready.
+    Blob_Init();                // Get blob manager ready to run.
 
     multicore_lockout_victim_init();
     multicore_launch_core1(SECOND_CORE_MAIN);   // This is the main for the second core.
 
-    sleep_ms(100);
+    sleep_ms(100);      // Wait for BlueTooth to startup.
     
-                                                                                                                {
-                                                                                                                    uint16_t blanks = BPage_Blank_Pages();
-                                                                                                                    printf("Blanks = %04.4X\n", blanks);
-                                                                                                                }
     FIRST_CORE_MAIN();                     // This is the main for the first core.
 }
 

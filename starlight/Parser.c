@@ -17,6 +17,9 @@
 #include "matcher.h"
 #include "scene.h"
 
+
+PUBLIC uint32_t Engine_Mask = 1;
+
 #define MAX_VARNAME_SIZE 40
 
 #define CHAR_TIMEOUT 50000
@@ -362,8 +365,8 @@ PUBLIC bool BPage_Load_Blob(int bpage)
 
                     if (Unpack_Blob_Header(base))
                     {
-                        //                        BTPRINTF("LOAD: Success.\n");
-                        // ---------------------------------------------------------        Start running blob.
+                        // BTPRINTF("LOAD: Success.\n");
+                        Blob_Run_mask(Engine_Mask, 1);        //=== Start...
                         return true;
                     }
                     else { BTPRINTF("LOAD: Can't unpack.\n"); }
@@ -420,7 +423,6 @@ PRIVATE void Set_Scene_engines(int beng_mask, SCENE_ID scene_id)
 
 PRIVATE void parser(int ch)
 {
-    static int engine_mask = 1;
     MATCH_CODE code = Is_Match(ch);
     int arg;
 
@@ -448,7 +450,7 @@ PRIVATE void parser(int ch)
 
             if (arg >= 0 && arg < 128)
             {
-                engine_mask = arg;
+                Engine_Mask = arg;
                 BTPRINTF("SENG %d\n", arg);
             }
             else
@@ -461,20 +463,15 @@ PRIVATE void parser(int ch)
         {
             int phy_mask = read_snum();
 
-            Beng_Set_Phy_mask(engine_mask, phy_mask);
+            Beng_Set_Phy_mask(Engine_Mask, phy_mask);
             BTPRINTF("SPHY %d\n", phy_mask);
             break;
         }
 //------
         case MATCH_LOAD_BLOB: // BLOB: Load a new binary object containing program.
         {
-            PRINTF("BLOB\n");
-
-            if (read_blob())
-            {
-                //=== Start...
-                Blob_Run_mask(engine_mask, 1);
-            }
+//             PRINTF("BLOB\n");
+            if (read_blob()) { Blob_Run_mask(Engine_Mask, 1); }  //=== Start...
             break;
         }
         case MATCH_EXPORT_BLOB:
@@ -493,7 +490,7 @@ PRIVATE void parser(int ch)
         {
             arg = read_num();
             D(DEBUG_PARSER, PRINTF("DO SHOW SCENE %d\n", arg);)
-            Set_Scene_engines(engine_mask, arg);
+            Set_Scene_engines(Engine_Mask, arg);
             LEDS_Do_Update();
             break;
         }
@@ -508,7 +505,7 @@ PRIVATE void parser(int ch)
         {
             arg = read_num();
             BTPRINTF("TRIG %d\n", arg);
-            Blob_Trigger_mask(engine_mask, arg);
+            Blob_Trigger_mask(Engine_Mask, arg);
             BTPRINTF("TRIG %d\n", arg);
             break;
         }
@@ -538,8 +535,46 @@ PRIVATE void parser(int ch)
 
             if (chars_read)
             {
-                BENG_VAR* var = BVar_Find_Name(NULL, var_name);
-                D(DEBUG_PARSER, PRINTF("parser: MATCH_GETV '%s' [%LX]\n", var_name, var);)
+                BENG_VAR* var = BVar_Find_By_Name(NULL, var_name);
+
+                D(DEBUG_PARSER, PRINTF("parser: MATCH_GETV '%s' [%X]\n", var_name, var);)
+
+                if (var)
+                {
+                    char buff[20];
+                    BVar_To_String(var, buff, sizeof(buff));
+                    BTPRINTF("%s = %s\n", var_name, buff);
+
+                    // BENG_VAR_TYPE type = var->type & BENG_VAR_TYPE_MASK;
+
+                    // switch (type)
+                    // {
+                    //     case BENG_VAR_TYPE_INT:
+                    //     {
+                    //         int val = BVar_Get_int(var);
+                    //         BTPRINTF("%s = %d\n", var_name, val);
+                    //         break;
+                    //     }
+                    //     case BENG_VAR_TYPE_UINT:
+                    //     {
+                    //         unsigned int val = BVar_Get_uint(var);
+                    //         BTPRINTF("%s = %u\n", var_name, val);
+                    //         break;
+                    //     }
+                    //     case BENG_VAR_TYPE_FLOAT:
+                    //     {
+                    //         float val = BVar_Get_float(var);
+                    //         BTPRINTF("%s = %f\n", var_name, val);
+                    //         break;
+                    //     }
+                    //     case BENG_VAR_TYPE_DOUBLE:
+                    //     {
+                    //         double val = BVar_Get_double(var);
+                    //         BTPRINTF("%s = %lf\n", var_name, val);
+                    //         break;
+                    //     }
+                    // }
+                }
             }
             break;
         }
@@ -548,7 +583,7 @@ PRIVATE void parser(int ch)
         {
             if (BPage_Load_Blob(read_num()))
             {
-                Blob_Run_mask(engine_mask, 1);    //=== Start...
+                Blob_Run_mask(Engine_Mask, 1);    //=== Start...
             }
             break;
         }
@@ -623,20 +658,14 @@ PRIVATE void parser(int ch)
 
 PUBLIC void Start_Parser()
 {
-    // This should be controlled by port pin.
-    // if (BPage_Load_Blob(0))
-    // {
-    //     Blob_Run_mask(1, 1);        //=== Start...
-    // }
-
     Matchers_Init();
 
     while (true)
     {
         int ch = parser_getchar();
 
-        if (ch != PICO_ERROR_TIMEOUT) { parser(ch); }
-        else                          { sleep_ms(1);    }
+        if (ch != PICO_ERROR_TIMEOUT) { parser(ch);  }
+        else                          { sleep_ms(1); }
     }
 }
 

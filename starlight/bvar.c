@@ -4,12 +4,12 @@
 #include "bvar.h"
 
 #include "beng.h"
+#include "btstdio.h"
 #include "bvar_internal.h"
 
-// #include <stdlib.h>
-// #include <string.h>
+#include <stdio.h>
+#include <string.h>
 
-// #include "beng.h"
 // #include "bcmd.h"
 // #include "debug.h"
 
@@ -27,35 +27,53 @@ PUBLIC void BVar_Get(BENG_VAR* var)
 }
 
 
-PUBLIC BENG_VAR* BVar_Find_Global(uint32_t idx)
+PUBLIC BENG_VAR* BVar_Find_Global_By_Index(uint32_t idx)
 {
+    idx &= BENG_VAR_IDX_MASK;
     return (idx < MAX_BENG_GLOBAL) ? BEng_Global_Vars + idx : NULL;
 }
 
 
 PUBLIC BENG_VAR* BVar_Find(void* bs, uint32_t idx)
 {
-    if (idx >= BENG_VAR_LOCAL_START && idx < BENG_VAR_LOCAL_END)
-    {
-        idx -= BENG_VAR_LOCAL_START;
-        return BVar_Find_Local(bs, idx);
-    }
-    else if (idx >= BENG_VAR_GLOBAL_START && idx < BENG_VAR_GLOBAL_END)
-    {
-        idx -= BENG_VAR_GLOBAL_START;
-        return BVar_Find_Global(idx);
-    }
-    else if (idx >= BENG_VAR_INTERNAL_START && idx < BENG_VAR_INTERNAL_END)
-    {
-        idx -= BENG_VAR_INTERNAL_START;
-        return BVar_Find_Internal(idx);
-    }
+         if (idx & BENG_VAR_IDX_SCOPE_INTERNAL) { return BVar_Find_Internal_By_Index(idx);  }
+    else if (idx & BENG_VAR_IDX_SCOPE_GLOBAL)   { return BVar_Find_Global_By_Index(idx);    }
+    else                                        { return BVar_Find_Local_By_Index(bs, idx); }
+
     return NULL;
 }
 
-PUBLIC BENG_VAR* BVar_Find_Name(void* bs, char* varname)
+
+PUBLIC BENG_VAR* BVar_Find_By_Name(void* bs, char* name)
 {
-    return NIL;
+    BENG_VAR* bvar = NIL;
+
+    if (name)
+    {
+        bvar = BVar_Find_Internal_By_Name(name);
+
+        if (!bvar && Blob_Is_Loaded)
+        {
+            BLOB_VAR* varp = Blob.VarTab_Base;
+            uint32_t n = Blob.Num_VarRecs;
+            uint8_t* strs = Blob.StrindX;
+
+            while (n--)
+            {
+                char* varname = varp->name_strdx ? (char*)(strs + varp->name_strdx - 1) : "<name?>";
+    
+                if (strcmp(name, varname) == 0)
+                {
+                    bvar = (varp->var_idx & BENG_VAR_IDX_SCOPE_GLOBAL) ? BVar_Find_Global_By_Index(varp->var_idx) : BVar_Find_Local_By_Index(bs, varp->var_idx);
+                    break;
+                }
+    
+//                BTPRINTF("%d) '%s' %d %d\n", varp->b, name, varp->c, varp->d);
+                ++varp;
+            }
+        }
+    }
+    return bvar;
 }
 
 
@@ -338,6 +356,47 @@ PUBLIC void BVar_Set_pointer(BENG_VAR* var, void* val)
             case BENG_VAR_TYPE_DOUBLE: { var->value.d = *(double*)val; break; }
         }
     }
+}
+
+PUBLIC size_t BVar_To_String(BENG_VAR* var, char* buff, size_t buffsize)
+{
+    size_t result = 0;
+
+    *buff = 0;
+
+    if (var)
+    {
+        BENG_VAR_TYPE type = var->type & BENG_VAR_TYPE_MASK;
+
+        switch (type)
+        {
+            case BENG_VAR_TYPE_INT:
+            {
+                int val = BVar_Get_int(var);
+                result = snprintf(buff, buffsize, "%d", val);
+                break;
+            }
+            case BENG_VAR_TYPE_UINT:
+            {
+                unsigned int val = BVar_Get_uint(var);
+                result = snprintf(buff, buffsize, "%u", val);
+                break;
+            }
+            case BENG_VAR_TYPE_FLOAT:
+            {
+                float val = BVar_Get_float(var);
+                result = snprintf(buff, buffsize, "%3.3f", val);
+                break;
+            }
+            case BENG_VAR_TYPE_DOUBLE:
+            {
+                double val = BVar_Get_double(var);
+                result = snprintf(buff, buffsize, "%3.3lf", val);
+                break;
+            }
+        }
+    }
+    return result;
 }
 
 

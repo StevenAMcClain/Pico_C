@@ -18,7 +18,8 @@ extern void BlueTooth_Send_Buffer(uint8_t* buff, size_t n);
 #define BlueTooth_Send_String(str)    BlueTooth_Send_Buffer((uint8_t* )str, strlen(str));
 
 extern void BlueTooth_Printf(const char *fmt, ...);
+#define BTPRINTF BlueTooth_Printf
 
 #endif // BLUETOOTH_STDIO_H
 
-// EndFile: bluetooth.h
+// EndFile: btstdio.h

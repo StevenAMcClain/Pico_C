@@ -2,22 +2,23 @@
 
 #include "common.h"
 
-//#include <hardware/flash.h>
-//                                                 #include <pico/btstack_flash_bank.h>
 #include "blob.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-// #include <string.h>
-// //#include <time.h>
 
 #include "btstdio.h"
 #include "debug.h"
 #include "led.h"
 #include "flashblob.h"
 
+//#include <hardware/flash.h>
+//#include <pico/btstack_flash_bank.h>
+//#include <string.h>
+//#include <time.h>
 
-extern uint8_t uuid[8];
+
+extern char* Get_UUID(void);
 
 
 PRIVATE void dump_version(void)
@@ -30,8 +31,9 @@ PRIVATE void dump_version(void)
 
 PRIVATE void dump_uuid(void)
 {
-    BTPRINTF("UUID:%02X%02X%02X%02X%02X%02X%02X%02X\n", 
-                    uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7]);
+    char* uuid = Get_UUID();
+
+    BTPRINTF("UUID:%s\n", uuid);
 }
 
 
@@ -82,8 +84,9 @@ PRIVATE void dump_info(void)
     char version_str[10];
     version_to_str(version_str, Version());
 
-    n = snprintf(bptr, chars_left, "UUID: %02X%02X%02X%02X%02X%02X%02X%02X\nVERS: %s\n", 
-                    uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], version_str);
+    char* uuid = Get_UUID();
+
+    n = snprintf(bptr, chars_left, "UUID: %s\nVERS: %s\n", uuid, version_str);
     bptr += n;   chars_left -=n;
 
     if (Blob_Is_Loaded)
@@ -114,13 +117,13 @@ PRIVATE void dump_info(void)
             first = false;
             phy_mask |= mask;
         }
-        else {  PRINTF("Phy: %d has zero leds!", phy_idx); }
+//        else {  PRINTF("Phy: %d has zero leds!", phy_idx); }
 
         ++phy_idx;   mask <<= 1;
     }
 
-    if (first) { n = snprintf(bptr, chars_left, "Phys: None.\n"); }
-    else       { n = snprintf(bptr, chars_left, "\n"); }
+    char *msg = first ? "Phys: None.\n" : "\n";
+    n = snprintf(bptr, chars_left, msg);
     bptr += n;   chars_left -=n;
 
     int Current_Phy_Mask = 3;     // Should be something else (or removed!)
@@ -130,7 +133,6 @@ PRIVATE void dump_info(void)
     // bptr += n;   chars_left -=n;
 
     BlueTooth_Send_String(buff);
-   // printf("Dump: %s\n", buff);
 }
 
 
@@ -207,19 +209,28 @@ PRIVATE void dump_variable_table(void)
         uint32_t n = Blob.Num_VarRecs;
         uint8_t* strs = Blob.StrindX;
         bool first = true;
+        char var_val_buff[20];
 
         BTPRINTF("Variables:\n");
 
         while (n--)
         {
-            if (varp->b >= 100)
+            if (varp->var_idx & BENG_VAR_IDX_SCOPE_GLOBAL)
             {
                 if (first)
                 {
                     BTPRINTF("  Global:\n");
                     first = false;
                 }
-                BTPRINTF("%d) '%s' %d %d\n", varp->b, strs + varp->a, varp->c, varp->d);
+                char* name = varp->name_strdx ? (char*)(strs + varp->name_strdx - 1) : "<name?>";
+                int idx = varp->var_idx & BENG_VAR_IDX_MASK;
+
+                BENG_VAR* bvar = BVar_Find(NIL, varp->var_idx);
+
+                if (bvar) { BVar_To_String(bvar, var_val_buff, sizeof(var_val_buff)); }
+                else      { *var_val_buff = 0;                                        }
+
+                BTPRINTF("%d) '%s' %d %s\n", idx, name, varp->var_type, var_val_buff);
             }
             ++varp;
         }
@@ -230,34 +241,21 @@ PRIVATE void dump_variable_table(void)
 
         while (n--)
         {
-            if (varp->b < 100)
+            if ( !(varp->var_idx & BENG_VAR_IDX_SCOPE_GLOBAL))
             {
                 if (first)
                 {
                     BTPRINTF("  Local:\n");
                     first = false;
                 }
-                BTPRINTF("%d) '%s' %d %d\n", varp->b, strs + varp->a, varp->c, varp->d);
+                char* name = varp->name_strdx ? (char*)(strs + varp->name_strdx - 1) : "<name?>";
+                int idx = varp->var_idx & BENG_VAR_IDX_MASK;
+                BTPRINTF("%d) '%s' %d %d\n", idx, name, varp->var_type, varp->var_value);
             }
             ++varp;
         }
-
-//        uint32_t* varp = Blob.;
-
-        // for (int i=0; i < (Blob.Num_Trig / 2) - 1; ++i, trigp += 2)
-        // {
-        //     BTPRINTF("  %d - id= %d, prog= %d\n", i, trigp[0], trigp[1]);
-        // }
     }
     else { BTPRINTF("NOBLOB\n"); }
-
-//     if (blob)
-//     {
-//         uint32_t* ptr = blob->
-
-//         BTPRINTF("VarTab: Start %d, Size %d.\n", vtab, vtab_size);
-//     }
-//     else { BTPRINTF("No Blob Loaded.\n"); }
 }
 
 

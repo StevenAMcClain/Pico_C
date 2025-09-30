@@ -3,10 +3,7 @@
 #ifndef LEDS_H
 #define LEDS_H
 
-#define MAX_PHY 4           // Maximum number of strings.
-//#define MAX_PHY 6           // Maximum number of strings.
-//#define MAX_PHY 8           // Maximum number of strings.
-//#define MAX_NUM_LEDS 1000   // Fairly arbitrary maximum for total number of LEDS supported.
+#define MAX_PHY 4            // Maximum number of strings.
 #define MAX_NUM_LEDS 20000   // Fairly arbitrary maximum for total number of LEDS supported.
 
 #define ALL_PHYS (-1)       // Mask for all physical strings.
@@ -32,7 +29,6 @@ typedef union
 
 #define LED_SIZE sizeof(LED)                        // Size of one LED.
 #define LED_DATA_SIZE (Num_LEDS * LED_SIZE)
-#define MAX_LED_DATA_SIZE (MAX_NUM_LEDS * LED_SIZE)
 
 extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
 

@@ -86,12 +86,12 @@ PUBLIC void Command_Shift_LEDS(int phy_idx, bool do_shift, int shift_count, LED*
 
     if (base && max_leds)
     {
-        PRINTF("Before: \n");   mem_dump_ints(base, max_leds);
+//        PRINTF("Before: \n");   mem_dump_ints(base, max_leds);
 
         if (do_shift) { do_shift_phys(base, max_leds, &padding, shift_count); }
         else          { do_rotate_phys(base, max_leds, buff, shift_count);    }
 
-        PRINTF("\nAfter: \n");  mem_dump_ints(base, max_leds);  PRINTF("\n");
+//        PRINTF("\nAfter: \n");  mem_dump_ints(base, max_leds);  PRINTF("\n");
 
         LED_Needs_Update(1 << phy_idx);
     }

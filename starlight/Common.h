@@ -9,7 +9,7 @@
 #define PUBLIC
 
 #define NIL ((void*)0)
-#define FLOAT double
+#define FLOAT float
 
 #define BIT(x) (1<<(x))
 
@@ -28,8 +28,6 @@
 
 extern void _Printf(const char *fmt, ...);
 #define PRINTF _Printf
-
-#define BTPRINTF BlueTooth_Printf
 
 extern void ObLED_On(void);
 extern void ObLED_Off(void);

@@ -33,7 +33,7 @@ typedef struct Morph
 
 
 PRIVATE MORPH morph = {0};
-PRIVATE MORPH_STEP morph_step_data[MAX_LED_DATA_SIZE] = {0};
+PRIVATE MORPH_STEP morph_step_data[xx] = {0};
 
 #define myabs(x) (((x) < 0.0) ? (-(x)) : (x))
 

@@ -9,6 +9,11 @@
 #include "led.h"
 #include "ws2812.h"
 
+//#define TRACE_LED_BRIGHTNESS
+
+#ifdef TRACE_LED_BRIGHTNESS
+#include "trace.h"
+#endif
 
 PUBLIC FLOAT LED_Brightness = 1.0;			    // Overall brightness for all strings.
 
@@ -46,7 +51,7 @@ PUBLIC void LEDS_Buff_Reset()
 
 PUBLIC LED* LEDS_Buff_Allocate(size_t size)
 {
-    LED* leds = 0;
+    LED* leds = NIL;
 
     if (Leds_Allocated + size < MAX_NUM_LEDS)
     {
@@ -76,7 +81,7 @@ PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
     {
         LEDS_PHY* phy = LEDS_Phy + phy_idx;
 
-        LED* buff = LEDS_Buff_Allocate(2 * led_count);   // Allocate room for LED values and scaled LED values.
+        LED* buff = LEDS_Buff_Allocate(led_count * 2);   // Allocate room for LED values and scaled LED values.
 
         if (buff)
         {
@@ -90,15 +95,9 @@ PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
             phy->led_count = 0; 
         }
 
-        WS2812_Set_Num_LEDS(phy_idx, led_count);
+        WS2812_Set_Num_LEDS(phy_idx, led_count,  (uint32_t*)phy->scaled_led_data);
     }
 }
-
-
-// PUBLIC void LEDS_Set_Phynum(int phy_mask)
-// {
-// 	Current_Phy_Mask = phy_mask;
-// }
 
 
 PRIVATE inline LED_VAL apply_brightness(LED_VAL val)
@@ -108,7 +107,7 @@ PRIVATE inline LED_VAL apply_brightness(LED_VAL val)
 }
 
 
-PRIVATE void scale_led_data(LED* bptr, LED* sptr, size_t bcount)
+PRIVATE inline void scale_led_data(LED* bptr, LED* sptr, size_t bcount)
 {
 	while (bcount--)
 	{
@@ -120,48 +119,51 @@ PRIVATE void scale_led_data(LED* bptr, LED* sptr, size_t bcount)
 }
 
 
+// PRIVATE void LEDS_Setup(void)
+// //
+// // Setup the dma buffers.
+// {
+//     LEDS_PHY* phy = LEDS_Phy;
+//     int phy_idx = 0;
+
+//     while (phy_idx < MAX_PHY)
+//     {
+//         WS2812_Prime_Set_idx(phy_idx, (uint32_t*)phy->scaled_led_data);
+//         ++phy;  ++phy_idx;
+//     }
+// }
+
 PUBLIC void LEDS_Do_Update(void)
 //
 // Sends the data to the LEDs for all PHY that are flagged for update.
 {
     LEDS_PHY* phy = LEDS_Phy;
-    int idx = 1;
-    uint32_t mask = 1;
+    int phy_idx = 0;
+    uint32_t phy_mask = 1;
 
-    while (needs_update && idx <= MAX_PHY)
+#ifdef TRACE_LED_BRIGHTNESS
+    Trace_Start();
+#endif
+
+    while (needs_update && phy_idx < MAX_PHY)
     {
-        if (mask & needs_update)
+        if (phy_mask & needs_update)
         {
             scale_led_data(phy->led_data, phy->scaled_led_data, phy->led_count);
-            WS2812_Prime_Send(mask, (uint32_t*)phy->scaled_led_data);
-            needs_update &= ~mask;
+            WS2812_Set_Primed(phy_mask);
+//            WS2812_Prime_Send_idx(phy_idx, (uint32_t*)phy->scaled_led_data);
+            needs_update &= ~phy_mask;
         }
-        ++phy; ++idx; mask <<= 1;
+        ++phy; ++phy_idx; phy_mask <<= 1;
     }
-    WS2812_Do_Send();   // Trigger DMA to start.... actually send the data.
+
+#ifdef TRACE_LED_BRIGHTNESS
+    Trace_End();
+#endif
+
+
+    // WS2812_Do_Send();   // Trigger DMA to start.... actually send the data.
 }
-
-//------------------------------------------------ old
-
-// PRIVATE LED LED_Data_One[MAX_NUM_LEDS];
-// PRIVATE LED LED_Data_Two[MAX_NUM_LEDS];
-
-//PUBLIC LED* LED_Data = LED_Data_One;
-
-// PUBLIC LED* ALT_LED_Data(void)
-// //
-// //  Returns an alternate LED_Buffer.
-// {
-// 	return LED_Data == LED_Data_One ? LED_Data_Two : LED_Data_One;
-// }
-
-// PUBLIC void Switch_ALT_LED_Data(void)
-// //
-// //  Sets alternate buffer to current.
-// {
-// 	LED_Data = ALT_LED_Data();
-// 	LED_Update(0);
-// }
 
 
 PUBLIC void LED_Needs_Update(int phy_mask)
@@ -326,7 +328,6 @@ PUBLIC void LED_Init(void)
 // Call once at startup to setup leds.
 {
 	WS2812_Init();		// Starts LED driver for all PHYs.
-	sleep_ms(10);		// Wait a bit to ensure clock is running and force LEDs to reset
 	LEDS_All_Black();   // Start with everything off.
 }
 
