@@ -21,9 +21,6 @@ PRIVATE struct Matcher Matches[MATCH_LAST] =
     {"RESE", 0, MATCH_RESET}, 
     {"BLAC", 0, MATCH_BLACK}, 
 
-    {"SENG", 0, MATCH_SENG}, 
-    {"SPHY", 0, MATCH_SPHY}, 
-
     {"BLOB", 0, MATCH_LOAD_BLOB}, 
     {"XBLB", 0, MATCH_EXPORT_BLOB},
 
@@ -35,8 +32,9 @@ PRIVATE struct Matcher Matches[MATCH_LAST] =
     {"INTR", 0, MATCH_INTERRUPT},
     {"QUEU", 0, MATCH_QUEUE}, 
 
-    {"SETV", 0, MATCH_SETV}, 
     {"GETV", 0, MATCH_GETV}, 
+    {"SETV", 0, MATCH_SETV}, 
+    {"SETQ", 0, MATCH_SETQ}, 
 
     {"LOAD", 0, MATCH_LOAD},
     {"SAVE", 0, MATCH_SAVE},
@@ -44,9 +42,12 @@ PRIVATE struct Matcher Matches[MATCH_LAST] =
 
     {"DUMP", 0, MATCH_DUMP},
 
+    {"SPHY", 0, MATCH_SPHY}, 
+
+//    {"SENG", 0, MATCH_SENG}, 
     // {"PHYS", 0, MATCH_PHYS}, 
-    {"BRIG", 0, MATCH_BRIGHTNESS}, 
-    {"DEBU", 0, MATCH_DEBUG},
+//    {"BRIG", 0, MATCH_BRIGHTNESS}, 
+//    {"DEBU", 0, MATCH_DEBUG},
 };
 
 

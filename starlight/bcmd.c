@@ -122,7 +122,7 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 					done = true;
 					break;
 				}
-				case COMMAND_WAIT:     // wait for (n) milli-seconds.
+				case COMMAND_PAUS:     // pause for (n) engine ticks.
 				{
                     uint32_t arg = 0;
 
@@ -132,19 +132,30 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
                     {
                         BENG_VAR* var = BVar_Find(bs, arg);
 
-                        if (var)
-                        {
-                            arg = BVar_Get_int(var);
-                        }
+                        if (var) { arg = BVar_Get_int(var); }
                     }
 
-                    bs->wait_counter = arg;
-					bs->State = STATE_WAITING;
+                    bs->pause_counter = arg;
+					bs->State = STATE_PAUSED;
 					done = true;
 					break;
 				}
-				case COMMAND_PAUS:     // wait for (n) engine ticks.
+				case COMMAND_WAIT:     // wait for (n) milli-seconds.
                 {
+                    uint32_t ms = 0;
+
+                    ms = (uint32_t)*cmdp++;
+
+                    if (base & COMMAND_ARG1_IS_VARIABLE)
+                    {
+                        BENG_VAR* var = BVar_Find(bs, ms);
+
+                        if (var) { ms = BVar_Get_int(var); }
+                    }
+
+                    bs->wait_time = make_timeout_time_ms(ms);
+					bs->State = STATE_WAITING;
+					done = true;
                     break;
                 }
 				case COMMAND_SPHY:    // select current phy string.

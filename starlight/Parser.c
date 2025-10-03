@@ -18,7 +18,7 @@
 #include "scene.h"
 
 
-PUBLIC uint32_t Engine_Mask = 1;
+PUBLIC volatile uint32_t Engine_Mask = 1;
 
 #define MAX_VARNAME_SIZE 40
 
@@ -135,12 +135,13 @@ PRIVATE bool read_blob(void)
 
                         if (blob_raw->Checksum == blob_check)
                         {
-                            Blob_Base_Switch();
+                            Blob_Base_Switch();   // Lock in new blob.
 
                             // PRINTF("read_blob: base %X %X\n", real_base, base);
                             if (Unpack_Blob_Header(base))
                             {
                                 BTPRINTF("BLOB loaded.\n");
+                                Blob_Run_mask(Engine_Mask, 1);      //=== Start...
                                 return true;
                             }
                         }
@@ -173,7 +174,6 @@ PRIVATE void skip_white(void)
         if (BlueTooth_TryGetPeek(&val) && isblank(val))
         {
             (void)parser_getchar();   // Consume whitespace.
-
         }
         else break;
     }
@@ -206,7 +206,42 @@ PRIVATE int read_var_name(char* buff, size_t buff_size)
                 continue;
             }
         }
-        else { D(DEBUG_PRINTF, PRINTF("read_num: TIMEOUT\n");) }
+        else { D(DEBUG_PRINTF, PRINTF("read_var_name: TIMEOUT\n");) }
+
+        reading = false;
+    }
+
+    return count;
+}
+
+
+PRIVATE int read_var_value(char* buff, size_t buff_size)
+{
+    skip_white();
+
+    int count = 0;
+
+    bool reading = true;
+    bool first = true;
+
+    if (buff_size) --buff_size;   // always leave room for final null.
+
+    while (reading && count < buff_size)
+    {
+        int ch = parser_getchar();
+
+        if (ch != PICO_ERROR_TIMEOUT)
+        {
+            if (  (first && (ch == '+' || ch == '-'))
+                 || isalnum(ch) || ch == '.')
+            {
+                *buff++ = ch;
+                *buff = 0;
+                ++count;
+                continue;
+            }
+        }
+        else { D(DEBUG_PRINTF, PRINTF("read_var_value: TIMEOUT\n");) }
 
         reading = false;
     }
@@ -444,34 +479,26 @@ PRIVATE void parser(int ch)
             break;
         }
 //------
-        case MATCH_SENG: // Set the active engine mask.
-        {
-            arg = read_snum();
+        // case MATCH_SENG: // Set the active engine mask.
+        // {
+        //     arg = read_snum();
 
-            if (arg >= 0 && arg < 128)
-            {
-                Engine_Mask = arg;
-                BTPRINTF("SENG %d\n", arg);
-            }
-            else
-            {
-                BTPRINTF("SENG: engine mask must be (0->127)\n");
-            }
-            break;
-        }
-        case MATCH_SPHY: // Set the current led array to use.
-        {
-            int phy_mask = read_snum();
-
-            Beng_Set_Phy_mask(Engine_Mask, phy_mask);
-            BTPRINTF("SPHY %d\n", phy_mask);
-            break;
-        }
+        //     if (arg >= 0 && arg < 128)
+        //     {
+        //         Engine_Mask = arg;
+        //         BTPRINTF("SENG %d\n", arg);
+        //     }
+        //     else
+        //     {
+        //         BTPRINTF("SENG: engine mask must be (0->127)\n");
+        //     }
+        //     break;
+        // }
 //------
         case MATCH_LOAD_BLOB: // BLOB: Load a new binary object containing program.
         {
 //             PRINTF("BLOB\n");
-            if (read_blob()) { Blob_Run_mask(Engine_Mask, 1); }  //=== Start...
+            read_blob();
             break;
         }
         case MATCH_EXPORT_BLOB:
@@ -525,7 +552,53 @@ PRIVATE void parser(int ch)
 //------
         case MATCH_SETV:
         {
-            D(DEBUG_PARSER, PRINTF("parser: MATCH_SETV is not implemented\n");)
+            char var_name[MAX_VARNAME_SIZE];
+            int chars_read = read_var_name(var_name, sizeof(var_name));
+
+            if (chars_read)
+            {
+                BENG_VAR* var = BVar_Find_By_Name(NULL, var_name);
+
+                D(DEBUG_PARSER, PRINTF("parser: MATCH_SETV '%s' [%X]\n", var_name, var);)
+
+                if (var)
+                {
+                    chars_read = read_var_value(var_name, sizeof(var_name));
+
+                    if (chars_read)
+                    {
+                        bool b = BVar_From_String(var, var_name);
+
+                        if (b) { BTPRINTF("%s = %s\n", var->name, var_name); }
+                        else   { BTPRINTF("%s = %s (fail)\n", var->name, var_name); }
+                    }
+                    else
+                    {
+                        char buff[20];
+
+                        BVar_To_String(var, buff, sizeof(buff));
+                        BTPRINTF("%s unchanged (%s)\n", var_name, buff);
+                    }
+                }
+            }
+            break;
+        }
+        case MATCH_SETQ:
+        {
+            char var_name[MAX_VARNAME_SIZE];
+            int chars_read = read_var_name(var_name, sizeof(var_name));
+
+            if (chars_read)
+            {
+                BENG_VAR* var = BVar_Find_By_Name(NULL, var_name);
+
+                if (var)
+                {
+                    chars_read = read_var_value(var_name, sizeof(var_name));
+
+                    if (chars_read) { BVar_From_String(var, var_name); }
+                }
+            }
             break;
         }
         case MATCH_GETV:
@@ -544,36 +617,6 @@ PRIVATE void parser(int ch)
                     char buff[20];
                     BVar_To_String(var, buff, sizeof(buff));
                     BTPRINTF("%s = %s\n", var_name, buff);
-
-                    // BENG_VAR_TYPE type = var->type & BENG_VAR_TYPE_MASK;
-
-                    // switch (type)
-                    // {
-                    //     case BENG_VAR_TYPE_INT:
-                    //     {
-                    //         int val = BVar_Get_int(var);
-                    //         BTPRINTF("%s = %d\n", var_name, val);
-                    //         break;
-                    //     }
-                    //     case BENG_VAR_TYPE_UINT:
-                    //     {
-                    //         unsigned int val = BVar_Get_uint(var);
-                    //         BTPRINTF("%s = %u\n", var_name, val);
-                    //         break;
-                    //     }
-                    //     case BENG_VAR_TYPE_FLOAT:
-                    //     {
-                    //         float val = BVar_Get_float(var);
-                    //         BTPRINTF("%s = %f\n", var_name, val);
-                    //         break;
-                    //     }
-                    //     case BENG_VAR_TYPE_DOUBLE:
-                    //     {
-                    //         double val = BVar_Get_double(var);
-                    //         BTPRINTF("%s = %lf\n", var_name, val);
-                    //         break;
-                    //     }
-                    // }
                 }
             }
             break;
@@ -601,10 +644,7 @@ PRIVATE void parser(int ch)
                 BTPRINTF("Page %d erased.\n", arg);
                 BPage_Erase_Page(bpage);
             }
-            else
-            {
-                BTPRINTF("ERAS: Bad page number must be (0->15)\n");
-            }
+            else { BTPRINTF("ERAS: Bad page number must be (0->15)\n"); }
             break;
         }
 //------
@@ -618,31 +658,39 @@ PRIVATE void parser(int ch)
             break;
         }
 //------
-        case MATCH_BRIGHTNESS:
+        case MATCH_SPHY: // Set the current led array to use.
         {
-            arg = read_num();
-            D(DEBUG_PRINTF, { PRINTF("BRIG %d \r", arg); fflush(stdout); })
+            int phy_mask = read_snum();
 
-            if (arg >= 0 && arg <= MAX_BRIGHTNESS_NUM)
-            {
-                double newval = arg / (double)MAX_BRIGHTNESS_NUM;
-
-                if (LED_Brightness != newval)
-                {
-                    LED_Brightness = newval;
-                    LED_Needs_Update(ALL_PHYS);
-                    LEDS_Do_Update();
-                }
-            }
+            Beng_Set_Phy_mask(Engine_Mask, phy_mask);
+            BTPRINTF("SPHY %d\n", phy_mask);
             break;
         }
-        case MATCH_DEBUG:
-        {
-            arg = read_num();
-            PRINTF("Set Debug Flag %d(0x%X)\n", arg, arg);
-            Debug_Mask = arg;
-            break;
-        }
+        // case MATCH_BRIGHTNESS:
+        // {
+        //     arg = read_num();
+        //     D(DEBUG_PRINTF, { PRINTF("BRIG %d \r", arg); fflush(stdout); })
+
+        //     if (arg >= 0 && arg <= MAX_BRIGHTNESS_NUM)
+        //     {
+        //         double newval = arg / (double)MAX_BRIGHTNESS_NUM;
+
+        //         if (LED_Brightness != newval)
+        //         {
+        //             LED_Brightness = newval;
+        //             LED_Needs_Update(ALL_PHYS);
+        //             LEDS_Do_Update();
+        //         }
+        //     }
+        //     break;
+        // }
+        // case MATCH_DEBUG:
+        // {
+        //     arg = read_num();
+        //     PRINTF("Set Debug Flag %d(0x%X)\n", arg, arg);
+        //     Debug_Mask = arg;
+        //     break;
+        // }
 //------
         case MATCH_NONE:
         default:

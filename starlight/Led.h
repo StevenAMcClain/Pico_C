@@ -30,7 +30,8 @@ typedef union
 #define LED_SIZE sizeof(LED)                        // Size of one LED.
 #define LED_DATA_SIZE (Num_LEDS * LED_SIZE)
 
-extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
+//extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
+extern uint32_t LED_Brightness;       // Brighness level (0-1024 == 0-100%)
 
 //extern volatile uint32_t Current_Phy_Mask;  // Current phynum (or logical).  0 for none.
 
@@ -38,6 +39,7 @@ extern size_t PHY_Get_LED_Count(int phy_idx);
 
 extern void LEDS_Buff_Reset();
 extern LED* LEDS_Buff_Allocate(size_t size);
+extern size_t LEDS_Buff_Available(void);
 
 extern void PHY_Set_led_count(int phy_idx, size_t led_count);
 //

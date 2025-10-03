@@ -127,7 +127,7 @@ typedef struct Beng_State
 	STATE State;				// Start in IDLE state.
     bool is_idle;               // True if in idle state.
 
-	uint32_t wait_counter;		// Ticks left to wait until next step.
+	uint32_t pause_counter;		// Ticks left to wait until next step.
 
 	uint32_t repeat;			// Number of times left to repeat.
 	PROG* repeat_start;			// First command in program sequence.
@@ -201,7 +201,7 @@ PRIVATE void Push_Context(void)
 
 	Stack_Push(stk,           Beng_State.State);		// Current state (processing command).
 	Stack_Push(stk, (uint32_t)Beng_State.prog);			// Next command to run.
-	Stack_Push(stk,           Beng_State.wait_counter);	// Ticks left to wait until next step.
+	Stack_Push(stk,           Beng_State.pause_counter);	// Ticks left to wait until next step.
 	Stack_Push(stk,           Beng_State.repeat);		// Number of times left to repeat.
 	Stack_Push(stk, (uint32_t)Beng_State.repeat_start);	// First command in program sequence.
 	// XITI* Xiti;										// Transition currently playing.
@@ -222,7 +222,7 @@ PRIVATE void Pop_Context(void)
 	// XITI* Xiti;											// Transition currently playing.
 	Beng_State.repeat_start = (PROG*)Stack_Pop(stk);			// First command in program sequence.
 	Beng_State.repeat       =        Stack_Pop(stk);			// Number of times left to repeat.
-	Beng_State.wait_counter =        Stack_Pop(stk);			// Ticks left to wait until next step.
+	Beng_State.pause_counter =        Stack_Pop(stk);			// Ticks left to wait until next step.
 	Beng_State.prog         = (PROG*)Stack_Pop(stk);			// Next command to run.
 	Beng_State.State        =        Stack_Pop(stk);			// Current state (processing command).
 }
@@ -274,7 +274,7 @@ PRIVATE bool Process_Command(PROG** cmdpp)
 				case COMMAND_WAIT:     // wait for (n) seconds.
 				{
 					uint32_t arg = (uint32_t)*cmdp++;
-					Beng_State.wait_counter = arg;
+					Beng_State.pause_counter = arg;
 					Beng_State.State = STATE_WAITING;
 					done = true;
 					break;
@@ -409,9 +409,9 @@ PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
         }
 		case STATE_WAITING:
 		{
-			if (Beng_State.wait_counter) { --Beng_State.wait_counter; }
+			if (Beng_State.pause_counter) { --Beng_State.pause_counter; }
 
-			if (Beng_State.wait_counter)	// Waiting done?
+			if (Beng_State.pause_counter)	// Waiting done?
 			{
 				break;  // Nope, still waiting.
 			}
@@ -484,7 +484,7 @@ PUBLIC void Blob_Stop(void)
 	Stack_Clear(Beng_State.program_stack); 
 
 	Beng_State.repeat = 0;
-	Beng_State.wait_counter = 0;
+	Beng_State.pause_counter = 0;
     Beng_State.prog = 0;
 }
 

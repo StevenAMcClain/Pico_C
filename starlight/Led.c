@@ -15,7 +15,8 @@
 #include "trace.h"
 #endif
 
-PUBLIC FLOAT LED_Brightness = 1.0;			    // Overall brightness for all strings.
+//PUBLIC FLOAT LED_Brightness = 1.0;			    // Overall brightness for all strings.
+PUBLIC uint32_t LED_Brightness = 1024;			    // Overall brightness for all strings.
 
 PRIVATE volatile uint32_t needs_update = 0;     // Bit mask for strings that need to be updated.
 
@@ -62,6 +63,12 @@ PUBLIC LED* LEDS_Buff_Allocate(size_t size)
 }
 
 
+PUBLIC size_t LEDS_Buff_Available(void)
+{
+    return MAX_NUM_LEDS - Leds_Allocated;
+}
+
+
 PUBLIC size_t PHY_Get_LED_Count(int phy_idx)
 {
 	if (PHY_IDX_VALID(phy_idx))
@@ -102,7 +109,9 @@ PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
 
 PRIVATE inline LED_VAL apply_brightness(LED_VAL val)
 {
-	uint32_t big_val = (uint32_t)(((FLOAT)val) * LED_Brightness);
+	// uint32_t big_val = (uint32_t)(((FLOAT)val) * LED_Brightness);
+	// return (big_val <= LED_VAL_MAX) ? big_val : LED_VAL_MAX;
+	uint32_t big_val = (val * LED_Brightness) >> 10;
 	return (big_val <= LED_VAL_MAX) ? big_val : LED_VAL_MAX;
 }
 
@@ -118,20 +127,6 @@ PRIVATE inline void scale_led_data(LED* bptr, LED* sptr, size_t bcount)
 	}
 }
 
-
-// PRIVATE void LEDS_Setup(void)
-// //
-// // Setup the dma buffers.
-// {
-//     LEDS_PHY* phy = LEDS_Phy;
-//     int phy_idx = 0;
-
-//     while (phy_idx < MAX_PHY)
-//     {
-//         WS2812_Prime_Set_idx(phy_idx, (uint32_t*)phy->scaled_led_data);
-//         ++phy;  ++phy_idx;
-//     }
-// }
 
 PUBLIC void LEDS_Do_Update(void)
 //
@@ -151,7 +146,6 @@ PUBLIC void LEDS_Do_Update(void)
         {
             scale_led_data(phy->led_data, phy->scaled_led_data, phy->led_count);
             WS2812_Set_Primed(phy_mask);
-//            WS2812_Prime_Send_idx(phy_idx, (uint32_t*)phy->scaled_led_data);
             needs_update &= ~phy_mask;
         }
         ++phy; ++phy_idx; phy_mask <<= 1;
@@ -160,9 +154,6 @@ PUBLIC void LEDS_Do_Update(void)
 #ifdef TRACE_LED_BRIGHTNESS
     Trace_End();
 #endif
-
-
-    // WS2812_Do_Send();   // Trigger DMA to start.... actually send the data.
 }
 
 

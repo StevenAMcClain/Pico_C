@@ -15,6 +15,7 @@
 typedef enum
 {
 	STATE_IDLE,             // Nothing running.
+	STATE_PAUSED,           // In pause.
 	STATE_WAITING,          // In wait.
 	STATE_COMMAND,          // Running commands.
 	STATE_TRANSITION,       // In transition.
@@ -47,7 +48,8 @@ typedef struct Beng_State
 
     volatile STATE State;		// state for engine.
   
-	uint32_t wait_counter;		// Ticks left to wait until next step.
+	uint32_t pause_counter;		// Ticks left to wait until next step (while in paused state).
+    absolute_time_t wait_time;  // Time to wait until (when in wait state).
 
 	uint32_t repeat;			// Number of times left to repeat.
 	PROG* repeat_start;			// First command in program sequence.

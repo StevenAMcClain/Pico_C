@@ -12,7 +12,7 @@
 #define MAX_BENG_GLOBAL 10
 #define MAX_BENG_LOCAL 10
 
-#define BENG_VAR_IDX_MASK          ((1 << 27) - 1)
+#define BENG_VAR_IDX_MASK          ((1 << 28) - 1)
 #define BENG_VAR_IDX_SCOPE_GLOBAL   (1 << 28)
 #define BENG_VAR_IDX_SCOPE_INTERNAL (1 << 29)
 
@@ -111,6 +111,7 @@ extern void BVar_Set_double(BENG_VAR* /*var*/, double /*val*/);
 extern void BVar_Set_pointer(BENG_VAR* /*var*/, void* /*val*/);
 
 extern size_t BVar_To_String(BENG_VAR* /*var*/, char* /*buff*/, size_t /*buffsize*/);
+extern bool BVar_From_String(BENG_VAR* /*var*/, char* /*buff*/);
 
 #endif  // BVAR_H
 

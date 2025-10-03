@@ -149,6 +149,35 @@ PUBLIC void Blob_Unload(void)
 }
 
 
+PRIVATE void unpack_variables(void)
+{
+    BLOB_VAR* varp = Blob.VarTab_Base;
+    uint32_t n = Blob.Num_VarRecs;
+    uint8_t* strs = Blob.StrindX;
+    char var_val_buff[20];
+
+    while (n--)
+    {
+        if (varp->var_idx & BENG_VAR_IDX_SCOPE_GLOBAL)
+        {
+            char* name = varp->name_strdx ? (char*)(strs + varp->name_strdx - 1) : "<name?>";
+            int idx = varp->var_idx & BENG_VAR_IDX_MASK;
+
+            BENG_VAR* bvar = BVar_Find(NIL, varp->var_idx);
+
+            if (bvar) 
+            {
+                bvar->id = varp->var_idx;
+                bvar->name = name;
+                bvar->type = varp->var_type;
+                bvar->value.i = varp->var_value; 
+            }
+        }
+        ++varp;
+    }
+}
+
+
 PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 //
 // Load a new blob_base.
@@ -203,6 +232,8 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 
             while (num_phys--) { PHY_Set_led_count(phyidx++, *phystr++); }
         }
+
+        unpack_variables();
 
         Blob_Is_Loaded = true;
 

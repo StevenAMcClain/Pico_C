@@ -366,35 +366,66 @@ PUBLIC size_t BVar_To_String(BENG_VAR* var, char* buff, size_t buffsize)
 
     if (var)
     {
+        BENG_VAR_TYPE fmt = var->type & BENG_VAR_TYPE_FORMAT_MASK;
         BENG_VAR_TYPE type = var->type & BENG_VAR_TYPE_MASK;
+
+        if (fmt)
+        {
+            result = snprintf(buff, buffsize, "fmt vars not ready!");
+        }
+        else
+        {
+            switch (type)
+            {
+                case BENG_VAR_TYPE_INT:
+                {
+                    int val = BVar_Get_int(var);
+                    result = snprintf(buff, buffsize, "%d", val);
+                    break;
+                }
+                case BENG_VAR_TYPE_UINT:
+                {
+                    unsigned int val = BVar_Get_uint(var);
+                    result = snprintf(buff, buffsize, "%u", val);
+                    break;
+                }
+                case BENG_VAR_TYPE_FLOAT:
+                {
+                    float val = BVar_Get_float(var);
+                    result = snprintf(buff, buffsize, "%3.3f", val);
+                    break;
+                }
+                case BENG_VAR_TYPE_DOUBLE:
+                {
+                    double val = BVar_Get_double(var);
+                    result = snprintf(buff, buffsize, "%3.3lf", val);
+                    break;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+
+PUBLIC bool BVar_From_String(BENG_VAR* var, char* buff)
+{
+    bool result = false;
+
+    if (var && buff)
+    {
+        BENG_VAR_TYPE type = var->type & BENG_VAR_TYPE_MASK;
+        void* ptr = (var->type & BENG_VAR_TYPE_POINTER) ? var->value.ptr : &var->value;
+        char* fmt = "<bad>";
 
         switch (type)
         {
-            case BENG_VAR_TYPE_INT:
-            {
-                int val = BVar_Get_int(var);
-                result = snprintf(buff, buffsize, "%d", val);
-                break;
-            }
-            case BENG_VAR_TYPE_UINT:
-            {
-                unsigned int val = BVar_Get_uint(var);
-                result = snprintf(buff, buffsize, "%u", val);
-                break;
-            }
-            case BENG_VAR_TYPE_FLOAT:
-            {
-                float val = BVar_Get_float(var);
-                result = snprintf(buff, buffsize, "%3.3f", val);
-                break;
-            }
-            case BENG_VAR_TYPE_DOUBLE:
-            {
-                double val = BVar_Get_double(var);
-                result = snprintf(buff, buffsize, "%3.3lf", val);
-                break;
-            }
+            case BENG_VAR_TYPE_INT:    { fmt = "%d";   break; }
+            case BENG_VAR_TYPE_UINT:   { fmt = "%u";   break; }
+            case BENG_VAR_TYPE_FLOAT:  { fmt = "%f";   break; }
+            case BENG_VAR_TYPE_DOUBLE: { fmt = "%lf";  break; }
         }
+        result = (1 == sscanf(buff, fmt,  ptr));
     }
     return result;
 }

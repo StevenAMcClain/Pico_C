@@ -196,10 +196,17 @@ Commands:
 
 ----
 Internal Vars:
-DEBG  - Debug mask.  (one bit for each debug category).
-ENGM  - Engine mask. (one bit for each of eight engines).
-PHYM  - Phy string mask for rendering.
-BRIG  - Overall brightness.
+DEBUG  - Debug mask.  (one bit for each debug category).
+BRIGHT - Overall brightness.
+EMASK  - Engine mask. (one bit for each of eight engines).
+PMASK0  - Phy string mask for rendering.
+PMASK1  - Phy string mask for rendering.
+PMASK2  - Phy string mask for rendering.
+PMASK3  - Phy string mask for rendering.
+PMASK4  - Phy string mask for rendering.
+PMASK5  - Phy string mask for rendering.
+PMASK6  - Phy string mask for rendering.
+PMASK7  - Phy string mask for rendering.
 TIK0  - Engine zero tick time.
 TIK1  - Engine one tick time.
 TIK2  - Engine two tick time.
@@ -227,7 +234,7 @@ var = variable number (0=accumulator, 1 to 10 are local,
                        100-110 are global, 
                        1000 to 10xx are internal)
 
-type = INT, UINT, FLOAT, DOUBLE.
+type = UINT, INT, LONG FLOAT, DOUBLE.
 
 trig = trigger number.   
 

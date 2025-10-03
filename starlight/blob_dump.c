@@ -250,12 +250,24 @@ PRIVATE void dump_variable_table(void)
                 }
                 char* name = varp->name_strdx ? (char*)(strs + varp->name_strdx - 1) : "<name?>";
                 int idx = varp->var_idx & BENG_VAR_IDX_MASK;
-                BTPRINTF("%d) '%s' %d %d\n", idx, name, varp->var_type, varp->var_value);
+                BENG_VAR* bvar = BVar_Find(NIL, varp->var_idx);
+
+                if (bvar) { BVar_To_String(bvar, var_val_buff, sizeof(var_val_buff)); }
+                else      { *var_val_buff = 0;                                        }
+
+                BTPRINTF("%d) '%s' %d %s\n", idx, name, varp->var_type, var_val_buff);
+//                BTPRINTF("%d) '%s' %d %d\n", idx, name, varp->var_type, varp->var_value);
             }
             ++varp;
         }
     }
     else { BTPRINTF("NOBLOB\n"); }
+}
+
+
+PRIVATE void dump_leds_avail(void)
+{
+    BTPRINTF("Leds Avalable: %d\n", LEDS_Buff_Available());
 }
 
 
@@ -354,6 +366,7 @@ Dump:\n\
   10 - Engine States.\n\
   11 - Blank Flash pages.\n\
   12 - Dump Variables.\n\
+  13 - Dump LEDS available.\n\
   \n"
 
 
@@ -373,6 +386,7 @@ PUBLIC void do_dump(int arg, int arg2)
         case 10: { dump_engines_state(); break; }
         case 11: { dump_blank_flash(); break; }
         case 12: { dump_variable_table(); break; }
+        case 13: { dump_leds_avail(); break; }
         case 100: { dump_info(); break; }
         case 0: default: { BTPRINTF(HELP_STRING); break; }
     }

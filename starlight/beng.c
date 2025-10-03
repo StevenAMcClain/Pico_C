@@ -24,11 +24,7 @@ PUBLIC BENG_STATE Beng_State[MAX_BENG] = {0};     // One of these for each engin
 
 PUBLIC BENG_STATE* Get_Beng_State(int beng_idx)
 {
-    if (ENGINE_VALID(beng_idx))
-    {
-        return &Beng_State[beng_idx];
-    }
-    return (void*)0;
+    return (ENGINE_VALID(beng_idx)) ? &Beng_State[beng_idx] : NIL;
 }
 
 
@@ -36,11 +32,7 @@ PRIVATE int Get_Beng_State_Idx(BENG_STATE* bs)
 {
     int beng_idx = bs - Beng_State;
 
-    if (ENGINE_VALID(beng_idx))
-    {
-        return beng_idx;
-    }
-    return BAD_BENG_IDX;
+    return (ENGINE_VALID(beng_idx)) ? beng_idx : BAD_BENG_IDX;
 }
 
 
@@ -80,7 +72,7 @@ PUBLIC void Push_Context(BENG_STATE* bs)
 	Stack_Push(stk,           bs->State);		    // Current state (processing command).
 	Stack_Push(stk, (uint32_t)bs->phy_mask);		// LED Phy mask.
 	Stack_Push(stk, (uint32_t)bs->prog);			// Next command to run.
-	Stack_Push(stk,           bs->wait_counter);	// Ticks left to wait until next step.
+	Stack_Push(stk,           bs->pause_counter);	// Ticks left to wait until next step.
 	Stack_Push(stk,           bs->repeat);		    // Number of times left to repeat.
 	Stack_Push(stk, (uint32_t)bs->repeat_start);	// First command in program sequence.
 	// XITI* Xiti;									// Transition currently playing.
@@ -101,7 +93,7 @@ PUBLIC void Pop_Context(BENG_STATE* bs)
 	// XITI* Xiti;											// Transition currently playing.
 	bs->repeat_start = (PROG*)Stack_Pop(stk);		    	// First command in program sequence.
 	bs->repeat       =        Stack_Pop(stk);			    // Number of times left to repeat.
-	bs->wait_counter =        Stack_Pop(stk);			    // Ticks left to wait until next step.
+	bs->pause_counter =        Stack_Pop(stk);			    // Ticks left to wait until next step.
 	bs->prog         = (PROG*)Stack_Pop(stk);			    // Next command to run.
 	bs->phy_mask     =        Stack_Pop(stk);			    // LED Phy mask.
 	bs->State        =        Stack_Pop(stk);			    // Current state (processing command).
@@ -111,19 +103,17 @@ PUBLIC void Pop_Context(BENG_STATE* bs)
 
 #define DEBUG_BLOB2 (DEBUG_BLOB | DEBUG_BUSY)
 
-///--- Tick ---
-//
-// PRIVATE bool Blob_Program_Tick(struct repeating_timer* ptr)
+//----------------------------------------------------------------------------------------------------------
 PRIVATE int64_t Blob_Program_Tick(alarm_id_t id, void *user_data)
 //
 // Tick for player state machine.    Called Tick_Speed times per second. 
 {
-    int64_t result = 0;    // Default to not rescheduling.
     BENG_STATE* bs = (BENG_STATE*)user_data;
 
 #ifdef TRACE_BENG_TICK
     Trace_Start();
 #endif
+
 //	D(DEBUG_BLOB2, if (bs->State)  { PRINTF("\n== Blob_Tick %d: State %d\n", ++bs->Tick_Count, bs->State); })
 
 	switch (bs->State)
@@ -133,11 +123,11 @@ PRIVATE int64_t Blob_Program_Tick(alarm_id_t id, void *user_data)
             bs->tick_is_running = false;
             break; 
         }
-		case STATE_WAITING:
+		case STATE_PAUSED:
 		{
-			if (bs->wait_counter) { --bs->wait_counter; }
+			if (bs->pause_counter) { --bs->pause_counter; }
 
-			if (bs->wait_counter)	// Waiting done?
+			if (bs->pause_counter)	// Waiting done?
 			{
 				break;  // Nope, still waiting.
 			}
@@ -147,6 +137,16 @@ PRIVATE int64_t Blob_Program_Tick(alarm_id_t id, void *user_data)
 				// Fall throught to next case ... STATE_COMMAND
 			}
 		}
+		case STATE_WAITING:
+        {
+            if (time_reached(bs->wait_time))
+//            if (get_absolute_time() > bs->wait_time)
+            {
+				bs->State = STATE_COMMAND;
+				// Fall throught to next case ... STATE_COMMAND
+            }
+            else { break; }   // Still waiting.
+        }
 		case STATE_COMMAND:
 		{
             bool cmd_is_running = Process_Command(bs);
@@ -191,14 +191,13 @@ PRIVATE int64_t Blob_Program_Tick(alarm_id_t id, void *user_data)
 	}
 	//D(DEBUG_BLOB2, if (bs->State)  { PRINTF("== Blob_Tick: Done (%d).\n\n", bs->Tick_Count); })
 
-    result = (bs->tick_is_running) ? -bs->Tick_Speed : 0;
-
 #ifdef TRACE_BENG_TICK
     Trace_End();
 #endif
 
-	return result;
+	return (bs->tick_is_running) ? -bs->Tick_Speed : 0;
 }
+
 
 //--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 PRIVATE void start_prog_tick(BENG_STATE* bs)
@@ -212,31 +211,29 @@ PRIVATE void start_prog_tick(BENG_STATE* bs)
 }
 
 
-PRIVATE void stop_prog_tick(BENG_STATE* bs)
-{
-    bs->tick_is_running = false;
-//    if (bs->tick_is_running)
-//    {
-//        cancel_repeating_timer(&bs->blob_timer_prog_tick);
-//        bs->tick_is_running = false;
-//        PRINTF("stop_prog_tick\n");
-//     }
-}
-
-
 PUBLIC void Blob_Stop(BENG_STATE* bs)
 //
 // Stop current program and clear stack.
 {
 	bs->State = STATE_IDLE;
-    sleep_ms(2);
-
-    stop_prog_tick(bs);
-	Stack_Clear(bs->program_stack); 
-
+    while (bs->tick_is_running)  { sleep_us(100); } // Wait for stop
+    Stack_Clear(bs->program_stack); 
 	bs->repeat = 0;
-	bs->wait_counter = 0;
+	bs->pause_counter = 0;
     bs->prog = 0;
+}
+
+
+PUBLIC void Beng_All_Stop(void)
+//
+// Stop ALL Blob engines.
+{
+    int beng_idx = MAX_BENG;
+    BENG_STATE* bs = Beng_State;
+
+    PRINTF("Beng_All_Stop\n");
+
+    while (beng_idx--) { Blob_Stop(bs++); }
 }
 
 
@@ -346,7 +343,6 @@ PRIVATE void Beng_State_Init(BENG_STATE* bs)
 {
     bs->Tick_Speed = 50000;
     bs->program_stack = Stack_Initialize(&bs->program_stack_buffer, PROG_STACK_SIZE);
-//    start_prog_tick(bs);
 }
 
 
@@ -360,26 +356,7 @@ PUBLIC void Beng_Init(void)
     int beng_idx = MAX_BENG;
     BENG_STATE* bs = Beng_State;
 
-    while (beng_idx--)
-    {
-        Beng_State_Init(bs++);
-    }
-//    PRINTF("Beng_Init\n");
-}
-
-
-PUBLIC void Beng_All_Stop(void)
-//
-// Stop ALL Blob engines.
-{
-    PRINTF("Beng_All_Stop\n");
-    int beng_idx = MAX_BENG;
-    BENG_STATE* bs = Beng_State;
-
-    while (beng_idx--)
-    {
-        stop_prog_tick(bs++);
-    }
+    while (beng_idx--) { Beng_State_Init(bs++); }
 }
 
 
