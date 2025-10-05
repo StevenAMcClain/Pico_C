@@ -41,10 +41,9 @@ typedef struct Prog_Stack
 typedef struct Beng_State
 {
     volatile bool tick_is_running;
-//    struct repeating_timer blob_timer_prog_tick;		// Timer to call Blob_Tick.
+    volatile int Tick_Speed;    // Clock for blob player.    
 
 	int Tick_Count;             // Used by state machine tick.
-    int Tick_Speed;             // Clock for blob player.    
 
     volatile STATE State;		// state for engine.
   
@@ -53,6 +52,7 @@ typedef struct Beng_State
 
 	uint32_t repeat;			// Number of times left to repeat.
 	PROG* repeat_start;			// First command in program sequence.
+
 	PROG* prog;				    // Points to next program command.
 
 	// XITI* Xiti;				// Transition currently playing.

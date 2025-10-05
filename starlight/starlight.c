@@ -18,6 +18,7 @@
 #include "parser.h"
 #include "trace.h"
 
+#include "morph.h"
 
 PUBLIC uint32_t Debug_Mask = DEBUG_ALL;
 
@@ -62,7 +63,7 @@ PRIVATE void Start_BlueTooth(void)
 
 PUBLIC void main(void)
 {
-    stdio_init_all();           // Prepare stdio for use.
+    stdio_init_all();   // Prepare stdio for use.
 
     Trace_Init();
     char* uuid = Get_UUID();
@@ -70,16 +71,18 @@ PUBLIC void main(void)
     PRINTF("\r\n\nStarlight %s %s %s: UUID:%s: startup.\n", 
                             __VERSION__ , __TIME__, __DATE__, uuid);
 
-    LED_Init();                 // Prepare LED strings PIO driver for use.
-    Beng_Init();                // Get blob engine ready.
-    Blob_Init();                // Get blob manager ready to run.
+    PRINTF("LED Morph size %d\n", sizeof(LED_MORPH));
+
+    LED_Init();         // Prepare LED strings PIO driver for use.
+    Beng_Init();        // Get blob engines ready.
+    Blob_Init();        // Get blob manager ready to run.
 
     multicore_lockout_victim_init();
-    multicore_launch_core1(SECOND_CORE_MAIN);   // This is the main for the second core.
+    multicore_launch_core1(Start_BlueTooth);   // Startup the Bluetooth stack.
 
     sleep_ms(100);      // Wait for BlueTooth to startup.
     
-    FIRST_CORE_MAIN();                     // This is the main for the first core.
+    Start_Parser();     // Startup the parser.
 }
 
 

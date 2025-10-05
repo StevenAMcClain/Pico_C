@@ -101,6 +101,8 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 
             COMMAND cmd = (COMMAND)base & COMMAND_MASK;
 
+            BENG_VAR* var = (base & COMMAND_ARG1_IS_VARIABLE) ? BVar_Find(bs, (uint32_t)*cmdp) : NIL;
+
 			D(DEBUG_BLOB2, PRINTF("PC [%d]: %d '%s'\n", Prog_Id(cmdp), cmd, Command_Name(cmd));)
 
 			switch (cmd)
@@ -115,6 +117,7 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
                 case COMMAND_UPDATE:    // Update LED Strings.
                 {
                     LEDS_Do_Update();
+					done = true;        // Always yield after update.
                     break;
                 }
 				case COMMAND_YIELD:     // wait until next tick.
@@ -123,60 +126,24 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 					break;
 				}
 				case COMMAND_PAUS:     // pause for (n) engine ticks.
-				{
-                    uint32_t arg = 0;
-
-                    arg = (uint32_t)*cmdp++;
-
-                    if (base & COMMAND_ARG1_IS_VARIABLE)
-                    {
-                        BENG_VAR* var = BVar_Find(bs, arg);
-
-                        if (var) { arg = BVar_Get_int(var); }
-                    }
-
-                    bs->pause_counter = arg;
-					bs->State = STATE_PAUSED;
-					done = true;
-					break;
-				}
 				case COMMAND_WAIT:     // wait for (n) milli-seconds.
                 {
-                    uint32_t ms = 0;
+                    uint32_t ms = var ? BVar_Get_int(var) : (uint32_t)*cmdp;
+                    ++cmdp;
 
-                    ms = (uint32_t)*cmdp++;
-
-                    if (base & COMMAND_ARG1_IS_VARIABLE)
+                    if (cmd == COMMAND_PAUS)
                     {
-                        BENG_VAR* var = BVar_Find(bs, ms);
-
-                        if (var) { ms = BVar_Get_int(var); }
+                        bs->pause_counter = ms;
+                        bs->State = STATE_PAUSED;
                     }
-
-                    bs->wait_time = make_timeout_time_ms(ms);
-					bs->State = STATE_WAITING;
+                    else
+                    {
+                        bs->wait_time = make_timeout_time_ms(ms);
+                        bs->State = STATE_WAITING;
+                    }
 					done = true;
                     break;
                 }
-				case COMMAND_SPHY:    // select current phy string.
-				{
-					int32_t arg = (int32_t)*cmdp++;
-                    bs->phy_mask = arg;
-					break;
-				}
-				case COMMAND_SCENE:    // paint scene (n).
-				{
-					uint32_t arg = (uint32_t)*cmdp++;
-					Set_Scene(bs->phy_mask, arg);
-                    LEDS_Do_Update();
-					break;
-				}
-				case COMMAND_RENDER:    // paint scene (n), no update.
-				{
-					uint32_t arg = (uint32_t)*cmdp++;
-					Set_Scene(bs->phy_mask, arg);
-					break;
-				}
 				case COMMAND_JUMP:     // jump to a new line in routine.
 				{
 					PROG arg = (PROG)*cmdp++;
@@ -186,13 +153,14 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 				case COMMAND_CALL:     // call a sub routine.
 				{
 					PROG arg = (PROG)*cmdp++;
-					D(DEBUG_BLOB, PRINTF("Call: pgm 0x%X\n", arg);)
+
+                    D(DEBUG_BLOB, PRINTF("Call: pgm 0x%X\n", arg);)
 
 					bs->prog = cmdp;   // Make sure State.prog is up to date.
-					Push_Context(bs);
+					Push_Context(bs);  // Save for later. 
 
-					PROG* prog = Prog_Ptr(arg);
-					cmdp = bs->prog = prog;      // Set new prog pointer.
+					PROG* prog = Prog_Ptr(arg);     // Find new command.
+					cmdp = bs->prog = prog;         // Set new prog pointer.
 					break;
 				}
 				case COMMAND_REPEAT:   // repeat a sequence (n) times.
@@ -207,6 +175,25 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 
 					bs->repeat = repeat;
 					cmdp = bs->repeat_start = bs->prog = Prog_Ptr(cmd_idx);;
+					break;
+				}
+                case COMMAND_SPHY:    // select current phy string.
+				{
+					int32_t arg = (int32_t)*cmdp++;
+                    bs->phy_mask = arg;
+					break;
+				}
+				case COMMAND_SCENE:    // paint scene (n).
+				{
+					uint32_t arg = (uint32_t)*cmdp++;
+					Set_Scene_idx(bs->phy_mask, arg);
+                    LEDS_Do_Update();
+					break;
+				}
+				case COMMAND_RENDER:    // paint scene (n), no update.
+				{
+					uint32_t arg = (uint32_t)*cmdp++;
+					Set_Scene_idx(bs->phy_mask, arg);
 					break;
 				}
 				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
@@ -228,6 +215,7 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 					cmdp++;
                     break;
                 }
+				case COMMAND_TRIGGER:   // immediate trigger to selected engines.
 				case COMMAND_QUEUE:     // add routine to queue.
 				case COMMAND_INTERRUPT: // interrupt current routine.
 					cmdp++;
@@ -235,12 +223,7 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 					D(DEBUG_BLOB, PRINTF("Command(%d) '%s' is not implemented yet.\n", cmd, Command_Name(cmd));)
 					break;
 				}
-                case COMMAND_BRA:    // Branch always.
-				{
-					PROG arg = (PROG)*cmdp++;
-					cmdp = Prog_Ptr(arg);
-					break;
-				}
+
 
 				case COMMAND_SET:   // Set a variable to a value.
 				case COMMAND_GET:   // Get value (into accumulator)
@@ -268,6 +251,12 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 				case COMMAND_BNE:    // Branch if accumulator is not zero.
 				{
 					D(DEBUG_BLOB, PRINTF("Process_Command: Not implemented %d '%s'\n", cmd, Command_Name(cmd));)
+					break;
+				}
+                case COMMAND_BRA:    // Branch always.
+				{
+					PROG arg = (PROG)*cmdp++;
+					cmdp = Prog_Ptr(arg);
 					break;
 				}
                 default:

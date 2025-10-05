@@ -197,7 +197,7 @@ PRIVATE int read_var_name(char* buff, size_t buff_size)
 
         if (ch != PICO_ERROR_TIMEOUT)
         {
-            if ( (is_first && isalpha(ch)) || (!is_first && isalnum(ch)) )
+            if ( ch == '_' || (is_first && isalpha(ch)) || (!is_first && isalnum(ch)) )
             {
                 is_first = false;
                 *buff++ = ch;
@@ -437,17 +437,17 @@ PRIVATE bool BPage_Save_Blob(int bpage)
 
 PRIVATE void Set_Scene_engines(int beng_mask, SCENE_ID scene_id)
 //
-// Shift (or rotate) led array on one phy.
+// Send a set scene command to masked engines.
 {
-    int beng_idx = 0;
     uint32_t mask = 1;
+    int beng_idx = 0;
 
     while (beng_mask && beng_idx < MAX_BENG)
     {
         if (mask & beng_mask)
         {
             BENG_STATE *bs = Get_Beng_State(beng_idx);
-            Set_Scene(bs->phy_mask, scene_id);
+            Set_Scene_idx(bs->phy_mask, scene_id);
             beng_mask &= ~mask;
         }
         mask <<= 1;

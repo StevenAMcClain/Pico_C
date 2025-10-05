@@ -10,9 +10,6 @@ These are commands that can be send over the bluetooth connection.
 RESE:  	// Stop all engines, Black Leds, Reset back to no blob.
 BLAC:   // Immediate all black scene on all phy leds.
 
-SENG:   // Set active engine number.
-SPHY:   // Set the current physical LED array(s).
-
 BLOB:  	// Load program blob.
 XBLB:   // Export current blob.
 
@@ -20,12 +17,13 @@ SCEN:	// Instant scene set.
 SHOW:	// Instant scene set using scene from loaded blob.
 UPDA:   // Update rendered scenes.
 
-TRIG:   // Immediatly trigger a program from the BLOB.
+TRIG (prog):   // Immediatly trigger a program from the BLOB.
 INTR:   // Interrupt current command and continue after.
 QUEU:   // Add a command to execute after current command.
 
-SETV
-GETV
+GETV (var):	        // Get a variable's value.
+SETV (var) (val):	// Set a variable's value.
+SETQ (var) (val):   // Set variable quiet.
 
 SAVE (page):   // Save current blob and config to flash.  (page) is flash page number 0-15.
 LOAD (page):   // Load blob from flash.  (page) is flash page number 0-15.
@@ -33,8 +31,7 @@ ERAS (page):   // Erase flash page.  (page) is flash page number 0-15.
 
 DUMP:   // Dump various tables.
 
-BRIG:  // Set brightness.
-
+SPHY:   // Set the current physical LED array(s).
 
 ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 
@@ -49,18 +46,6 @@ RESE:  Stop all engines,
 //
 BLAC:  Immediate all black scene.
        Stops running program and clears queue.
-
-//-----------------------------------------
-//
-SENG (n):  Set active engine number.
-           Select engine to send triggers to.
-           Valid numbers are 0 to 7.
-
-//-----------------------------------------
-//
-SPHY (m):   Set the current physical LED array(s).
-            m is mask with one bit for each phy.
-            Seperate phymask for each engine.
 
 //-----------------------------------------
 //
@@ -91,9 +76,9 @@ QUEU: (cp)			# Add a command to execute after current command.
 
 //-----------------------------------------
 //
-SETV
-
-GETV (var)
+GETV (var):
+SETV (var) (val):
+SETQ (var) (val):
 
 //-----------------------------------------
 //
@@ -114,6 +99,8 @@ DUMP:  // Dump various tables.
   8 - Dump bytes. (start)
   9 - Dump ints. (start)
   10 - Engines state.
+  11 - Blank Flash Pages.
+  12 - Dump Variables.
   100 - Connect info.
 
 
@@ -143,9 +130,12 @@ BLOB COMMANDS
 //
 Commands:
 
-	UPDA
+	END 				# End of commmand script.
+	UPDA 				# Draw current leds and yield.
 	YIEL				# Wait until next tick.
+	PAUS (ticks)		# Wait for a number of engine-ticks.
 	WAIT (time)			# Wait for a number of milli-seconds.
+
 	JUMP (cp)			# Jump to a command
 	CALL (cp)			# Call a command
 	REPE (in) (cp)      # Call command a number of times.
@@ -163,7 +153,6 @@ Commands:
 	INTR [(engm)] (trig)		# Interrupt engines with trigger 
 	QUEU [(engm)] (trig)		# Queue trigger to after current completes.
 
-	END 				# End of commmand script.
 
 ----
 	VAR <var> <type>	# Set a variable type.
@@ -194,34 +183,6 @@ Commands:
 	BNE (cp)			# Branch if accumulator is not zero.
 	BRA (cp)			# Branch always.
 
-----
-Internal Vars:
-DEBUG  - Debug mask.  (one bit for each debug category).
-BRIGHT - Overall brightness.
-EMASK  - Engine mask. (one bit for each of eight engines).
-PMASK0  - Phy string mask for rendering.
-PMASK1  - Phy string mask for rendering.
-PMASK2  - Phy string mask for rendering.
-PMASK3  - Phy string mask for rendering.
-PMASK4  - Phy string mask for rendering.
-PMASK5  - Phy string mask for rendering.
-PMASK6  - Phy string mask for rendering.
-PMASK7  - Phy string mask for rendering.
-TIK0  - Engine zero tick time.
-TIK1  - Engine one tick time.
-TIK2  - Engine two tick time.
-TIK3  - Engine three tick time.
-TIK4  - Engine four tick time.
-TIK5  - Engine five tick time.
-TIK6  - Engine six tick time.
-TIK7  - Engine seven tick time.
-----
-Local Vars:   (Separate for each engine)
-ACCU  - Always local var 0.
-
-----
-Global Vars:   (Visible to all engines).
-
 ---
 cp = command pointer.  An index from the start of the command block.
 sp = scene pointer.    An index from the start
@@ -246,6 +207,41 @@ in = integer from 0->xxxx
 '-' by itself is (-1)
 
 time = floating point in seconds.  (converts to int number of milliseconds)
+ticks = number of engine ticks.
+
+----
+Local Vars:   (Separate for each engine)
+ACCU  - Always local var 0.
+
+----
+Global Vars:   (Visible to all engines).
+
+----
+Internal Vars:
+
+DEBUG  - Debug mask.  (one bit for each debug category).
+BRIGHT - Overall brightness (0-1024 == 0-100%).
+EMASK  - Engine mask. (one bit for each of eight engines).
+
+PMASK0  - Phy string mask for rendering.
+PMASK1  - Phy string mask for rendering.
+PMASK2  - Phy string mask for rendering.
+PMASK3  - Phy string mask for rendering.
+PMASK4  - Phy string mask for rendering.
+PMASK5  - Phy string mask for rendering.
+PMASK6  - Phy string mask for rendering.
+PMASK7  - Phy string mask for rendering.
+
+TICK0   - Engine zero tick time (microseconds).
+TICK1   - Engine one tick time (microseconds)..
+TICK2   - Engine two tick time (microseconds)..
+TICK3   - Engine three tick time (microseconds)..
+TICK4   - Engine four tick time (microseconds)..
+TICK5   - Engine five tick time (microseconds)..
+TICK6   - Engine six tick time (microseconds)..
+TICK7   - Engine seven tick time (microseconds)..
+
+
 
 xxx:
 	scen 1

@@ -1,9 +1,14 @@
 // File: Morph.c
 
 #include "Common.h"
+#include "Morph.h"
 
+#include "scene.h"
 
-
+PUBLIC void Morph_Start(LED* leds, LED_MORPH* ledmorph, SCENE_ID scene_id)
+{
+//    Render_Scene_ptr(ledmorph->dests, ledmorph->num_leds, scene_id);
+}
 
 
 #ifdef COMMENT

@@ -29,7 +29,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 
 	uint32_t i = 0;
 
-    size_t num_leds = Num_LEDS(0);     // <<<<------------------------------ zero?
+    size_t num_leds = Num_LEDS_Mask(0);     // <<<<------------------------------ zero?
 
 	while (i < num_leds)
 	{

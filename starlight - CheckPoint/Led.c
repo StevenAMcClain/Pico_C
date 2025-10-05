@@ -195,7 +195,7 @@ PUBLIC LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp)
 }
 
 
-PUBLIC size_t Num_LEDS(int phy_mask)
+PUBLIC size_t Num_LEDS_Mask(int phy_mask)
 {
     int num_leds = 0;
 
@@ -223,7 +223,7 @@ PUBLIC size_t Num_LEDS(int phy_mask)
 }
 
 
-PRIVATE void do_LED_Set_RGB(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
+PRIVATE void LED_Set_RGB_Idx(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
 //
 // Sets a specific LED to a certain color.   LEDs start at 0
 {
@@ -243,7 +243,7 @@ PRIVATE void do_LED_Set_RGB(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, L
 }
 
 
-PRIVATE void do_LED_Set_LED(int phy_idx, size_t led_idx, LED* source_ledp)
+PRIVATE void LED_Set_LED_Idx(int phy_idx, size_t led_idx, LED* source_ledp)
 {
 	size_t num_leds = 0;
 	LED* ledp_base = LED_Get_Phy(phy_idx, &num_leds);
@@ -269,7 +269,7 @@ PUBLIC void LED_Set_LED(size_t led_idx, LED* source_ledp)
     {
         if (phynum & mask)
         {
-            do_LED_Set_LED(i, led_idx, source_ledp);
+            LED_Set_LED_Idx(i, led_idx, source_ledp);
             phynum &= ~mask;
         }
         ++i;   mask <<= 1;
@@ -284,7 +284,7 @@ PUBLIC void LED_Set_RGB(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
 }
 
 
-PUBLIC void LED_All_LED(int phynum, LED led)
+PUBLIC void LED_All_LED_Mask(int phynum, LED led)
 //
 // Sets all LEDs to the same color.
 {
@@ -315,12 +315,12 @@ PUBLIC void LED_All_LED(int phynum, LED led)
 }
 
 
-PUBLIC void LED_All_RGB(int phynum, LED_VAL r, LED_VAL g, LED_VAL b)
+PUBLIC void LED_All_RGB_Mask(int phynum, LED_VAL r, LED_VAL g, LED_VAL b)
 //
 // Sets all the LEDs to a certain color.
 {
     LED led = {.led.red = r, .led.green = g, .led.blue = b};
-	LED_All_LED(phynum, led);
+	LED_All_LED_Mask(phynum, led);
 }
 
 
@@ -328,7 +328,7 @@ PUBLIC void LEDS_All_Black()
 //
 // Immediately set ALL leds to black (off).
 {
-	LED_All_RGB(ALL_PHYS, 0, 0, 0);
+	LED_All_RGB_Mask(ALL_PHYS, 0, 0, 0);
 	LEDS_Do_Update();			// Write all LEDs NOW!
 }
 

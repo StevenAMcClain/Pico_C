@@ -9,14 +9,16 @@
 #include "led.h"
 #include "ws2812.h"
 
+#include "morph.h"
+
 //#define TRACE_LED_BRIGHTNESS
 
 #ifdef TRACE_LED_BRIGHTNESS
 #include "trace.h"
 #endif
 
-//PUBLIC FLOAT LED_Brightness = 1.0;			    // Overall brightness for all strings.
-PUBLIC uint32_t LED_Brightness = 1024;			    // Overall brightness for all strings.
+
+PUBLIC uint32_t LED_Brightness = 1024;			// Overall brightness for all strings (0-1024 == 0-100%).
 
 PRIVATE volatile uint32_t needs_update = 0;     // Bit mask for strings that need to be updated.
 
@@ -25,6 +27,7 @@ typedef struct
 	size_t led_count;				// Number of leds on string.
 	LED* led_data;					// Data for LED string.
 	LED* scaled_led_data;			// Buffer that is actually sent to LEDS.
+    LED_MORPH morph_data;           // Data used while morphing.
 
 } LEDS_PHY;
 
@@ -44,7 +47,8 @@ PUBLIC void LEDS_Buff_Reset()
     while (i < MAX_PHY)
     {
         phy->led_count = 0;
-        phy->led_data = phy->scaled_led_data = 0;
+        phy->led_data = phy->scaled_led_data = NIL;
+        phy->morph_data.dests = NIL;
         ++phy; ++i;
     }
 }
@@ -79,6 +83,9 @@ PUBLIC size_t PHY_Get_LED_Count(int phy_idx)
     return (-1);
 }
 
+//#define LED_MULTIPLIER 2   // Only led_data and scaled_led_data.
+#define LED_MULTIPLIER 6   // led_data and scaled_led_data and morph data.
+
 
 PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
 //
@@ -88,29 +95,31 @@ PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
     {
         LEDS_PHY* phy = LEDS_Phy + phy_idx;
 
-        LED* buff = LEDS_Buff_Allocate(led_count * 2);   // Allocate room for LED values and scaled LED values.
+        LED* buff = LEDS_Buff_Allocate(led_count * LED_MULTIPLIER);   // Allocate room for LED values and scaled LED values.
 
         if (buff)
         {
-            phy->led_data = buff;
-            phy->scaled_led_data = buff + led_count;
+            phy->led_data =                             (buff + (0 * led_count));
+            phy->scaled_led_data =                      (buff + (1 * led_count));  // Right after led_data
+            phy->morph_data.dests =                     (buff + (2 * led_count));  // After led_data and scaled_led_data
+            phy->morph_data.morphs = (LED_MORPH_SINGLE*)(buff + (3 * led_count));  // After led_data and scaled_led_data
             phy->led_count = led_count;
+
+            WS2812_Set_Num_LEDS(phy_idx, led_count,  (uint32_t*)phy->scaled_led_data);
         }
         else 
         {
             phy->led_data = phy->scaled_led_data = NIL;
+            phy->morph_data.dests = NIL;
+            phy->morph_data.morphs = NIL;
             phy->led_count = 0; 
         }
-
-        WS2812_Set_Num_LEDS(phy_idx, led_count,  (uint32_t*)phy->scaled_led_data);
     }
 }
 
 
 PRIVATE inline LED_VAL apply_brightness(LED_VAL val)
 {
-	// uint32_t big_val = (uint32_t)(((FLOAT)val) * LED_Brightness);
-	// return (big_val <= LED_VAL_MAX) ? big_val : LED_VAL_MAX;
 	uint32_t big_val = (val * LED_Brightness) >> 10;
 	return (big_val <= LED_VAL_MAX) ? big_val : LED_VAL_MAX;
 }
@@ -181,7 +190,7 @@ PUBLIC LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp)
 }
 
 
-PUBLIC size_t Num_LEDS(int phy_mask)
+PUBLIC size_t Num_LEDS_Mask(int phy_mask)
 {
     int num_leds = 0;
 
@@ -209,7 +218,7 @@ PUBLIC size_t Num_LEDS(int phy_mask)
 }
 
 
-PRIVATE void do_LED_Set_RGB(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
+PRIVATE void LED_Set_RGB_Idx(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
 //
 // Sets a specific LED to a certain color.   LEDs start at 0
 {
@@ -229,7 +238,7 @@ PRIVATE void do_LED_Set_RGB(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, L
 }
 
 
-PRIVATE void do_LED_Set_LED(int phy_idx, size_t led_idx, LED* source_ledp)
+PRIVATE void LED_Set_LED_Idx(int phy_idx, size_t led_idx, LED* source_ledp)
 {
 	size_t num_leds = 0;
 	LED* ledp_base = LED_Get_Phy(phy_idx, &num_leds);
@@ -237,6 +246,7 @@ PRIVATE void do_LED_Set_LED(int phy_idx, size_t led_idx, LED* source_ledp)
 	if (ledp_base && led_idx < num_leds)
 	{
 		LED* ledp = ledp_base + led_idx;
+
 		ledp->val = source_ledp->val;
 
         needs_update |= (1 << phy_idx);
@@ -244,7 +254,7 @@ PRIVATE void do_LED_Set_LED(int phy_idx, size_t led_idx, LED* source_ledp)
 }
 
 
-PUBLIC void LED_Set_LED(int phy_mask, size_t led_idx, LED* source_ledp)
+PUBLIC void LED_Set_LED_Mask(int phy_mask, size_t led_idx, LED* source_ledp)
 {
     uint32_t mask = 1;
     int idx = 0;
@@ -253,7 +263,7 @@ PUBLIC void LED_Set_LED(int phy_mask, size_t led_idx, LED* source_ledp)
     {
         if (phy_mask & mask)
         {
-            do_LED_Set_LED(idx, led_idx, source_ledp);
+            LED_Set_LED_Idx(idx, led_idx, source_ledp);
             phy_mask &= ~mask;
         }
         ++idx;   mask <<= 1;
@@ -261,14 +271,14 @@ PUBLIC void LED_Set_LED(int phy_mask, size_t led_idx, LED* source_ledp)
 }
 
 
-PUBLIC void LED_Set_RGB(int phy_mask, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
+PUBLIC void LED_Set_RGB_Mask(int phy_mask, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b)
 {
     LED led = {.led.red = r, .led.green = g, .led.blue = b};
-    LED_Set_LED(phy_mask, led_idx, &led);
+    LED_Set_LED_Mask(phy_mask, led_idx, &led);
 }
+  
 
-
-PUBLIC void LED_All_LED(int phy_mask, LED led)
+PUBLIC void LED_All_LED_Mask(int phy_mask, LED led)
 //
 // Sets all LEDs to the same color.
 {
@@ -296,20 +306,20 @@ PUBLIC void LED_All_LED(int phy_mask, LED led)
 }
 
 
-PUBLIC void LED_All_RGB(int phy_mask, LED_VAL r, LED_VAL g, LED_VAL b)
+PUBLIC void LED_All_RGB_Mask(int phy_mask, LED_VAL r, LED_VAL g, LED_VAL b)
 //
 // Sets all the LEDs to a certain color.
 {
     LED led = {.led.red = r, .led.green = g, .led.blue = b};
-	LED_All_LED(phy_mask, led);
+	LED_All_LED_Mask(phy_mask, led);
 }
 
 
-PUBLIC void LEDS_All_Black()
+PUBLIC void LEDS_All_Black(void)
 //
 // Immediately set ALL leds to black (off).
 {
-	LED_All_RGB(ALL_PHYS, 0, 0, 0);
+	LED_All_RGB_Mask(ALL_PHYS, 0, 0, 0);
 	LEDS_Do_Update();			// Write all LEDs NOW!
 }
 

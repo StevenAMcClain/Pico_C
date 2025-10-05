@@ -32,12 +32,6 @@ extern void _Printf(const char *fmt, ...);
 extern void ObLED_On(void);
 extern void ObLED_Off(void);
 
-#define FIRST_CORE_MAIN Start_Parser
-#define SECOND_CORE_MAIN Start_BlueTooth
-
-//#define FIRST_CORE_MAIN Start_BlueTooth
-//#define SECOND_CORE_MAIN Start_Parser
-
 #endif   // COMMON_H
 
 // EndFile: Common.h

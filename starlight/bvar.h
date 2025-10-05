@@ -64,7 +64,7 @@ typedef struct Blob_Var
 
 typedef union bvar
 {
-    void* ptr;
+    volatile void* ptr;
     int i;
     unsigned int ui;
     float f;
@@ -81,10 +81,10 @@ typedef struct Beng_Var
     int id;
     char* name;
 
-    BVAR value;
+    volatile BVAR value;
 
-    void (*Set)(struct Beng_Var* /*var*/);
-    void (*Get)(struct Beng_Var* /*var*/);
+    void (*Set)(struct Beng_Var* /*var*/, char* /*buff*/);
+    bool (*Get)(struct Beng_Var* /*var*/);
 
 } BENG_VAR;
 
@@ -98,11 +98,11 @@ extern BENG_VAR* BVar_Find_By_Name(void* /*bs*/, char* /*varname*/);
 extern void BVar_Set(BENG_VAR* /*var*/);
 extern void BVar_Get(BENG_VAR* /*var*/);
 
-extern int          BVar_Get_int(BENG_VAR* /*var*/);
-extern unsigned int BVar_Get_uint(BENG_VAR* /*var*/);
-extern float        BVar_Get_float(BENG_VAR* /*var*/);
-extern double       BVar_Get_double(BENG_VAR* /*var*/);
-extern void*        BVar_Get_pointer(BENG_VAR* /*var*/);
+extern int            BVar_Get_int(BENG_VAR* /*var*/);
+extern unsigned int   BVar_Get_uint(BENG_VAR* /*var*/);
+extern float          BVar_Get_float(BENG_VAR* /*var*/);
+extern double         BVar_Get_double(BENG_VAR* /*var*/);
+extern volatile void* BVar_Get_pointer(BENG_VAR* /*var*/);
 
 extern void BVar_Set_int(BENG_VAR* /*var*/, int /*val*/);
 extern void BVar_Set_uint(BENG_VAR* /*var*/, unsigned int /*val*/);

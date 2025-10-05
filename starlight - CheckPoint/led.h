@@ -58,17 +58,17 @@ extern void LED_Needs_Update(int phy_mask);
 //
 // Sets the update flag(s) for phynum.
 
-extern size_t Num_LEDS(int phy_mask);
+extern size_t Num_LEDS_Mask(int phy_mask);
 
 extern void LED_Set_LED(size_t led_idx, LED* source_ledp);
 
 extern void LED_Set_RGB(size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b);
 
-extern void LED_All_LED(int phy_mask, LED led);
+extern void LED_All_LED_Mask(int phy_mask, LED led);
 //
 // Sets all LEDs to the same color.
 
-extern void LED_All_RGB(int phynum, LED_VAL r, LED_VAL g, LED_VAL b);
+extern void LED_All_RGB_Mask(int phynum, LED_VAL r, LED_VAL g, LED_VAL b);
 //
 // Sets all the LEDs to a certain color.
 

@@ -197,9 +197,9 @@ PUBLIC double BVar_Get_double(BENG_VAR* var)
 }
 
 
-PUBLIC void* BVar_Get_pointer(BENG_VAR* var)
+PUBLIC volatile void* BVar_Get_pointer(BENG_VAR* var)
 {
-    void* result = 0;
+    volatile void* result = 0;
     BENG_VAR_TYPE base = var->type & BENG_VAR_TYPE_MASK;
     BENG_VAR_TYPE modifier = var->type & ~BENG_VAR_TYPE_MASK;
 
@@ -415,7 +415,7 @@ PUBLIC bool BVar_From_String(BENG_VAR* var, char* buff)
     if (var && buff)
     {
         BENG_VAR_TYPE type = var->type & BENG_VAR_TYPE_MASK;
-        void* ptr = (var->type & BENG_VAR_TYPE_POINTER) ? var->value.ptr : &var->value;
+        volatile void* ptr = (var->type & BENG_VAR_TYPE_POINTER) ? var->value.ptr : &var->value;
         char* fmt = "<bad>";
 
         switch (type)
@@ -426,6 +426,8 @@ PUBLIC bool BVar_From_String(BENG_VAR* var, char* buff)
             case BENG_VAR_TYPE_DOUBLE: { fmt = "%lf";  break; }
         }
         result = (1 == sscanf(buff, fmt,  ptr));
+
+        if (result && var->Set) { var->Set(var, buff); }
     }
     return result;
 }
