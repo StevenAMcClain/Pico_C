@@ -613,7 +613,7 @@ typedef struct
 } BLOB_HEAD;
 
 
-PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
+PUBLIC bool Blob_Unpack_Header(uint8_t* blob_base)
 //
 // Load a new blob_base.
 {

@@ -2,14 +2,13 @@
 
 #include "common.h"
 
-// #include <stdlib.h>
+#include <string.h>
 
 #include <hardware/clocks.h>
 
 #include "led.h"
 #include "ws2812.h"
 
-#include "morph.h"
 
 //#define TRACE_LED_BRIGHTNESS
 
@@ -18,18 +17,10 @@
 #endif
 
 
-PUBLIC uint32_t LED_Brightness = 1024;			// Overall brightness for all strings (0-1024 == 0-100%).
+//PUBLIC uint32_t LED_Brightness = 1024;			// Overall brightness for all strings (0-1024 == 0-100%).
+PUBLIC uint32_t LED_Brightness = 6;			// Overall brightness for all strings (0-1024 == 0-100%).
 
-PRIVATE volatile uint32_t needs_update = 0;     // Bit mask for strings that need to be updated.
-
-typedef struct
-{
-	size_t led_count;				// Number of leds on string.
-	LED* led_data;					// Data for LED string.
-	LED* scaled_led_data;			// Buffer that is actually sent to LEDS.
-    LED_MORPH morph_data;           // Data used while morphing.
-
-} LEDS_PHY;
+PRIVATE volatile uint32_t Needs_Update_Mask = 0;     // Bit mask for strings that need to be updated.
 
 PRIVATE LED Leds_Buff[MAX_NUM_LEDS];   // All LED values in the entire system are stored here!
 PRIVATE size_t Leds_Allocated = 0;
@@ -37,24 +28,28 @@ PRIVATE size_t Leds_Allocated = 0;
 PRIVATE LEDS_PHY LEDS_Phy[MAX_PHY] = {0};
 
 
-PUBLIC void LEDS_Buff_Reset()
+PRIVATE void LEDS_Buff_Reset()
+//
+// Clear all phystrings and remove all mirrors.
+// Clear all led pool allocations.
 {
-    Leds_Allocated = 0;
-
     LEDS_PHY* phy = LEDS_Phy;
-    int i = 0;
+    int n = MAX_PHY;
 
-    while (i < MAX_PHY)
+    while (n--)
     {
         phy->led_count = 0;
         phy->led_data = phy->scaled_led_data = NIL;
-        phy->morph_data.dests = NIL;
-        ++phy; ++i;
+        ++phy;
     }
+
+    Leds_Allocated = 0;
 }
 
 
 PUBLIC LED* LEDS_Buff_Allocate(size_t size)
+//
+// Allocate leds from led pool.
 {
     LED* leds = NIL;
 
@@ -68,12 +63,17 @@ PUBLIC LED* LEDS_Buff_Allocate(size_t size)
 
 
 PUBLIC size_t LEDS_Buff_Available(void)
+//
+// Returns the number of leds available in pool.
 {
     return MAX_NUM_LEDS - Leds_Allocated;
 }
 
 
 PUBLIC size_t PHY_Get_LED_Count(int phy_idx)
+//
+// Get the number of leds on a specific phy string.
+// Return (-1) if phy is not used.
 {
 	if (PHY_IDX_VALID(phy_idx))
     {
@@ -83,42 +83,126 @@ PUBLIC size_t PHY_Get_LED_Count(int phy_idx)
     return (-1);
 }
 
-//#define LED_MULTIPLIER 2   // Only led_data and scaled_led_data.
-#define LED_MULTIPLIER 6   // led_data and scaled_led_data and morph data.
 
-
-PUBLIC void PHY_Set_led_count(int phy_idx, size_t led_count)
-//
-// Set the number of leds on a string.  (re)Allocates buffers.
+PRIVATE uint32_t build_mirror_mask(int idx)
 {
-    if (PHY_IDX_VALID(phy_idx) && led_count > 0)
+    uint32_t result = (1 << idx++);
+    LEDS_PHY* phy = LEDS_Phy;
+    uint32_t mask = 1;
+    int n = MAX_PHY;
+
+    while (n--)
     {
-        LEDS_PHY* phy = LEDS_Phy + phy_idx;
+        if (idx == phy->mirroring) { result |= mask; }
+        mask <<= 1; ++phy;
+    }
 
-        LED* buff = LEDS_Buff_Allocate(led_count * LED_MULTIPLIER);   // Allocate room for LED values and scaled LED values.
+    return ~result;
+}
 
-        if (buff)
+
+PUBLIC void PHY_Build_Mirror_Masks(void)
+//
+// Called after setting up phy table to build the mirror masks.
+{
+    LEDS_PHY* phy = LEDS_Phy;
+    int idx = 0;
+
+    while (idx < MAX_PHY)
+    {
+        phy->mirror_mask = build_mirror_mask(idx);
+        ++idx; ++phy;
+    }
+
+    phy = LEDS_Phy;
+    int n = MAX_PHY;
+
+    while (n--)
+    {
+        if (phy->mirroring)
         {
-            phy->led_data =                             (buff + (0 * led_count));
-            phy->scaled_led_data =                      (buff + (1 * led_count));  // Right after led_data
-            phy->morph_data.dests =                     (buff + (2 * led_count));  // After led_data and scaled_led_data
-            phy->morph_data.morphs = (LED_MORPH_SINGLE*)(buff + (3 * led_count));  // After led_data and scaled_led_data
-            phy->led_count = led_count;
-
-            WS2812_Set_Num_LEDS(phy_idx, led_count,  (uint32_t*)phy->scaled_led_data);
+            LEDS_PHY* phyx = LEDS_Phy + phy->mirroring - 1;
+            phy->mirror_mask = phyx->mirror_mask; 
         }
-        else 
+
+        ++phy;
+    }
+}
+
+
+#define LED_MULTIPLIER 2   // Only led_data and scaled_led_data.
+
+
+PUBLIC void PHY_Set_Led_Count(int val)
+//
+// Set the number of leds on a string.  Allocates buffers if not mirrored.
+{
+    int idx = ((val >> 24) - 1) & 0xF;
+    int mir = (val >> 16) & 0xF;
+    int num =  val & 0xFFFF;
+
+    if (PHY_IDX_VALID(idx))
+    {
+        LEDS_PHY* phy = LEDS_Phy + idx;
+
+        if (num > 0)
         {
-            phy->led_data = phy->scaled_led_data = NIL;
-            phy->morph_data.dests = NIL;
-            phy->morph_data.morphs = NIL;
-            phy->led_count = 0; 
+            LED* buff = LEDS_Buff_Allocate(num * LED_MULTIPLIER);   // Allocate room for LED values and scaled LED values.
+
+            if (buff)
+            {
+                phy->led_data =                             (buff + (0 * num));
+                phy->scaled_led_data =                      (buff + (1 * num));  // Right after led_data
+                phy->led_count = num;
+                phy->mirroring = mir;
+
+                // Set LED records to have phy index.
+                //
+                LED* ledp = phy->led_data;
+                int n = num;
+
+                while (n--)
+                {
+                    ledp->led.phy_num = idx + 1;
+                    ++ledp;
+                }
+
+                WS2812_Set_Num_LEDS(idx, num,  (uint32_t*)phy->scaled_led_data);
+            }
+        }
+        else
+        {
+            if (PHY_IDX_VALID(mir))
+            {
+                LEDS_PHY* mir_phy = LEDS_Phy + mir - 1;
+
+                phy->led_data          = mir_phy->led_data;
+                phy->scaled_led_data   = mir_phy->scaled_led_data;
+                phy->led_count         = mir_phy->led_count; 
+                phy->mirroring         = mir;
+
+                WS2812_Set_Num_LEDS(idx, phy->led_count, (uint32_t*)phy->scaled_led_data);
+            }
+            else
+            {
+                phy->led_data = phy->scaled_led_data = NIL;
+                phy->mirroring = phy->led_count = 0; 
+            }
         }
     }
 }
 
 
+
+//#define LED_MULTIPLIER 6   // led_data and scaled_led_data and morph data.
+                // phy->morph_data.dests =                     (buff + (2 * num));  // After led_data and scaled_led_data
+                // phy->morph_data.morphs = (LED_MORPH_SINGLE*)(buff + (3 * num));  // After led_data and scaled_led_data
+
+// ---------------------------------------------------------------------------
+
 PRIVATE inline LED_VAL apply_brightness(LED_VAL val)
+//
+// return scaled led value using brightness.
 {
 	uint32_t big_val = (val * LED_Brightness) >> 10;
 	return (big_val <= LED_VAL_MAX) ? big_val : LED_VAL_MAX;
@@ -126,6 +210,8 @@ PRIVATE inline LED_VAL apply_brightness(LED_VAL val)
 
 
 PRIVATE inline void scale_led_data(LED* bptr, LED* sptr, size_t bcount)
+//
+// scale each value in each LED record of phy.
 {
 	while (bcount--)
 	{
@@ -142,20 +228,19 @@ PUBLIC void LEDS_Do_Update(void)
 // Sends the data to the LEDs for all PHY that are flagged for update.
 {
     LEDS_PHY* phy = LEDS_Phy;
-    int phy_idx = 0;
     uint32_t phy_mask = 1;
+    int phy_idx = 0;
 
 #ifdef TRACE_LED_BRIGHTNESS
     Trace_Start();
 #endif
-
-    while (needs_update && phy_idx < MAX_PHY)
+    while (Needs_Update_Mask && phy_idx < MAX_PHY)
     {
-        if (phy_mask & needs_update)
+        if (phy_mask & Needs_Update_Mask)
         {
             scale_led_data(phy->led_data, phy->scaled_led_data, phy->led_count);
-            WS2812_Set_Primed(phy_mask);
-            needs_update &= ~phy_mask;
+            WS2812_Set_Primed(~phy->mirror_mask);
+            Needs_Update_Mask &= phy->mirror_mask;
         }
         ++phy; ++phy_idx; phy_mask <<= 1;
     }
@@ -170,11 +255,19 @@ PUBLIC void LED_Needs_Update(int phy_mask)
 //
 // Sets the update flag(s) for phynum.
 {
-    needs_update |= phy_mask;
+    Needs_Update_Mask |= phy_mask;
 }
 
 
-PUBLIC LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp)
+PUBLIC LEDS_PHY* LED_Get_Phy(int phy_idx)
+{
+    return PHY_IDX_VALID(phy_idx) ? LEDS_Phy + phy_idx : NULL;
+}
+
+
+PUBLIC LED* LED_Get_LED_Data(int phy_idx, size_t* num_ledsp)
+//
+// Get pointer to LED records and led_count for specific phy.
 {
 	LED* result = NIL;
 
@@ -191,17 +284,16 @@ PUBLIC LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp)
 
 
 PUBLIC size_t Num_LEDS_Mask(int phy_mask)
+//
+// Returns the largest led_count for a number of phys.
 {
     int num_leds = 0;
 
-//	if (phy_mask == 0)								// Just current phy?
-//		phy_mask = Current_Phy_Mask;
-
 	LEDS_PHY* phy = LEDS_Phy;
-	int idx = 0;
     uint32_t mask = 1;
+	int n = MAX_PHY;
 
-	while (phy_mask && idx++ < MAX_PHY)
+	while (phy_mask && n--)
 	{
         if (mask & phy_mask)
         {
@@ -223,7 +315,7 @@ PRIVATE void LED_Set_RGB_Idx(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, 
 // Sets a specific LED to a certain color.   LEDs start at 0
 {
 	size_t num_leds = 0;
-	LED* ledp_base = LED_Get_Phy(phy_idx, &num_leds);
+	LED* ledp_base = LED_Get_LED_Data(phy_idx, &num_leds);
 
 	if (ledp_base && led_idx < num_leds)
 	{
@@ -233,7 +325,7 @@ PRIVATE void LED_Set_RGB_Idx(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, 
 		ledp->led.green = g;	// Green.
 		ledp->led.blue  = b;	// Blue.
 
-        needs_update |= (1 << phy_idx);
+        Needs_Update_Mask |= (1 << phy_idx);
 	}
 }
 
@@ -241,7 +333,7 @@ PRIVATE void LED_Set_RGB_Idx(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, 
 PRIVATE void LED_Set_LED_Idx(int phy_idx, size_t led_idx, LED* source_ledp)
 {
 	size_t num_leds = 0;
-	LED* ledp_base = LED_Get_Phy(phy_idx, &num_leds);
+	LED* ledp_base = LED_Get_LED_Data(phy_idx, &num_leds);
 
 	if (ledp_base && led_idx < num_leds)
 	{
@@ -249,7 +341,7 @@ PRIVATE void LED_Set_LED_Idx(int phy_idx, size_t led_idx, LED* source_ledp)
 
 		ledp->val = source_ledp->val;
 
-        needs_update |= (1 << phy_idx);
+        Needs_Update_Mask |= (1 << phy_idx);
 	}
 }
 
@@ -283,10 +375,10 @@ PUBLIC void LED_All_LED_Mask(int phy_mask, LED led)
 // Sets all LEDs to the same color.
 {
 	LEDS_PHY* phy = LEDS_Phy;
-	int idx = 0;
     uint32_t mask = 1;
+	int n = MAX_PHY;
 
-	while (phy_mask && idx++ < MAX_PHY)
+	while (phy_mask && n--)
 	{
         if (mask & phy_mask)
         {
@@ -298,7 +390,7 @@ PUBLIC void LED_All_LED_Mask(int phy_mask, LED led)
 				(ledp++)->val = led.val;
 			}
 
-            needs_update |= mask;
+            Needs_Update_Mask |= mask;
             phy_mask &= ~mask;
         }
         ++phy; mask <<= 1;
@@ -321,6 +413,18 @@ PUBLIC void LEDS_All_Black(void)
 {
 	LED_All_RGB_Mask(ALL_PHYS, 0, 0, 0);
 	LEDS_Do_Update();			// Write all LEDs NOW!
+}
+
+
+PUBLIC void LEDS_Phy_Reset(void)
+{
+    for (int idx = 0; idx < MAX_PHY; ++idx)
+    {
+        WS2812_Set_Num_LEDS(idx, 0, NULL);
+    }
+    memset(LEDS_Phy, 0, sizeof(LEDS_Phy));
+
+    LEDS_Buff_Reset();
 }
 
 

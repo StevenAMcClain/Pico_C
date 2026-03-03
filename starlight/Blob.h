@@ -14,6 +14,8 @@
 #define BLOB_PRE_HEADER_SIZE 12      // Number of bytes to read before reading header.
 
 typedef int32_t PROG_ID;
+#define PROG_ID_START 1    // First instruction in program.
+
 typedef uint32_t SCENE_ID;
 typedef uint32_t TRIG_ID;
 
@@ -120,8 +122,10 @@ extern uint32_t Checksum(uint8_t* buff, size_t size);
 extern bool Blob_Verify_Checksum(uint8_t* base);
 extern bool Blob_Verify_Checksum_Loaded(void);
 
-extern bool Unpack_Blob_Header(uint8_t* /* blob_base */);   // Call to load a new blob_base into BLOB.
+//extern bool Blob_Unpack_Header(uint8_t* /* blob_base */);   // Call to load a new blob_base into BLOB.
 extern void Blob_Unload(void);                              // Release blob_base memory.
+
+extern bool Blob_Activate(int Engine_Idx);    // Switch to new blob and start running.
 
 #endif // BLOB_H
 

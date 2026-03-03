@@ -44,16 +44,38 @@ PRIVATE void dump_phystr(void)
 
     while (phy_idx < MAX_PHY)
     {
-        size_t count = PHY_Get_LED_Count(phy_idx);
+        LEDS_PHY* phy = LED_Get_Phy(phy_idx++); 
 
-        if (count)
+        if (phy)
         {
-            char *msg = "PhyStr List:\n%d) %d\n";
-            msg += (first ? 0 : 13);
-            BTPRINTF(msg, phy_idx + 1, count);
-            first = false;
+            size_t count = phy->led_count;
+            uint32_t mir = phy->mirroring;
+
+            if (count)
+            {
+                if (mir > 0)
+                {
+                    char *msg = "PhyStr List:\n%d) (mirrors %d) %d\n";
+                    msg += (first ? 0 : 13);
+                    BTPRINTF(msg, phy_idx, mir, count);
+                    first = false;
+                }
+                else
+                {
+                    char *msg = "PhyStr List:\n%d) %d\n";
+                    msg += (first ? 0 : 13);
+                    BTPRINTF(msg, phy_idx, count);
+                    first = false;
+                }
+            }
+            else
+            {
+                char *msg = "PhyStr List:\n%d) empty.\n";
+                msg += (first ? 0 : 13);
+                BTPRINTF(msg, phy_idx);
+                first = false;
+            }
         }
-        ++phy_idx;
     }
 
     if (first) { BTPRINTF("PhyStr List: Empty.\n"); }
@@ -323,15 +345,36 @@ PUBLIC void mem_dump_ints(void* ptr, size_t n)
 	{
 		if (!count)
 		{
-			PRINTF("\n%8.8X: ", bptr);
+			BTPRINTF("\n%8.8X: ", bptr);
 			count = 4;
 		}
 		else --count;
 
-		PRINTF("%8.8X ", *bptr++);
+		BTPRINTF("%8.8X ", *bptr++);
 	}
-	PRINTF("\n");
+	BTPRINTF("\n");
 }
+
+
+PRIVATE void dump_leds_string(void)
+{
+    LEDS_PHY* phy = LED_Get_Phy(0);
+
+    if (phy)
+    {
+        if (phy->led_count)
+        {
+            BTPRINTF("LED values for string 0\n");
+            mem_dump_ints(phy->led_data, phy->led_count);
+
+            BTPRINTF("\nScaled.\n");
+            mem_dump_ints(phy->scaled_led_data, phy->led_count);
+        }
+        else { BTPRINTF("No leds on phy!"); }
+    }
+    else { BTPRINTF("dump_leds_string: Can't get phy!"); }
+}
+
 
 // PUBLIC void dump_heap_stats(void)
 // {
@@ -367,6 +410,7 @@ Dump:\n\
   11 - Blank Flash pages.\n\
   12 - Dump Variables.\n\
   13 - Dump LEDS available.\n\
+  14 - Dump LEDS string 0.\n\
   \n"
 
 
@@ -387,6 +431,7 @@ PUBLIC void do_dump(int arg, int arg2)
         case 11: { dump_blank_flash(); break; }
         case 12: { dump_variable_table(); break; }
         case 13: { dump_leds_avail(); break; }
+        case 14: { dump_leds_string(); break; }
         case 100: { dump_info(); break; }
         case 0: default: { BTPRINTF(HELP_STRING); break; }
     }

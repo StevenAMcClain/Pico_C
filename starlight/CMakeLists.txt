@@ -9,15 +9,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 
-# == DO NEVER EDIT THE NEXT LINES for Raspberry Pi Pico VS Code Extension to work ==
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
     set(USERHOME $ENV{USERPROFILE})
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.0.0)
+set(sdkVersion 2.1.1)
 set(toolchainVersion 13_2_Rel1)
-set(picotoolVersion 2.0.0)
+set(picotoolVersion 2.1.1)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
@@ -38,7 +38,7 @@ pico_sdk_init()
 
 add_executable(starlight 
     starlight.c btstdio.c Led.c ws2812.c blob.c beng.c bcmd.c bvar.c bvar_internal.c matcher.c morph.c 
-    parser.c stack.c obled.c scene.c blob_dump.c shifter.c flashblob.c trace.c)
+    parser.c stack.c obled.c scene.c blob_dump.c shifter.c flashblob.c trace.c spi.c spi_map.c picopins.c picopwm.c)
 
 # Get all C and C++ files, when the glob value changes, cmake will run again and update the files
 # file(GLOB_RECURSE app_src CONFIGURE_DEPENDS "${SOURCE_FOLDER}/*.c" "${SOURCE_FOLDER}/*.cpp" )
@@ -81,6 +81,8 @@ target_link_libraries(starlight
         hardware_dma
         hardware_pio
         hardware_timer
+        hardware_spi
+        hardware_pwm 
         pico_platform
         pico_stdlib
         pico_malloc 

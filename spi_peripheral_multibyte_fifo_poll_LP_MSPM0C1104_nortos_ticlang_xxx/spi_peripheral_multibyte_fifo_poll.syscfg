@@ -1,0 +1,55 @@
+/**
+ * These arguments were used when this file was generated. They will be automatically applied on subsequent loads
+ * via the GUI or CLI. Run CLI with '--help' for additional information on how to override these arguments.
+ * @cliArgs --device "MSPM0C110X" --part "Default" --package "VSSOP-20(DGS20)" --product "mspm0_sdk@2.07.00.06"
+ * @v2CliArgs --device "MSPM0C1104" --package "VSSOP-20(DGS20)" --product "mspm0_sdk@2.07.00.06"
+ * @versions {"tool":"1.25.0+4268"}
+ */
+
+/**
+ * Import the modules used in this configuration.
+ */
+const Board  = scripting.addModule("/ti/driverlib/Board");
+const SYSCTL = scripting.addModule("/ti/driverlib/SYSCTL");
+const UART   = scripting.addModule("/ti/driverlib/UART", {}, false);
+const UART1  = UART.addInstance();
+
+/**
+ * Write custom configuration values to the imported modules.
+ */
+Board.peripheral.$assign = "DEBUGSS";
+
+SYSCTL.clockTreeEn = true;
+
+UART1.$name                    = "UART_0";
+UART1.enableFIFO               = true;
+UART1.rxFifoThreshold          = "DL_UART_RX_FIFO_LEVEL_ONE_ENTRY";
+UART1.txFifoThreshold          = "DL_UART_TX_FIFO_LEVEL_EMPTY";
+UART1.targetBaudRate           = 115200;
+UART1.peripheral.rxPin.$assign = "PA26";
+UART1.peripheral.txPin.$assign = "PA27";
+UART1.txPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric4";
+UART1.rxPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric5";
+
+/**
+ * These are the reserved peripherals and settings in this configuration
+ */
+const SPI1 = scripting.addPeripheral("SPI");
+SPI1.$name = "MySPI1";
+
+/**
+ * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
+ * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
+ * re-solve from scratch.
+ */
+Board.peripheral.swclkPin.$suggestSolution = "PA20";
+Board.peripheral.swdioPin.$suggestSolution = "PA19";
+UART1.peripheral.$suggestSolution          = "UART0";
+SPI1.$suggestSolution                      = "SPI0";
+SPI1.CS0.$suggestSolution                  = "PA2";
+SPI1.CS1_POCI1.$suggestSolution            = "PA0";
+SPI1.CS2_POCI2.$suggestSolution            = "PA24";
+SPI1.CS3_CD_POCI3.$suggestSolution         = "PA23";
+SPI1.POCI.$suggestSolution                 = "PA16";
+SPI1.PICO.$suggestSolution                 = "PA18";
+SPI1.SCLK.$suggestSolution                 = "PA11";

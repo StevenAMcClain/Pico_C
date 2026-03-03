@@ -10,11 +10,10 @@
 
 extern uint32_t Debug_Mask;
 extern uint32_t LED_Brightness;
-extern uint32_t Engine_Mask;
 extern BENG_STATE Beng_State[MAX_BENG];
 
 
-PRIVATE void set_brightness(BENG_VAR* var, char* buff)
+PRIVATE void set_brightness(BENG_VAR* var)
 {
     LED_Needs_Update(ALL_PHYS);
     LEDS_Do_Update();
@@ -25,15 +24,16 @@ PRIVATE BENG_VAR BEng_Internal_Vars[MAX_BENG_INTERNAL] =
 {
     {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  0,  "DEBUG", .value.ptr = &Debug_Mask,               NIL, NIL},
     {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  1, "BRIGHT", .value.ptr = &LED_Brightness,           set_brightness, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  2,  "EMASK", .value.ptr = &Engine_Mask,              NIL, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  3, "PMASK0", .value.ptr = &Beng_State[0].phy_mask,   NIL, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  4, "PMASK1", .value.ptr = &Beng_State[1].phy_mask,   NIL, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  5, "PMASK2", .value.ptr = &Beng_State[2].phy_mask,   NIL, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  6, "PMASK3", .value.ptr = &Beng_State[3].phy_mask,   NIL, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  7, "PMASK4", .value.ptr = &Beng_State[4].phy_mask,   NIL, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  8, "PMASK5", .value.ptr = &Beng_State[5].phy_mask,   NIL, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  9, "PMASK6", .value.ptr = &Beng_State[6].phy_mask,   NIL, NIL},
-    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL + 10, "PMASK7", .value.ptr = &Beng_State[7].phy_mask,   NIL, NIL},
+    // {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  2, "ENGINE", .value.ptr = &Engine_Idx,              NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  2, "ENGINE", .value.ptr = 0,              NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  3, "PMASK0", .value.ptr = &Beng_State[0].phy_idx,   NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  4, "PMASK1", .value.ptr = &Beng_State[1].phy_idx,   NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  5, "PMASK2", .value.ptr = &Beng_State[2].phy_idx,   NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  6, "PMASK3", .value.ptr = &Beng_State[3].phy_idx,   NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  7, "PMASK4", .value.ptr = &Beng_State[4].phy_idx,   NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  8, "PMASK5", .value.ptr = &Beng_State[5].phy_idx,   NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL +  9, "PMASK6", .value.ptr = &Beng_State[6].phy_idx,   NIL, NIL},
+    {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL + 10, "PMASK7", .value.ptr = &Beng_State[7].phy_idx,   NIL, NIL},
     {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL + 11,  "TICK0", .value.ptr = &Beng_State[0].Tick_Speed, NIL, NIL},
     {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL + 12,  "TICK1", .value.ptr = &Beng_State[1].Tick_Speed, NIL, NIL},
     {BENG_VAR_TYPE_UINT | BENG_VAR_TYPE_POINTER, BENG_VAR_IDX_SCOPE_INTERNAL + 13,  "TICK2", .value.ptr = &Beng_State[2].Tick_Speed, NIL, NIL},

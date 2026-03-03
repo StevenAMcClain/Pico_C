@@ -1,0 +1,12 @@
+SPI
+---
+PA6 SCLK
+PA18 PICO
+PA2 CS
+
+UART
+----
+PA26 Rx
+PA27 Tx
+
+115200 8N1

@@ -10,7 +10,7 @@
 #include "led.h"
 
 
-PRIVATE void Unpack_Scene(uint32_t val, uint8_t* buff)
+PRIVATE void Unpack_Scene_Word(uint32_t val, uint8_t* buff)
 //
 // Extract scene bytes from uint32 value.
 {
@@ -35,7 +35,7 @@ PUBLIC void Render_Scene(uint32_t* start_ptr)
 	{
 		uint8_t buff[4];
 
-		Unpack_Scene(*ptr++, buff);
+		Unpack_Scene_Word(*ptr++, buff);
 
 		uint8_t flags = buff[0];
 

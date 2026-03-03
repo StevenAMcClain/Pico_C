@@ -14,62 +14,63 @@ PUBLIC const char* Command_Name(COMMAND cmd)
 //
 // Returns string given command code.
 {
-    const char* command_name[] = {
-            "end",  // COMMAND_END      -- end of program, stop running.
-            "upda", // COMMAND_UPDATE   -- update all leds that need updaing.
-            "yiel", // COMMAND_YIELD    -- wait until next tick.
-            "wait", // COMMAND_WAIT     -- wait for (n) milli-seconds.
-            "paus", // COMMAND_PAUS     -- pause for (n) engine ticks.
+    const char* command_name[] = 
+    {
+        "end",  // COMMAND_END      -- end of program, stop running.
+        "upda", // COMMAND_UPDATE   -- update all leds that need updaing.
+        "yiel", // COMMAND_YIELD    -- wait until next tick.
+        "wait", // COMMAND_WAIT     -- wait for (n) milli-seconds.
+        "paus", // COMMAND_PAUS     -- pause for (n) engine ticks.
 
-            "jump", // COMMAND_JUMP     -- jump to a new line in routine.
-            "call", // COMMAND_CALL     -- call a sub routine.
-            "repe", // COMMAND_REPEAT   -- repeat a sequence (n) times.
+        "jump", // COMMAND_JUMP     -- jump to a new line in routine.
+        "call", // COMMAND_CALL     -- call a sub routine.
+        "repe", // COMMAND_REPEAT   -- repeat a sequence (n) times.
 
-            "sphy", // COMMAND_SPHY     -- set current led string (1->8 is physical string), 0 is current, <1 all.
-            "scen", // COMMAND_SCENE    -- paint scene (n).
-            "rend", // COMMAND_RENDER   -- paint scene (n), no update.
+        "sphy", // COMMAND_SPHY     -- set current led string (1->8 is physical string), 0 is current, <1 all.
+        "scen", // COMMAND_SCENE    -- paint scene (n).
+        "rend", // COMMAND_RENDER   -- paint scene (n), no update.
 
-            "shif", // COMMAND_SHIFT    -- shift led color values (values that are shifted off the end are lost).
-            "rota", // COMMAND_ROTATE   -- rotate led value. (end wraps).
-            "morp", // COMMAND_MORPH    -- morph current scene into new scene (n) over (t) seconds.
+        "shif", // COMMAND_SHIFT    -- shift led color values (values that are shifted off the end are lost).
+        "rota", // COMMAND_ROTATE   -- rotate led value. (end wraps).
+        "morp", // COMMAND_MORPH    -- morph current scene into new scene (n) over (t) seconds.
 
-            "intr", // COMMAND_INTRRUPT -- interrupt current routine.
-            "queu", // COMMAND_QUEUE    -- add routine to queue.
+        "intr", // COMMAND_INTRRUPT -- interrupt current routine.
+        "queu", // COMMAND_QUEUE    -- add routine to queue.
 
-            "set",  // COMMAND_SET      -- Set a variable to a value.
-            "get",  // COMMAND_GET      -- Get value (into accumulator)
-            "mov",  // COMMAND_MOV      -- Move variable value to another variable.
+        "set",  // COMMAND_SET      -- Set a variable to a value.
+        "get",  // COMMAND_GET      -- Get value (into accumulator)
+        "mov",  // COMMAND_MOV      -- Move variable value to another variable.
 
-            "add",  // COMMAND_ADD      -- Add a value to accumulator.
-            "sub",  // COMMAND_SUB      -- Subtract a value from accumulator.
-            "mul",  // COMMAND_MUL      -- Multiply accumulator by a value.
-            "div",  // COMMAND_DIV      -- Divide accumulator by a value.
-            "mod",  // COMMAND_MOD      -- Divide a value to accumulator.
+        "add",  // COMMAND_ADD      -- Add a value to accumulator.
+        "sub",  // COMMAND_SUB      -- Subtract a value from accumulator.
+        "mul",  // COMMAND_MUL      -- Multiply accumulator by a value.
+        "div",  // COMMAND_DIV      -- Divide accumulator by a value.
+        "mod",  // COMMAND_MOD      -- Divide a value to accumulator.
 
-            "inc",  // COMMAND_INC      -- Increment accumulator (add one).
-            "dec",  // COMMAND_DEC      -- Decrement accumulator (subtract one).
+        "inc",  // COMMAND_INC      -- Increment accumulator (add one).
+        "dec",  // COMMAND_DEC      -- Decrement accumulator (subtract one).
 
-            "and",  // COMMAND_AND      -- Bitwise AND a value with accumulator.
-            "or",   // COMMAND_OR       -- Bitwise OR a value with accumulator.
-            "xor",  // COMMAND_XOR      -- Bitwise XOR a value with accumulator.
-            "not",  // COMMAND_NOT      -- Bitwise complement value in accumulator.
+        "and",  // COMMAND_AND      -- Bitwise AND a value with accumulator.
+        "or",   // COMMAND_OR       -- Bitwise OR a value with accumulator.
+        "xor",  // COMMAND_XOR      -- Bitwise XOR a value with accumulator.
+        "not",  // COMMAND_NOT      -- Bitwise complement value in accumulator.
 
-            "shl",  // COMMAND_SHL      -- Bitwise shift value in accumulator left.
-            "shr",  // COMMAND_SHR      -- Bitwise shift value in accumulator right.
-            "rol",  // COMMAND_ROL      -- Bitwise rotate value in accumulator left.
-            "ror",  // COMMAND_ROR      -- Bitwise rotate value in accumulator right.
+        "shl",  // COMMAND_SHL      -- Bitwise shift value in accumulator left.
+        "shr",  // COMMAND_SHR      -- Bitwise shift value in accumulator right.
+        "rol",  // COMMAND_ROL      -- Bitwise rotate value in accumulator left.
+        "ror",  // COMMAND_ROR      -- Bitwise rotate value in accumulator right.
 
-            "push", // COMMAND_PUSH     -- Push variable onto stack (if var is omitted then accumulator is used)
-            "pop",  // COMMAND_POP      -- Push stack into variable (if var is omitted then accumulator is used)
+        "push", // COMMAND_PUSH     -- Push variable onto stack (if var is omitted then accumulator is used)
+        "pop",  // COMMAND_POP      -- Push stack into variable (if var is omitted then accumulator is used)
 
-            "tst",  // COMMAND_TST      -- Subtract a value from accumulator (set flags and discard result).
-            "beq",  // COMMAND_BEQ      -- Branch if accumulator is zero.
-            "bne",  // COMMAND_BNE      -- Branch if accumulator is not zero.
-            "bra",  // COMMAND_BRA      -- Branch always.
+        "tst",  // COMMAND_TST      -- Subtract a value from accumulator (set flags and discard result).
+        "beq",  // COMMAND_BEQ      -- Branch if accumulator is zero.
+        "bne",  // COMMAND_BNE      -- Branch if accumulator is not zero.
+        "bra",  // COMMAND_BRA      -- Branch always.
 
-            "trig", // COMMAND_TRIGGER  -- bind a trigger to a routine.
-            "phys", // COMMAND_PHYS     -- set number of leds for specific string.
-        };
+        "trig", // COMMAND_TRIGGER  -- bind a trigger to a routine.
+        "phys", // COMMAND_PHYS     -- set number of leds for specific string.
+    };
 
     cmd &= COMMAND_MASK;
 
@@ -126,21 +127,20 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 					break;
 				}
 				case COMMAND_PAUS:     // pause for (n) engine ticks.
+                {
+                    uint32_t ms = var ? BVar_Get_int(var) : (uint32_t)*cmdp;
+                    ++cmdp;
+                    bs->pause_counter = ms;
+                    bs->State = STATE_PAUSED;
+					done = true;
+                    break;
+                }
 				case COMMAND_WAIT:     // wait for (n) milli-seconds.
                 {
                     uint32_t ms = var ? BVar_Get_int(var) : (uint32_t)*cmdp;
                     ++cmdp;
-
-                    if (cmd == COMMAND_PAUS)
-                    {
-                        bs->pause_counter = ms;
-                        bs->State = STATE_PAUSED;
-                    }
-                    else
-                    {
-                        bs->wait_time = make_timeout_time_ms(ms);
-                        bs->State = STATE_WAITING;
-                    }
+                    bs->wait_time = make_timeout_time_ms(ms);
+                    bs->State = STATE_WAITING;
 					done = true;
                     break;
                 }
@@ -180,39 +180,63 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
                 case COMMAND_SPHY:    // select current phy string.
 				{
 					int32_t arg = (int32_t)*cmdp++;
-                    bs->phy_mask = arg;
+                    bs->phy_idx = arg;
 					break;
 				}
 				case COMMAND_SCENE:    // paint scene (n).
 				{
 					uint32_t arg = (uint32_t)*cmdp++;
-					Set_Scene_idx(bs->phy_mask, arg);
+					Set_Scene_mask(bs->phy_idx, arg);
                     LEDS_Do_Update();
 					break;
 				}
 				case COMMAND_RENDER:    // paint scene (n), no update.
 				{
 					uint32_t arg = (uint32_t)*cmdp++;
-					Set_Scene_idx(bs->phy_mask, arg);
+					Set_Scene_mask(bs->phy_idx, arg);
 					break;
 				}
 				case COMMAND_SHIFT:    // shift led color values (values that are shifted off the end are lost).
 				{
                     LED led_rotate_buff[MAX_LED_ROTATE];
 					int32_t shift = (int32_t)*cmdp++;			// Number of places to shift.
-					Command_Shift_LEDS_mask(bs->phy_mask, true, shift, led_rotate_buff);
+					Command_Shift_LEDS_mask(bs->phy_idx, true, shift, led_rotate_buff);
 					break;
 				}
 				case COMMAND_ROTATE:   // rotate led value. (end wraps).
 				{
                     LED led_rotate_buff[MAX_LED_ROTATE];
 					int32_t shift = (int32_t)*cmdp++;			// Number of places to rotate.
-					Command_Shift_LEDS_mask(bs->phy_mask, false, shift, led_rotate_buff);
+					Command_Shift_LEDS_mask(bs->phy_idx, false, shift, led_rotate_buff);
 					break;
 				}
-				case COMMAND_MORPH:    // morph current scene into new scene (n) over (t) seconds.
+				case COMMAND_MORPH:    // start morphing current scene into new scene (n) over (t) seconds.
                 {
-					cmdp++;
+					uint32_t morph_time = (uint32_t)*cmdp++;      // Get milliseconds for morph time.
+					uint32_t new_scene = (uint32_t)*cmdp++;       // Get scene id for morph destination.
+
+                    LEDS_PHY* phy = LED_Get_Phy(bs->phy_idx);      // Find current phy.
+                    int num_leds = phy->led_count;
+
+                    if (!bs->morph.num_leds)
+                    {
+                        LED* mleds = LEDS_Buff_Allocate(num_leds * 4);
+
+                        bs->morph.num_leds = num_leds;
+                        bs->morph.dests = mleds;
+                        bs->morph.morphs = (LED_MORPH_SINGLE*)(mleds + num_leds);
+
+                        Morph_Start(phy->led_data, &bs->morph, morph_time, bs->Tick_Speed, new_scene);
+                        bs->State = STATE_TRANSITION;       // In transition.
+    					done = true;
+                    }
+                    else if (num_leds <= bs->morph.num_leds)
+                    {
+                        Morph_Start(phy->led_data, &bs->morph, morph_time, bs->Tick_Speed, new_scene);
+                        bs->State = STATE_TRANSITION;       // In transition.
+    					done = true;
+                    }
+                    else { D(DEBUG_BLOB, PRINTF("Morph cannot run!\n");) }
                     break;
                 }
 				case COMMAND_TRIGGER:   // immediate trigger to selected engines.
@@ -223,7 +247,6 @@ PUBLIC bool Process_Command(BENG_STATE* bs)
 					D(DEBUG_BLOB, PRINTF("Command(%d) '%s' is not implemented yet.\n", cmd, Command_Name(cmd));)
 					break;
 				}
-
 
 				case COMMAND_SET:   // Set a variable to a value.
 				case COMMAND_GET:   // Get value (into accumulator)

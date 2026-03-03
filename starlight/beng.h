@@ -7,6 +7,7 @@
 #include "bvar.h"
 #include "stack.h"
 #include "shifter.h"
+#include "morph.h"
 
 #define MAX_BENG 8
 
@@ -41,56 +42,49 @@ typedef struct Prog_Stack
 typedef struct Beng_State
 {
     volatile bool tick_is_running;
-    volatile int Tick_Speed;    // Clock for blob player.    
+    volatile int Tick_Speed;        // Clock for blob player.    
 
-	int Tick_Count;             // Used by state machine tick.
+	int Tick_Count;                 // Used by state machine tick.
 
-    volatile STATE State;		// state for engine.
+    volatile STATE State;		    // state for engine.
   
-	uint32_t pause_counter;		// Ticks left to wait until next step (while in paused state).
-    absolute_time_t wait_time;  // Time to wait until (when in wait state).
+	uint32_t pause_counter;		    // Ticks left to wait until next step (while in paused state).
+    absolute_time_t wait_time;      // Time to wait until (when in wait state).
 
-	uint32_t repeat;			// Number of times left to repeat.
-	PROG* repeat_start;			// First command in program sequence.
+	uint32_t repeat;			    // Number of times left to repeat.
+	PROG* repeat_start;			    // First command in program sequence.
 
-	PROG* prog;				    // Points to next program command.
+	PROG* prog;				        // Points to next program command.
 
-	// XITI* Xiti;				// Transition currently playing.
-//	uint32_t* Xiti_Times;		// Store for transition step time counts.
+    LED_MORPH morph;                // Data used while morphing.
 
 	PROG_STACK program_stack_buffer;
-    STACK* program_stack;	// Pending program stack. 
+    STACK* program_stack;	        // Pending program stack. 
     
-    int phy_mask;               // Current phy mask for led writes.
+    int phy_idx;                    // Current phy mask for led writes.
 
     BENG_VAR local_vars[MAX_BENG_LOCAL + 1];   // Accumulator is at idx 0.
 
 } BENG_STATE;
 
-extern volatile uint64_t Blob_Time;
-
-//extern BENG_STATE Beng_State;   // Do deprecate... eventually.
-
-//extern const int Tick_Speed;                    // Clock for blob player.
+extern volatile uint64_t Blob_Time;     // Always counts up every 50ms.
 
 extern void Beng_Init(void);                    // Prepare BLOB engines for use.  Call once at startup.
 
 extern void Beng_All_Stop(void);                // Stop all engines and clear all queues.
 
-extern BENG_STATE* Get_Beng_State(int beng_idx);
+extern BENG_STATE* Get_Beng_State(int /*beng_idx*/);
 
 extern BENG_VAR* BVar_Find_Local_By_Index(BENG_STATE* /*bs*/, uint32_t /*idx*/);
 
-extern void Beng_Set_Phy_mask(int beng_mask, int phy_mask);
+extern void Beng_Set_Phy(int /*beng_idx*/, int /*phy_idx*/);
 
 extern void Push_Context(BENG_STATE* /*bs*/);   // Save state context.
 extern void Pop_Context(BENG_STATE* /*bs*/);    // Recover saved state context.
 
-extern void Blob_Run(int beng_idx, PROG_ID pnum);
-extern void Blob_Run_mask(int beng_mask, PROG_ID pnum);
+extern void Blob_Run(int /*beng_idx*/, PROG_ID /*pnum*/);
 
 extern void Blob_Trigger(int /*beng_idx*/, TRIG_ID /*trig_id*/);    // Immediately Start playing a BLOB program.  (Cancel any running or queue'd).
-extern void Blob_Trigger_mask(int /*beng_mask*/, TRIG_ID /*trig_id*/);
 
 //extern void Blob_Queue_Next(int /*bsn*/, TRIG_ID /*n*/);         // Start playing a BLOB program (after current completes).
 

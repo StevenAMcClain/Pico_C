@@ -18,7 +18,7 @@ typedef union
 {
     struct
     {
-        LED_VAL white;
+        uint8_t phy_num;
         LED_VAL blue;
         LED_VAL red;
         LED_VAL green;
@@ -26,54 +26,66 @@ typedef union
     uint32_t val;
 } LED;
 
-
 #define LED_SIZE sizeof(LED)                        // Size of one LED.
 #define LED_DATA_SIZE (Num_LEDS * LED_SIZE)
 
-//extern FLOAT LED_Brightness;       // Brighness level (0-1.0)
+typedef struct
+{
+	size_t led_count;				// Number of leds on string.
+	LED* led_data;					// Data for LED string.
+	LED* scaled_led_data;			// Buffer that is actually sent to LEDS.
+    int32_t mirroring;              // Phy index + 1 if mirroring else 0.
+    uint32_t mirror_mask;           // Mask of mirrored phys.
+
+} LEDS_PHY;
+
 extern uint32_t LED_Brightness;       // Brighness level (0-1024 == 0-100%)
 
-//extern volatile uint32_t Current_Phy_Mask;  // Current phynum (or logical).  0 for none.
-
-extern size_t PHY_Get_LED_Count(int phy_idx);
-
-extern void LEDS_Buff_Reset();
-extern LED* LEDS_Buff_Allocate(size_t size);
+extern LED* LEDS_Buff_Allocate(size_t /*size*/);
 extern size_t LEDS_Buff_Available(void);
 
-extern void PHY_Set_led_count(int phy_idx, size_t led_count);
+extern void PHY_Set_Led_Count(int /*val*/);
 //
 // Set the number of leds on a string.  Allocates LED buffers.
 
-//extern void LEDS_Set_Phynum(int phy_mask);
+extern LEDS_PHY* LED_Get_Phy(int /*phy_idx*/);
+extern size_t PHY_Get_LED_Count(int /*phy_idx*/);
 
-extern LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp);
+extern LED* LED_Get_LED_Data(int /*phy_idx*/, size_t* /*num_ledsp*/);
 
 extern void LEDS_Do_Update(void);
 //
 // Sends the data to the LEDs for all PHY that are flagged for update.
 
-extern void LED_Needs_Update(int phy_mask);
+extern void LED_Needs_Update(int /*phy_mask*/);
 //
 // Sets the update flag(s) for phynum.
 
-extern size_t Num_LEDS_Mask(int phy_mask);
+extern size_t Num_LEDS_Mask(int /*phy_mask*/);
 
-extern void LED_Set_LED_Mask(int phy_mask, size_t led_idx, LED* source_ledp);
+extern void LED_Set_LED_Mask(int /*phy_mask*/, size_t /*led_idx*/, LED* /*source_ledp*/);
 
-extern void LED_Set_RGB_Mask(int phy_mask, size_t led_idx, LED_VAL r, LED_VAL g, LED_VAL b);
+extern void LED_Set_RGB_Mask(int /*phy_mask*/, size_t /*led_idx*/, LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
 
-extern void LED_All_LED_Mask(int phy_mask, LED led);
+extern void LED_All_LED_Mask(int /*phy_mask*/, LED /*led*/);
 //
 // Sets all LEDs to the same color.
 
-extern void LED_All_RGB_Mask(int phy_mask, LED_VAL r, LED_VAL g, LED_VAL b);
+extern void LED_All_RGB_Mask(int /*phy_mask*/, LED_VAL /*r*/, LED_VAL /*g*/, LED_VAL /*b*/);
 //
 // Sets all the LEDs to a certain color.
 
-extern void LEDS_All_Black();
+extern void LEDS_All_Black(void);
 //
 // Immediately set ALL leds to black (off).
+
+extern void LEDS_Phy_Reset(void);
+//
+// Clear all phy leds.
+
+extern void PHY_Build_Mirror_Masks(void);
+//
+// Build mirror masks for all phys.
 
 extern void LED_Init(void);
 //

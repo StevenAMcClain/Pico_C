@@ -3,11 +3,198 @@
 #include "Common.h"
 #include "Morph.h"
 
+#include "beng.h"
 #include "scene.h"
 
-PUBLIC void Morph_Start(LED* leds, LED_MORPH* ledmorph, SCENE_ID scene_id)
+#define ABS(x) ((x < 0) ? -x : x)
+
+// typedef struct morph_step
+// {
+//     int8_t white;
+//     int8_t blue;
+//     int8_t red;
+//     int8_t green;
+
+// } MORPH_STEP;
+
+// typedef struct morph_count
+// {
+//     uint8_t white;
+//     uint8_t blue;
+//     uint8_t red;
+//     uint8_t green;
+
+// } MORPH_COUNT;
+
+// typedef struct led_morph_single
+// {
+//     MORPH_STEP  steps;
+//     MORPH_COUNT counts;
+//     MORPH_COUNT periods;
+
+// } LED_MORPH_SINGLE;
+
+// typedef struct led_morph
+// {
+//     size_t num_leds;
+//     LED* dests;
+//     LED_MORPH_SINGLE* morphs;
+
+// } LED_MORPH;
+
+
+
+PRIVATE int ticks(FLOAT val, FLOAT tick_time)
+//
+// Convert time in seconds into tick count.
 {
-//    Render_Scene_ptr(ledmorph->dests, ledmorph->num_leds, scene_id);
+	FLOAT aval = ABS(val) / tick_time;
+	int rval = (int)(aval + 0.5); 
+
+	return (int)((ABS(val) / tick_time) + 0.5);
+}
+
+
+PRIVATE void calc_morph_step(FLOAT trans_time, FLOAT tick_time, LED_VAL starting, LED_VAL ending, int8_t* step, uint8_t* count, uint8_t* period)
+{
+    int diff = ending - starting;
+
+    if (!diff)
+	{
+		*count = *period = 0;
+		*step = 0;
+	}
+	else
+	{
+		int isneg = diff < 0 ? -1 : 1;
+		FLOAT step_time = trans_time / diff;
+		int ms = ticks(step_time, tick_time);
+
+		if (ms)
+		{
+			*count = *period = ms;
+			*step = isneg;
+		}
+		else
+		{
+			for (int i = 2; i < 255; ++i)
+			{
+				FLOAT tt = step_time * i;
+
+				if (tt > 1.0)
+				{
+					ms = ticks(tt, tick_time);
+					*count = *period = ms;
+					*step = i * isneg;
+					return;
+				}
+			}
+			*count = *period = 1;
+			*step = diff;
+		}
+	}
+}
+
+
+PUBLIC void Morph_Start(LED* leds, LED_MORPH* ledmorph, int morph_time, int tick_speed, SCENE_ID scene_id)
+{
+    tick_speed /= 1000;   // Convert tick speed into milliseconds.
+    FLOAT mt = (FLOAT)morph_time / 1000.0;
+    FLOAT tick_time = tick_speed / 1000.0;
+
+    PRINTF("Morph_Start:\n");
+
+    LED* dest = ledmorph->dests;
+    LED_MORPH_SINGLE* sing = ledmorph->morphs;
+
+    Render_Scene_Id(dest, ledmorph->num_leds, scene_id);
+
+    for (int i = 0; i < ledmorph->num_leds; ++i)
+    {
+        calc_morph_step(mt, tick_time, leds->led.red,   dest->led.red,   &sing->steps.red,   &sing->counts.red,   &sing->periods.red);
+        calc_morph_step(mt, tick_time, leds->led.blue,  dest->led.blue,  &sing->steps.blue,  &sing->counts.blue,  &sing->periods.blue);
+        calc_morph_step(mt, tick_time, leds->led.green, dest->led.green, &sing->steps.green, &sing->counts.green, &sing->periods.green);
+
+        leds++; dest++; sing++;
+    }
+}
+
+
+// PRIVATE void dump_led(LED* led, char*str)
+// {
+//     PRINTF("%s r(%d), g(%d), b(%d)\n", str, led->led.red, led->led.green, led->led.blue);
+// }
+
+
+// PRIVATE void dump_morph(LED_MORPH_SINGLE* morph)
+// {
+//     PRINTF("\tred. count %u, period %u, step %d\n", morph->counts.red, morph->periods.red, morph->steps.red);
+//     PRINTF("\tgreen. count %u, period %u, step %d\n", morph->counts.green, morph->periods.green, morph->steps.green);
+//     PRINTF("\tred. count %u, period %u, step %d\n", morph->counts.blue, morph->periods.blue, morph->steps.blue);
+// }
+
+
+#define MORPH_STEP(color) \
+        if (led->led.color != dest_led->led.color)\
+        {\
+            got_one = true;\
+            if (msing->counts.color)\
+            {\
+              if (--msing->counts.color == 0)\
+              {\
+                  led->led.color += msing->steps.color;\
+                  msing->counts.color = msing->periods.color;\
+                  LED_Needs_Update(1 << (led->led.phy_num - 1));\
+              }\
+            }\
+        }
+// MORPH_STEP should check for overshoot!
+
+
+PUBLIC bool Morph_Step(void* bsv)
+{
+    BENG_STATE* bs = bsv;
+    bool got_one = false;
+    LED_MORPH* morph = &bs->morph;
+    LEDS_PHY* phy = LED_Get_Phy(bs->phy_idx);
+  
+    LED* led = phy->led_data;
+    LED* dest_led = morph->dests;  
+    LED_MORPH_SINGLE* msing = morph->morphs;
+    int n = morph->num_leds;
+    bool first = true;
+
+    while (n--)
+    {
+        int r = led->led.red;
+        MORPH_STEP(red);
+        int b = led->led.blue;
+        MORPH_STEP(blue);
+        int g = led->led.green;
+        MORPH_STEP(green);
+
+        if (/*n > 30 &&*/ ((r != led->led.red) || (g != led->led.green) || (b != led->led.blue)))
+        {
+            if (first)
+            {
+                PRINTF("\nMorph Step(%d):\n", n);    
+                first = false;
+            }
+            PRINTF("%d]  r (%d)->%d, g (%d)->%d, b (%d)->%d\n", n, r, led->led.red, g, led->led.green, b, led->led.blue);
+        }
+
+        // dump_led(led, "dump_led: 'start' ");
+        // dump_led(dest_led, "\tdest");
+        // dump_morph(msing);
+
+        ++led; ++dest_led; ++msing;
+    }
+
+    if (!first) { PRINTF("\n"); }
+
+//    if (got_one) { LEDS_Do_Update(); }
+
+    return got_one;
 }
 
 
@@ -47,63 +234,6 @@ PRIVATE MORPH morph = {0};
 PRIVATE MORPH_STEP morph_step_data[xx] = {0};
 
 #define myabs(x) (((x) < 0.0) ? (-(x)) : (x))
-
-
-PRIVATE int ticks(FLOAT val)
-//
-// Convert time in seconds into tick count.
-{
-	FLOAT aval = abs(val * Tick_Speed);
-	int rval = (int)(aval + 0.5); 
-
-	return (int)((myabs(val) * Tick_Speed) + 0.5);
-}
-
-
-PRIVATE void calc_morph_step(MORPH* morph, MORPH_STEP* step)
-{
-    //# print(f"dif: trans = {trans}, starting_value = {starting_value}, ending_value = {ending_value}")
-
-    int diff = morph->ending_value - morph->starting_value;
-
-    if (!diff)
-	{
-		step->count = step->wait = 0;
-		step->step = 0;
-	}
-	else
-	{
-		int isneg = diff < 0 ? -1 : 1;
-//		diff += isneg;
-		FLOAT step_time = morph->trans_time / diff;
-		int ms = ticks(step_time);
-
-		//# print(f"\ndif({trans}, {starting_value}, {ending_value}) : diff = {diff}, step_time = {step_time}, ms = {ms}")
-
-		if (ms)
-		{
-			step->count = step->wait = ms;
-			step->step = isneg;
-		}
-		else
-		{
-			for (int i = 2; i < 255; ++i)
-			{
-				FLOAT tt = step_time * i;
-
-				if (tt)
-				{
-					ms = ticks(tt);
-					step->count = step->wait = ms;
-					step->step = i * isneg;
-					return;
-				}
-			}
-			step->count = step->wait = 1;
-			step->step = diff;
-		}
-	}
-}
 
 
 PUBLIC void morph_start(FLOAT trans_time, LED* to_scene)

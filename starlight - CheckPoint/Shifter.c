@@ -44,7 +44,7 @@ PUBLIC void Command_Shift_LEDS(bool do_shift, int shift_count)
     {
         LED padding = {0};
         size_t max_leds = 0;
-        LED* base = LED_Get_Phy(0, &max_leds);
+        LED* base = LED_Get_LED_Data(0, &max_leds);
 
         if (base && max_leds)
         {

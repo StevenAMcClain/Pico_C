@@ -83,7 +83,7 @@ PUBLIC PROG_ID Get_Trigger_Prog(TRIG_ID id)
 		int i = Blob.Num_Trig;
 		uint32_t *trigp = Blob.Trigger_Base;
 
-		while (--i)
+		while (i--)
 		{
 			if (id == *trigp++)		// ID Match?
 				return *trigp;		// Return Program ID.
@@ -178,22 +178,37 @@ PRIVATE void unpack_variables(void)
 }
 
 
-PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
+PRIVATE void unpack_phys(BLOB_RAW* blob_raw)
+{
+    if (blob_raw->phystr_size)
+    {
+        LEDS_Phy_Reset();
+
+        uint32_t* phystr = ((uint32_t*)blob_raw) + blob_raw->phystr_start + 4;     // Point to base of phy string table.
+        size_t num_phys = blob_raw->phystr_size;                    // Get phystring size.
+
+        while (num_phys--) { PHY_Set_Led_Count(*phystr++); }
+
+        PHY_Build_Mirror_Masks();
+    }
+}
+
+
+PRIVATE bool Blob_Unpack_Header(BLOB_RAW* blob_raw)
 //
 // Load a new blob_base.
 {
-	if (blob_base)
+	if (blob_raw)
 	{
 		Blob_Unload();
-
-	    BLOB_RAW* blob_raw = (BLOB_RAW*)blob_base;
     
 		D(DEBUG_BLOB, PRINTF("trig_size=%d, prog_size=%d, scen_count=%d, scen_size=%d\n",
 				(blob_raw->trig_size / 2) - 1, blob_raw->prog_size, blob_raw->scen_count, blob_raw->scen_size);)
 
 		Blob.Blob_BASE = blob_raw;
 
-	    uint32_t* bptr = (uint32_t*)(blob_base + (4 * sizeof(uint32_t)));
+//	    uint32_t* bptr = (uint32_t*)(blob_raw + (4 * sizeof(uint32_t)));
+	    uint32_t* bptr = ((uint32_t*)blob_raw) + 4;
 
         Blob.StrindX = (uint8_t*)(bptr + blob_raw->strindx_start);     // Point to base of string table.
 
@@ -218,20 +233,13 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 
         Blob.VStr_Index_Size = blob_raw->vstr_count;
         Blob.VStr_Array_Size = blob_raw->vstr_size;
-            
-        Blob.Num_Scenes = blob_raw->scen_count / 2;    // Number of scenes defined.
+
+        Blob.Num_Scenes = blob_raw->scen_count / 2;     // Number of scenes defined.
         Blob.Scene_Size = blob_raw->scen_size;	        // Sizeof the scene array.
-        Blob.Num_Trig = blob_raw->trig_size / 2;   	// Number of trigger records.
+        Blob.Num_Trig = blob_raw->trig_size / 2;   	    // Number of trigger records.
         Blob.Num_Prog = blob_raw->prog_size;		    // Number of PROG records.
 
-        if (blob_raw->phystr_size)
-        {
-            uint32_t* phystr = (bptr + blob_raw->phystr_start + 1);     // Point to base of phy string table.
-            size_t num_phys = blob_raw->phystr_size - 1;            // Get phystring size.
-            int phyidx = 0;
-
-            while (num_phys--) { PHY_Set_led_count(phyidx++, *phystr++); }
-        }
+        unpack_phys(blob_raw);
 
         unpack_variables();
 
@@ -239,6 +247,26 @@ PUBLIC bool Unpack_Blob_Header(uint8_t* blob_base)
 
         return true;
 	}
+    return false;
+}
+
+
+PUBLIC bool Blob_Activate(int Engine_Idx)
+{
+    Blob_Base_Switch();
+
+    BLOB_RAW* base = Blob_Base_Current();
+
+    if (Blob_Unpack_Header(base))
+    {
+        // BTPRINTF("LOAD: Success.\n");
+        Blob_Run(Engine_Idx, PROG_ID_START);        //=== Start...
+        return true;
+    }
+//    else { BTPRINTF("Blob_Activate: Can't unpack.\n"); }
+
+    Blob_Base_Switch();   // Failed switch back.
+
     return false;
 }
 
@@ -253,9 +281,9 @@ PUBLIC void Blob_Init(void)
 
     sleep_ms(1);   // Wait for everything to settle.
 
-    bool autostart = gpio_get(AUTO_START_PIN);
+    bool autostart = !gpio_get(AUTO_START_PIN);
 
-    if (autostart) { BPage_Load_Blob(0); }
+    if (autostart && BPage_Load_Blob(0)) {Blob_Activate(0); }
 }
 
 

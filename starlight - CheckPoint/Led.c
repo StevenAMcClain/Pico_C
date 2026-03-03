@@ -13,7 +13,7 @@ PUBLIC volatile uint32_t Current_Phy_Mask = 0;  // Current phynum (or logical). 
 
 PUBLIC FLOAT LED_Brightness = 1.0;			    // Overall brightness for all strings.
 
-PRIVATE volatile uint32_t needs_update = 0;     // Bit mask for strings that need to be updated.
+PRIVATE volatile uint32_t Needs_Update_Mask = 0;     // Bit mask for strings that need to be updated.
 
 typedef struct
 {
@@ -131,13 +131,13 @@ PUBLIC void LEDS_Do_Update(void)
         int i = 1;
         uint32_t mask = 1;
 
-        while (needs_update && i <= MAX_PHY)
+        while (Needs_Update_Mask && i <= MAX_PHY)
         {
-            if (mask & needs_update)
+            if (mask & Needs_Update_Mask)
             {
                 scale_led_data(phy->led_data, phy->scaled_led_data, phy->led_count);
                 WS2812_Prime_Send(mask, (uint32_t*)phy->scaled_led_data);
-                needs_update &= ~mask;
+                Needs_Update_Mask &= ~mask;
             }
             ++phy; ++i; mask <<= 1;
         }
@@ -175,11 +175,11 @@ PUBLIC void LED_Needs_Update(int phy_mask)
 	if (phy_mask == 0)
 		phy_mask = Current_Phy_Mask;
 
-    needs_update |= phy_mask;
+    Needs_Update_Mask |= phy_mask;
 }
 
 
-PUBLIC LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp)
+PUBLIC LED* LED_Get_LED_Data(int phy_idx, size_t* num_ledsp)
 {
 	LED* result = NIL;
 
@@ -228,7 +228,7 @@ PRIVATE void LED_Set_RGB_Idx(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, 
 // Sets a specific LED to a certain color.   LEDs start at 0
 {
 	size_t num_leds = 0;
-	LED* ledp_base = LED_Get_Phy(phy_idx, &num_leds);
+	LED* ledp_base = LED_Get_LED_Data(phy_idx, &num_leds);
 
 	if (ledp_base && led_idx < num_leds)
 	{
@@ -238,7 +238,7 @@ PRIVATE void LED_Set_RGB_Idx(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, 
 		ledp->led.green = g;	// Green.
 		ledp->led.blue  = b;	// Blue.
 
-        needs_update |= (1 << phy_idx);
+        Needs_Update_Mask |= (1 << phy_idx);
 	}
 }
 
@@ -246,14 +246,14 @@ PRIVATE void LED_Set_RGB_Idx(int phy_idx, size_t led_idx, LED_VAL r, LED_VAL g, 
 PRIVATE void LED_Set_LED_Idx(int phy_idx, size_t led_idx, LED* source_ledp)
 {
 	size_t num_leds = 0;
-	LED* ledp_base = LED_Get_Phy(phy_idx, &num_leds);
+	LED* ledp_base = LED_Get_LED_Data(phy_idx, &num_leds);
 
 	if (ledp_base && led_idx < num_leds)
 	{
 		LED* ledp = ledp_base + led_idx;
 		ledp->val = source_ledp->val;
 
-        needs_update |= (1 << phy_idx);
+        Needs_Update_Mask |= (1 << phy_idx);
 	}
 }
 
@@ -307,7 +307,7 @@ PUBLIC void LED_All_LED_Mask(int phynum, LED led)
 				(ledp++)->val = led.val;
 			}
 
-            needs_update |= mask;
+            Needs_Update_Mask |= mask;
             phynum &= ~mask;
         }
         ++phy; mask <<= 1;

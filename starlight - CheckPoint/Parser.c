@@ -143,7 +143,7 @@ PRIVATE void read_blob(void)
                         if (prehead->Checksum == blob_check)
                         {
                             // PRINTF("read_blob: base %X %X\n", real_base, base);
-                            if (Unpack_Blob_Header(buff))
+                            if (Blob_Unpack_Header(buff))
                             {
                                 BTPRINTF("BLOB loaded.\n");
                                 return;

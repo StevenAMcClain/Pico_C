@@ -16,11 +16,11 @@ typedef uint32_t SCENE;
 
 // Render scene given scene id.
 //
-extern void Set_Scene_idx(int /*phy_mask*/, SCENE_ID /*id*/);
+extern void Set_Scene_mask(uint32_t /*phy_mask*/, SCENE_ID /*scene_id*/);
 
-extern void Set_Scene_mask(int /*phy_mask*/, SCENE_ID /*scene_id*/);
-
-extern void Render_Scene_ptr(LED* /*leds*/, size_t /*num_leds*/, SCENE_ID /*id*/);
+extern void Render_Scene_Id(LED* /*leds*/, size_t /*num_leds*/, SCENE_ID /*scene_id*/);
+//
+// Render scene given pointer to start of scene script.
 
 #endif // SCENE_H
 

@@ -15,12 +15,16 @@
 #include "debug.h"
 #include "flashblob.h"
 #include "led.h"
+#include "morph.h"
 #include "parser.h"
+#include "picopwm.h"
+#include "spi.h"
+#include "spi_map.h"
 #include "trace.h"
 
-#include "morph.h"
 
-PUBLIC uint32_t Debug_Mask = DEBUG_ALL;
+
+PUBLIC uint32_t Debug_Mask = DEBUG_PRINTF; //DEBUG_ALL;
 
 
 PUBLIC void _Printf(const char *fmt, ...) 
@@ -65,23 +69,33 @@ PUBLIC void main(void)
 {
     stdio_init_all();   // Prepare stdio for use.
 
-    Trace_Init();
+    // pwm_test();
+    // while (1);
+
+    // Trace_Init();
     char* uuid = Get_UUID();
 
     PRINTF("\r\n\nStarlight %s %s %s: UUID:%s: startup.\n", 
                             __VERSION__ , __TIME__, __DATE__, uuid);
 
-    PRINTF("LED Morph size %d\n", sizeof(LED_MORPH));
+    Spi_Init();         // Get SPI Port ready for use.
+
+PRINTF("LED Morph size %d\n", sizeof(LED_MORPH));
+PRINTF("LED Morph Single size %d\n", sizeof(LED_MORPH_SINGLE));
+PRINTF("LED Morph Step size %d\n", sizeof(MORPH_STEP));
+PRINTF("LED Morph Count size %d\n", sizeof(MORPH_COUNT));
 
     LED_Init();         // Prepare LED strings PIO driver for use.
-    Beng_Init();        // Get blob engines ready.
-    Blob_Init();        // Get blob manager ready to run.
 
     multicore_lockout_victim_init();
     multicore_launch_core1(Start_BlueTooth);   // Startup the Bluetooth stack.
-
     sleep_ms(100);      // Wait for BlueTooth to startup.
     
+    Beng_Init();        // Get blob engines ready.
+    Blob_Init();        // Get blob manager ready to run.
+
+    Spi_Map_Init();     // Setup SPI device mapping.
+
     Start_Parser();     // Startup the parser.
 }
 

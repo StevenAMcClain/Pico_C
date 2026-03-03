@@ -65,7 +65,7 @@ extern uint8_t* Get_New_Blob_Base(void);            // Switch to other base and 
 extern uint8_t* Get_Blob_Base(void);                // Returns pointer to current BLOB base.
 
 extern void Blob_NumLeds(int n);                    // Set number of LEDS.   Call when Num_Leds changes.
-extern bool Unpack_Blob_Header(uint8_t* /* blob_base */);    // Call to load a new blob_base.
+extern bool Blob_Unpack_Header(uint8_t* /* blob_base */);    // Call to load a new blob_base.
 extern void Blob_Unload(void);                      // Release blob_base memory.
 
 extern void Blob_Trigger(TRIG_ID n);                // Immediately Start playing a BLOB program.  (Cancel any running or queue'd)

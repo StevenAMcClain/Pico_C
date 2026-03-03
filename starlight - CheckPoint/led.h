@@ -48,7 +48,7 @@ extern void PHY_Set_led_count(int phy_idx, size_t led_count);
 
 //extern void LEDS_Set_Phynum(int phy_mask);
 
-extern LED* LED_Get_Phy(int phy_idx, size_t* num_ledsp);
+extern LED* LED_Get_LED_Data(int phy_idx, size_t* num_ledsp);
 
 extern void LEDS_Do_Update(void);
 //

@@ -1,0 +1,65 @@
+/**
+ * These arguments were used when this file was generated. They will be automatically applied on subsequent loads
+ * via the GUI or CLI. Run CLI with '--help' for additional information on how to override these arguments.
+ * @cliArgs --device "MSPM0C110X" --part "Default" --package "VSSOP-20(DGS20)" --product "mspm0_sdk@2.07.00.06"
+ * @v2CliArgs --device "MSPM0C1104" --package "VSSOP-20(DGS20)" --product "mspm0_sdk@2.07.00.06"
+ * @versions {"tool":"1.25.0+4268"}
+ */
+
+/**
+ * Import the modules used in this configuration.
+ */
+const Board   = scripting.addModule("/ti/driverlib/Board");
+const NONMAIN = scripting.addModule("/ti/driverlib/NONMAIN");
+const SPI     = scripting.addModule("/ti/driverlib/SPI", {}, false);
+const SPI1    = SPI.addInstance();
+const SYSCTL  = scripting.addModule("/ti/driverlib/SYSCTL");
+const UART    = scripting.addModule("/ti/driverlib/UART", {}, false);
+const UART1   = UART.addInstance();
+
+/**
+ * Write custom configuration values to the imported modules.
+ */
+Board.debugOn            = false;
+Board.peripheral.$assign = "DEBUGSS";
+scripting.suppress("Debug Disabled! Code Cannot be Debugged", Board, "debugOn");
+
+NONMAIN.nonmainWarning = true;
+
+SPI1.$name                              = "SPI_0";
+SPI1.mode                               = "PERIPHERAL";
+SPI1.enablePacking                      = true;
+SPI1.chipSelect                         = [];
+SPI1.peripheralChipSelect               = "1";
+SPI1.sclkPinConfig.onlyInternalResistor = scripting.forceWrite(false);
+SPI1.sclkPinConfig.passedPeripheralType = scripting.forceWrite("Digital");
+SPI1.sclkPinConfig.$name                = "ti_driverlib_gpio_GPIOPinGeneric2";
+SPI1.mosiPinConfig.hideOutputInversion  = scripting.forceWrite(false);
+SPI1.mosiPinConfig.onlyInternalResistor = scripting.forceWrite(false);
+SPI1.mosiPinConfig.passedPeripheralType = scripting.forceWrite("Digital");
+SPI1.mosiPinConfig.$name                = "ti_driverlib_gpio_GPIOPinGeneric3";
+SPI1.misoPinConfig.onlyInternalResistor = scripting.forceWrite(false);
+SPI1.misoPinConfig.passedPeripheralType = scripting.forceWrite("Digital");
+SPI1.misoPinConfig.$name                = "ti_driverlib_gpio_GPIOPinGeneric4";
+SPI1.peripheral.$assign                 = "SPI0";
+SPI1.peripheral.sclkPin.$assign         = "PA19";
+SPI1.peripheral.mosiPin.$assign         = "PA20";
+SPI1.cs1PinConfig.$name                 = "ti_driverlib_gpio_GPIOPinGeneric5";
+
+SYSCTL.clockTreeEn = true;
+
+UART1.$name                    = "UART_0";
+UART1.targetBaudRate           = 115200;
+UART1.peripheral.$assign       = "UART0";
+UART1.peripheral.rxPin.$assign = "PA24";
+UART1.peripheral.txPin.$assign = "PA27";
+UART1.txPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric0";
+UART1.rxPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric1";
+
+/**
+ * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
+ * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
+ * re-solve from scratch.
+ */
+SPI1.peripheral.misoPin.$suggestSolution = "PA16";
+SPI1.peripheral.cs1Pin.$suggestSolution  = "PA0";

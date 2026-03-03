@@ -9,7 +9,7 @@
 #include "bcmd.h"
 #include "debug.h"
 
-#define TRACE_BENG_TICK
+//#define TRACE_BENG_TICK
 
 #ifdef TRACE_BENG_TICK
 #include "trace.h"
@@ -43,23 +43,11 @@ PUBLIC BENG_VAR* BVar_Find_Local_By_Index(BENG_STATE* bs, uint32_t idx)
 }
 
 
-PUBLIC void Beng_Set_Phy_mask(int beng_mask, int phy_mask)
+PUBLIC void Beng_Set_Phy(int beng_idx, int phy_mask)
 {
-    uint32_t mask = 1;
-    int beng_idx = 0;
+    BENG_STATE* bs = Get_Beng_State(beng_idx);
 
-    while (beng_mask && beng_idx < MAX_BENG)
-    {
-        if (beng_mask & mask)
-        {
-            BENG_STATE* bs = Get_Beng_State(beng_idx);
-
-            if (bs) { bs->phy_mask = phy_mask; }
-
-            beng_mask &= ~mask;
-        }
-        ++beng_idx;   mask <<= 1;
-    }
+    if (bs) { bs->phy_idx = phy_mask; }
 }
 
 
@@ -70,7 +58,7 @@ PUBLIC void Push_Context(BENG_STATE* bs)
 	STACK* stk = bs->program_stack;
 
 	Stack_Push(stk,           bs->State);		    // Current state (processing command).
-	Stack_Push(stk, (uint32_t)bs->phy_mask);		// LED Phy mask.
+	Stack_Push(stk, (uint32_t)bs->phy_idx);		// LED Phy mask.
 	Stack_Push(stk, (uint32_t)bs->prog);			// Next command to run.
 	Stack_Push(stk,           bs->pause_counter);	// Ticks left to wait until next step.
 	Stack_Push(stk,           bs->repeat);		    // Number of times left to repeat.
@@ -91,14 +79,13 @@ PUBLIC void Pop_Context(BENG_STATE* bs)
 
 //	Blob_State.Xiti_Times   = (uint32_t*)Stack_Pop(q);		// Store for transition step time counts.
 	// XITI* Xiti;											// Transition currently playing.
-	bs->repeat_start = (PROG*)Stack_Pop(stk);		    	// First command in program sequence.
-	bs->repeat       =        Stack_Pop(stk);			    // Number of times left to repeat.
+	bs->repeat_start  = (PROG*)Stack_Pop(stk);		    	// First command in program sequence.
+	bs->repeat        =        Stack_Pop(stk);			    // Number of times left to repeat.
 	bs->pause_counter =        Stack_Pop(stk);			    // Ticks left to wait until next step.
-	bs->prog         = (PROG*)Stack_Pop(stk);			    // Next command to run.
-	bs->phy_mask     =        Stack_Pop(stk);			    // LED Phy mask.
-	bs->State        =        Stack_Pop(stk);			    // Current state (processing command).
+	bs->prog          = (PROG*)Stack_Pop(stk);			    // Next command to run.
+	bs->phy_idx       =        Stack_Pop(stk);			    // LED Phy mask.
+	bs->State         =        Stack_Pop(stk);			    // Current state (processing command).
 }
-
 
 
 #define DEBUG_BLOB2 (DEBUG_BLOB | DEBUG_BUSY)
@@ -127,25 +114,19 @@ PRIVATE int64_t Blob_Program_Tick(alarm_id_t id, void *user_data)
 		{
 			if (bs->pause_counter) { --bs->pause_counter; }
 
-			if (bs->pause_counter)	// Waiting done?
-			{
-				break;  // Nope, still waiting.
-			}
-			else
+			if (!bs->pause_counter)             // Pause done?
 			{
 				bs->State = STATE_COMMAND;
-				// Fall throught to next case ... STATE_COMMAND
 			}
+    		break;
 		}
 		case STATE_WAITING:
         {
-            if (time_reached(bs->wait_time))
-//            if (get_absolute_time() > bs->wait_time)
+            if (time_reached(bs->wait_time))	// Waiting done?
             {
 				bs->State = STATE_COMMAND;
-				// Fall throught to next case ... STATE_COMMAND
             }
-            else { break; }   // Still waiting.
+            break;
         }
 		case STATE_COMMAND:
 		{
@@ -184,8 +165,11 @@ PRIVATE int64_t Blob_Program_Tick(alarm_id_t id, void *user_data)
 		case STATE_TRANSITION:
 		{
 			D(DEBUG_BLOB, PRINTF("Transition State:\n");)
-			bs->State = STATE_COMMAND;
-//			transition_step();
+
+            if (!Morph_Step(bs))
+            {
+    			bs->State = STATE_COMMAND;
+            }
 			break;
 		}
 	}
@@ -237,81 +221,32 @@ PUBLIC void Beng_All_Stop(void)
 }
 
 
-PRIVATE void start_program(BENG_STATE* bs, PROG_ID n)
+PUBLIC void Blob_Run(int beng_idx, PROG_ID pnum)
 //
-// Start playing a program.
+// Immediately Start playing a BLOB.  (Cancel any running or queue'd)
 {
-	if (n == 0) 
-    {
-        bs->State = STATE_IDLE; 
-        bs->prog = 0;
-    }
-	else
+    BENG_STATE* bs = Get_Beng_State(beng_idx);
+
+	if (pnum)
 	{
-		D(DEBUG_BLOB, PRINTF("start_program: n %d\n", n);)
-		bs->prog = Prog_Ptr(n);
+        Blob_Stop(bs);
+
+		D(DEBUG_BLOB, PRINTF("Blob_Run: beng_idx %d, program: %d\n", beng_idx, pnum);)
+
+		bs->prog = Prog_Ptr(pnum);
 		bs->State = STATE_COMMAND;
         start_prog_tick(bs);
 	}
-}
-
-PUBLIC void Blob_Run(int beng_idx, PROG_ID pnum)
-{
-	if (pnum)
-	{
-        BENG_STATE* bs = Get_Beng_State(beng_idx);
-
-        Blob_Stop(bs);
-
-		D(DEBUG_BLOB, PRINTF("Blob_Run: n %d, program: %d\n", pnum, pnum);)
-		start_program(bs, pnum);
-	}	
-}
-
-
-PUBLIC void Blob_Run_mask(int beng_mask, PROG_ID pnum)
-{
-    uint32_t mask = 1;
-    int beng_idx = 0;
-
-    while (beng_mask && beng_idx < MAX_BENG)
-    {
-        if (beng_mask & mask)
-        {
-            Blob_Run(beng_idx, pnum);
-            beng_mask &= ~mask;
-        }
-        ++beng_idx;   mask <<= 1;
-    }
+    else { Blob_Stop(bs); }
 }
 
 
 PUBLIC void Blob_Trigger(int beng_idx, TRIG_ID trig_id)
 //
-// Immediately Start playing a BLOB program.  (Cancel any running or queue'd)
+// Immediately Start playing a BLOB on the trigger list.
 {
-	PROG_ID pnum = Get_Trigger_Prog(trig_id);
-    Blob_Run(beng_idx, pnum);
+    Blob_Run(beng_idx, Get_Trigger_Prog(trig_id));
 }
-
-
-PUBLIC void Blob_Trigger_mask(int beng_mask, TRIG_ID trig_id)
-{
-    uint32_t mask = 1;
-    int beng_idx = 0;
-
-    while (beng_mask && beng_idx < MAX_BENG)
-    {
-        if (beng_mask & mask)
-        {
-            Blob_Trigger(beng_idx, trig_id);
-            beng_mask &= ~mask;
-        }
-        ++beng_idx;   mask <<= 1;
-    }
-}
-
-
 
 
 // PUBLIC void Blob_Queue_Next(int bsn, TRIG_ID n
@@ -343,6 +278,7 @@ PRIVATE void Beng_State_Init(BENG_STATE* bs)
 {
     bs->Tick_Speed = 50000;
     bs->program_stack = Stack_Initialize(&bs->program_stack_buffer, PROG_STACK_SIZE);
+    bs->phy_idx = 0xFFFF;
 }
 
 
