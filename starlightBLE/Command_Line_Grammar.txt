@@ -1,0 +1,77 @@
+(* ========================= *)
+(*  TOP-LEVEL INPUT          *)
+(* ========================= *)
+
+    InputLine        ::= CommandLine LF
+
+(* ========================= *)
+(*  COMMAND LINE             *)
+(* ========================= *)
+
+    CommandLine      ::= WS* Command ParameterList?
+                    | WS*                      (* empty line *)
+
+    Command          ::= Word                     (* must match a known command *)
+
+(* ========================= *)
+(*  PARAMETERS               *)
+(* ========================= *)
+
+    ParameterList    ::= WS+ Parameter (WS+ Parameter)*
+
+    Parameter        ::= Number | Word
+
+(* ========================= *)
+(*  NUMBER TYPES             *)
+(* ========================= *)
+
+    Number           ::= Sign? (Int | Hex | Bin | Float | Char)
+
+    Sign             ::= "-" | "+"
+
+(* Integer forms *)
+
+    Int              ::= Digit+                   (* promoted to INT or UINT *)
+
+(* Hexadecimal *)
+
+    Hex              ::= "0x" HexDigit+
+
+(* Binary *)
+
+    Bin              ::= "0b" BinDigit+
+
+(* Floating point *)
+
+    Float            ::= Digit+ "." Digit+        (* strict: must have digits on both sides *)
+
+(* Character literal *)
+
+    Char             ::= "'" AnyChar "'"          (* exactly one character *)
+
+(* ========================= *)
+(*  WORDS                   *)
+(* ========================= *)
+
+    Word             ::= WordChar+
+
+    WordChar         ::= any non-space, non-control ASCII except LF
+
+(* ========================= *)
+(*  LEXICAL CLASSES          *)
+(* ========================= *)
+
+    Digit            ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+
+    BinDigit         ::= "0" | "1"
+
+    HexDigit         ::= Digit
+                    | "a" | "b" | "c" | "d" | "e" | "f"
+                    | "A" | "B" | "C" | "D" | "E" | "F"
+
+    WS               ::= (" " | "\t" | "\r")+
+
+    LF               ::= "\n"
+
+    AnyChar          ::= any ASCII character except "'" and LF
+
